@@ -1,0 +1,621 @@
+{
+  "techTree": {
+    "finalGoal": {
+      "id": "complete_life_freedom",
+      "name": "完全人生自由",
+      "description": "每周工作<20小时，收入覆盖家庭支出+年度旅行，完全自主的生活方式选择权",
+      "requirements": ["financial_independence", "time_sovereignty", "lifestyle_sovereignty"],
+      "icon": "🌈"
+    },
+    "layers": [
+      {
+        "layer": 0,
+        "name": "生理基础层",
+        "description": "建立基本的身体健康和生活规律基础",
+        "technologies": [
+          {
+            "id": "basic_sleep_rhythm",
+            "name": "基础睡眠规律",
+            "icon": "😴",
+            "priority": "A0",
+            "description": "建立固定的睡眠和起床时间",
+            "requirements": [],
+            "action": "第1-7天：固定23:30睡觉时间 | 第8-14天：加上固定7:00起床 | 第15-21天：睡前30分钟无屏幕",
+            "success_metric": "连续21天在固定时间入睡起床，睡眠质量评分≥3分",
+            "unlocks": ["sleep_quality_upgrade", "morning_routine"],
+            "estimated_time": "21天",
+            "automation_reward": "自动睡眠提醒和质量追踪系统",
+            "freq": "每天",
+            "cycle": 21,
+            "target": 18
+          },
+          {
+            "id": "basic_movement",
+            "name": "基础身体活动",
+            "icon": "🚶",
+            "priority": "A0",
+            "description": "建立每日基本身体活动习惯",
+            "requirements": [],
+            "action": "第1-7天：每天散步15分钟 | 第8-14天：增加简单拉伸5分钟 | 第15-21天：加上爬楼梯或快走",
+            "success_metric": "每日活动时间≥20分钟，连续完成21天中的18天",
+            "unlocks": ["exercise_enhancement", "energy_optimization"],
+            "estimated_time": "21天",
+            "automation_reward": "运动提醒和活动量自动追踪",
+            "freq": "每天",
+            "cycle": 21,
+            "target": 18
+          },
+          {
+            "id": "hydration_awareness",
+            "name": "饮水习惯建立",
+            "icon": "💧",
+            "priority": "A0",
+            "description": "建立规律饮水和健康意识",
+            "requirements": [],
+            "action": "第1-7天：起床后立即喝一杯水 | 第8-14天：每2小时提醒喝水 | 第15-21天：记录每日饮水量",
+            "success_metric": "每日饮水量达到8杯，养成主动饮水习惯",
+            "unlocks": ["nutrition_awareness"],
+            "estimated_time": "21天",
+            "automation_reward": "智能饮水提醒和健康数据追踪",
+            "freq": "每天",
+            "cycle": 21,
+            "target": 18
+          },
+          {
+            "id": "sunlight_exposure",
+            "name": "自然光照习惯",
+            "icon": "☀️",
+            "priority": "A0",
+            "description": "每日获得充足自然光照",
+            "requirements": [],
+            "action": "第1-7天：早晨户外10分钟 | 第8-14天：增加午间户外5分钟 | 第15-21天：傍晚散步15分钟",
+            "success_metric": "每日户外光照时间≥30分钟，改善生物钟调节",
+            "unlocks": ["basic_sleep_rhythm", "mood_regulation"],
+            "estimated_time": "21天",
+            "automation_reward": "光照时间追踪和最佳时段提醒",
+            "freq": "每天",
+            "cycle": 21,
+            "target": 18
+          }
+        ]
+      },
+        {
+        "layer": 0.5,
+        "name": "心理基础层",
+        "description": "建立基本的情绪管理和专注力基础",
+        "technologies": [
+          {
+            "id": "emotion_awareness",
+            "name": "情绪觉察训练",
+            "icon": "🎭",
+            "priority": "A0",
+            "description": "培养识别和记录情绪的能力",
+            "requirements": [],
+            "action": "第1-7天：每晚记录今日主要情绪 | 第8-14天：加上情绪触发事件记录 | 第15-21天：尝试情绪调节技巧",
+            "success_metric": "能准确识别6种基本情绪，建立情绪日记习惯",
+            "unlocks": ["stress_management", "mindfulness_training"],
+            "estimated_time": "21天",
+            "automation_reward": "情绪模式分析和调节建议系统",
+            "freq": "每天",
+            "cycle": 21,
+            "target": 18
+          },
+          {
+            "id": "basic_focus",
+            "name": "基础专注力训练",
+            "icon": "🎯",
+            "priority": "A0",
+            "description": "培养基本的注意力集中能力",
+            "requirements": [],
+            "action": "第1-7天：每天5分钟专注呼吸 | 第8-14天：10分钟单任务练习 | 第15-21天：15分钟深度专注训练",
+            "success_metric": "能够连续专注15分钟不被干扰，注意力漂移减少50%",
+            "unlocks": ["deep_work_mastery", "mindfulness_training"],
+            "estimated_time": "21天",
+            "automation_reward": "专注力测试和训练进度追踪系统",
+            "freq": "每天",
+            "cycle": 21,
+            "target": 18
+          },
+          {
+            "id": "gratitude_practice",
+            "name": "感恩练习基础",
+            "icon": "🙏",
+            "priority": "A0",
+            "description": "培养积极心态和感恩意识",
+            "requirements": [],
+            "action": "第1-7天：每晚记录1件感恩事项 | 第8-14天：增加到3件并思考原因 | 第15-21天：向他人表达感恩",
+            "success_metric": "建立感恩日记习惯，积极情绪显著增加",
+            "unlocks": ["positive_mindset", "social_connection"],
+            "estimated_time": "21天",
+            "automation_reward": "感恩提醒和心态追踪系统",
+            "freq": "每天",
+            "cycle": 21,
+            "target": 18
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "name": "基础资源层",
+        "description": "建立透明的资源认知和进阶能力",
+        "technologies": [
+          {
+            "id": "financial_visibility",
+            "name": "财务透明化",
+            "icon": "📊",
+            "priority": "A1",
+            "description": "完全掌握家庭真实财务状况",
+            "requirements": [],
+            "action": "第1周：记录所有支出明细 | 第2-4周：分类统计月度支出 | 第5-8周：建立预算模型 | 第9-12周：预测分析和优化",
+            "success_metric": "月度支出预测误差<5%，明确年度旅行所需预算",
+            "unlocks": ["income_optimization", "expense_automation", "investment_foundation"],
+            "estimated_time": "3个月",
+            "automation_reward": "自动支出分类和预算预警系统",
+            "freq": "每周3次",
+            "cycle": 90,
+            "target": 36
+          },
+          {
+            "id": "skill_assessment",
+            "name": "能力资产盘点",
+            "icon": "🎯",
+            "priority": "A1",
+            "description": "识别当前技能的市场价值和变现潜力",
+            "requirements": [],
+            "action": "第1周：列出所有技能清单 | 第2周：调研市场需求和薪资 | 第3周：评估技能等级 | 第4周：制定3个发展方向",
+            "success_metric": "明确技能变现路径，预估收入提升潜力30%+",
+            "unlocks": ["deep_work_mastery", "expertise_building", "side_income_stream"],
+            "estimated_time": "1个月",
+            "automation_reward": "技能市场价值追踪和学习路径推荐",
+            "freq": "每周2次",
+            "cycle": 30,
+            "target": 8
+          },
+          {
+            "id": "time_audit",
+            "name": "时间资源审计",
+            "icon": "⏰",
+            "priority": "A1",
+            "description": "量化当前时间分配，识别效率瓶颈",
+            "requirements": ["basic_focus"],
+            "action": "第1周：记录所有时间使用 | 第2周：分析时间浪费点和高效时段",
+            "success_metric": "识别出20%可优化时间，明确深度工作最佳时段",
+            "unlocks": ["deep_work_mastery", "automation_systems"],
+            "estimated_time": "2周",
+            "automation_reward": "时间追踪和效率分析自动化工具",
+            "freq": "每天记录",
+            "cycle": 14,
+            "target": 12
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "name": "效率优化层",
+        "description": "提升资源转换效率，建立基础自动化",
+        "technologies": [
+          {
+            "id": "sleep_quality_upgrade",
+            "name": "睡眠质量提升",
+            "icon": "💤",
+            "priority": "B1",
+            "description": "优化睡眠质量，提升精力恢复效率",
+            "requirements": ["basic_sleep_rhythm", "emotion_awareness"],
+            "action": "第1-7天：优化睡前环境(温度、光线、噪音) | 第8-14天：建立睡前仪式 | 第15-21天：记录睡眠质量并调整",
+            "success_metric": "睡眠质量评分≥4分，日间精力充沛度提升50%",
+            "unlocks": ["energy_optimization", "morning_routine"],
+            "estimated_time": "21天",
+            "automation_reward": "睡眠环境自动调节和质量分析系统",
+            "freq": "每天",
+            "cycle": 21,
+            "target": 18
+          },
+          {
+            "id": "income_optimization",
+            "name": "主收入流优化",
+            "icon": "💼",
+            "priority": "B1",
+            "description": "提升当前工作的收入效率",
+            "requirements": ["financial_visibility", "skill_assessment"],
+            "action": "第1-2月：技能提升计划执行 | 第3-4月：绩效优化和成果展示 | 第5-6月：薪资谈判和职业发展",
+            "success_metric": "月收入增长至家庭支出的150%，获得加薪或晋升",
+            "unlocks": ["investment_foundation", "flexible_work_negotiation"],
+            "estimated_time": "6个月",
+            "automation_reward": "绩效追踪和职业发展自动提醒系统",
+            "freq": "每周2次",
+            "cycle": 180,
+            "target": 48
+          },
+          {
+            "id": "deep_work_mastery",
+            "name": "深度工作精通",
+            "icon": "🔥",
+            "priority": "B1",
+            "description": "建立3小时连续深度工作能力",
+            "requirements": ["basic_focus", "time_audit"],
+            "action": "第1周：30分钟深度工作块 | 第2-4周：逐步延长到90分钟 | 第5-8周：达到3小时连续专注",
+            "success_metric": "同样工作量耗时减少40%，质量显著提升",
+            "unlocks": ["automation_systems", "expertise_building", "side_income_stream"],
+            "estimated_time": "2个月",
+            "automation_reward": "注意力管理和干扰屏蔽自动化系统",
+            "freq": "每工作日",
+            "cycle": 60,
+            "target": 40
+          },
+          {
+            "id": "expense_automation",
+            "name": "支出自动化",
+            "icon": "🤖",
+            "priority": "B2",
+            "description": "自动化日常财务管理",
+            "requirements": ["financial_visibility"],
+            "action": "第1周：设置自动转账和投资 | 第2周：自动账单支付 | 第3-4周：建立财务仪表板和预警",
+            "success_metric": "90%日常财务操作实现自动化，理财时间减少80%",
+            "unlocks": ["investment_foundation", "travel_fund_automation"],
+            "estimated_time": "1个月",
+            "automation_reward": "智能财务管理机器人",
+            "freq": "每周2次",
+            "cycle": 30,
+            "target": 8
+          },
+          {
+            "id": "exercise_enhancement",
+            "name": "运动能力提升",
+            "icon": "🏃",
+            "priority": "B2",
+            "description": "从基础活动升级到结构化运动",
+            "requirements": ["basic_movement", "sleep_quality_upgrade"],
+            "action": "第1-2周：增加力量训练(俯卧撑、深蹲) | 第3-4周：有氧运动30分钟 | 第5-8周：制定完整训练计划",
+            "success_metric": "体能测试提升30%，运动成为享受而非负担",
+            "unlocks": ["energy_optimization", "stress_management"],
+            "estimated_time": "2个月",
+            "automation_reward": "个性化训练计划和进度追踪系统",
+            "freq": "每周3次",
+            "cycle": 60,
+            "target": 24
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "name": "系统建设层",
+        "description": "建立收入多样化和工作灵活化系统",
+        "technologies": [
+          {
+            "id": "investment_foundation",
+            "name": "投资体系建立",
+            "icon": "📈",
+            "priority": "C1",
+            "description": "建立长期被动收入基础",
+            "requirements": ["financial_visibility", "income_optimization", "expense_automation"],
+            "action": "第1月：学习投资基础知识 | 第2月：建立投资账户和策略 | 第3月：开始定投和风险管理",
+            "success_metric": "投资收益达到月支出的20%，建立稳健投资组合",
+            "unlocks": ["passive_income_scaling", "travel_fund_automation"],
+            "estimated_time": "3个月",
+            "automation_reward": "智能投资组合管理和再平衡系统",
+            "freq": "每周1次",
+            "cycle": 90,
+            "target": 12
+          },
+          {
+            "id": "automation_systems",
+            "name": "工作自动化系统",
+            "icon": "⚡",
+            "priority": "C1",
+            "description": "将重复性工作自动化或委托",
+            "requirements": ["deep_work_mastery", "time_audit"],
+            "action": "第1月：识别重复性任务 | 第2-3月：开发自动化工具 | 第4月：优化和扩展自动化范围",
+            "success_metric": "日常工作时间减少50%，产出质量不降低",
+            "unlocks": ["flexible_work_negotiation", "side_income_stream"],
+            "estimated_time": "4个月",
+            "automation_reward": "AI工具集成和任务调度自动化平台",
+            "freq": "每周3次",
+            "cycle": 120,
+            "target": 48
+          },
+          {
+            "id": "expertise_building",
+            "name": "专业影响力建设",
+            "icon": "🌟",
+            "priority": "C1",
+            "description": "在专业领域建立专家声誉",
+            "requirements": ["skill_assessment", "deep_work_mastery"],
+            "action": "第1-2月：确定专业定位和内容方向 | 第3-5月：持续输出专业内容 | 第6-8月：建立专业网络和影响力",
+            "success_metric": "获得专业认可，拥有1000+专业粉丝",
+            "unlocks": ["consulting_income", "platform_monetization"],
+            "estimated_time": "8个月",
+            "automation_reward": "个人品牌管理和内容创作自动化工具",
+            "freq": "每周3次",
+            "cycle": 240,
+            "target": 96
+          },
+          {
+            "id": "energy_optimization",
+            "name": "精力管理优化",
+            "icon": "⚡",
+            "priority": "C2",
+            "description": "优化日常精力分配和恢复",
+            "requirements": ["exercise_enhancement", "sleep_quality_upgrade"],
+            "action": "第1-2周：识别精力高峰和低谷时段 | 第3-4周：调整日程安排 | 第5-8周：建立精力恢复系统",
+            "success_metric": "日常精力水平提升40%，下午不再疲惫",
+            "unlocks": ["morning_routine", "stress_management"],
+            "estimated_time": "2个月",
+            "automation_reward": "精力水平追踪和最佳时段推荐系统",
+            "freq": "每天",
+            "cycle": 60,
+            "target": 50
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "name": "收入多元化层",
+        "description": "建立多个收入来源，减少对单一工作的依赖",
+        "technologies": [
+          {
+            "id": "side_income_stream",
+            "name": "副业收入流",
+            "icon": "💡",
+            "priority": "D1",
+            "description": "基于技能建立副业收入",
+            "requirements": ["deep_work_mastery", "automation_systems"],
+            "action": "第1-2月：市场调研和副业方向确定 | 第3-4月：产品/服务开发 | 第5-6月：推广和收入优化",
+            "success_metric": "副业月收入达到主业收入的30%",
+            "unlocks": ["consulting_income", "passive_income_scaling"],
+            "estimated_time": "6个月",
+            "automation_reward": "副业客户管理和收入追踪系统",
+            "freq": "每周4次",
+            "cycle": 180,
+            "target": 96
+          },
+          {
+            "id": "consulting_income",
+            "name": "咨询收入系统",
+            "icon": "🎓",
+            "priority": "D1",
+            "description": "基于专业影响力提供咨询服务",
+            "requirements": ["expertise_building", "side_income_stream"],
+            "action": "第1月：包装咨询服务和定价 | 第2-3月：获取前3个付费客户 | 第4月：优化服务流程和扩展",
+            "success_metric": "月咨询收入达到家庭支出的50%，时薪200+",
+            "unlocks": ["flexible_work_negotiation", "platform_monetization"],
+            "estimated_time": "4个月",
+            "automation_reward": "咨询预约和项目管理自动化系统",
+            "freq": "每周3次",
+            "cycle": 120,
+            "target": 48
+          },
+          {
+            "id": "travel_fund_automation",
+            "name": "旅行基金自动化",
+            "icon": "✈️",
+            "priority": "D2",
+            "description": "建立专门的年度旅行资金系统",
+            "requirements": ["expense_automation", "investment_foundation"],
+            "action": "第1周：计算年度旅行预算 | 第2-4周：设置自动储蓄和投资增值 | 第5-8周：优化收益和风险平衡",
+            "success_metric": "每年自动积累旅行资金8000+，无需额外规划",
+            "unlocks": ["lifestyle_sovereignty"],
+            "estimated_time": "2个月",
+            "automation_reward": "旅行基金自动投资和目标达成提醒",
+            "freq": "每月1次",
+            "cycle": 60,
+            "target": 2
+          },
+          {
+            "id": "stress_management",
+            "name": "压力管理系统",
+            "icon": "🧘",
+            "priority": "D2",
+            "description": "建立有效的压力识别和缓解机制",
+            "requirements": ["emotion_awareness", "energy_optimization"],
+            "action": "第1-2周：学习压力识别技巧 | 第3-4周：尝试不同缓解方法 | 第5-8周：建立个人压力管理工具箱",
+            "success_metric": "压力水平降低50%，处理压力的能力显著提升",
+            "unlocks": ["mindfulness_training", "work_life_balance"],
+            "estimated_time": "2个月",
+            "automation_reward": "压力水平监测和缓解建议系统",
+            "freq": "每周2次",
+            "cycle": 60,
+            "target": 16
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "name": "工作自主化层",
+        "description": "获得工作时间和方式的选择权",
+        "technologies": [
+          {
+            "id": "flexible_work_negotiation",
+            "name": "弹性工作协商",
+            "icon": "🤝",
+            "priority": "E1",
+            "description": "基于高绩效获得灵活工作安排",
+            "requirements": ["income_optimization", "automation_systems", "consulting_income"],
+            "action": "第1月：收集绩效证据和价值证明 | 第2月：制定弹性工作提案 | 第3月：协商和试行弹性安排",
+            "success_metric": "获得每周至少3天远程工作权，工作时间自主度提升70%",
+            "unlocks": ["time_sovereignty"],
+            "estimated_time": "3个月",
+            "automation_reward": "远程工作效率监控和成果展示系统",
+            "freq": "每月2次",
+            "cycle": 90,
+            "target": 6
+          },
+          {
+            "id": "passive_income_scaling",
+            "name": "被动收入规模化",
+            "icon": "🚀",
+            "priority": "E1",
+            "description": "扩大投资和被动收入规模",
+            "requirements": ["investment_foundation", "side_income_stream"],
+            "action": "第1-6月：将副业收入投入投资组合 | 第7-12月：优化投资策略和复利增长",
+            "success_metric": "被动收入达到家庭支出的70%",
+            "unlocks": ["financial_independence"],
+            "estimated_time": "12个月",
+            "automation_reward": "全自动财富增长和风险管理系统",
+            "freq": "每月1次",
+            "cycle": 360,
+            "target": 12
+          },
+          {
+            "id": "platform_monetization",
+            "name": "平台变现优化",
+            "icon": "💰",
+            "priority": "E1",
+            "description": "将个人影响力转化为多种收入",
+            "requirements": ["expertise_building", "consulting_income"],
+            "action": "第1-2月：开发数字产品(课程、电子书) | 第3-4月：建立会员社群 | 第5-6月：多渠道变现优化",
+            "success_metric": "平台月收入达到家庭支出的40%",
+            "unlocks": ["lifestyle_sovereignty"],
+            "estimated_time": "6个月",
+            "automation_reward": "多渠道变现和客户生命周期管理系统",
+            "freq": "每周3次",
+            "cycle": 180,
+            "target": 72
+          },
+          {
+            "id": "morning_routine",
+            "name": "高效晨间例程",
+            "icon": "🌅",
+            "priority": "E2",
+            "description": "建立为全天注入活力的晨间仪式",
+            "requirements": ["energy_optimization", "basic_sleep_rhythm"],
+            "action": "第1周：设计个人晨间流程 | 第2-3周：逐步完善和固化 | 第4周：评估效果和微调",
+            "success_metric": "晨间效率提升60%，全天精力更充沛",
+            "unlocks": ["mindfulness_training", "time_sovereignty"],
+            "estimated_time": "1个月",
+            "automation_reward": "智能晨间提醒和流程优化系统",
+            "freq": "每天",
+            "cycle": 30,
+            "target": 25
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "name": "终极自由层",
+        "description": "实现时间、财务和生活方式的完全自主",
+        "technologies": [
+          {
+            "id": "financial_independence",
+            "name": "财务独立达成",
+            "icon": "💎",
+            "priority": "F1",
+            "description": "被动收入完全覆盖家庭支出",
+            "requirements": ["passive_income_scaling"],
+            "action": "第1-12月：持续优化投资组合 | 第13-18月：达到财务独立临界点并建立安全边际",
+            "success_metric": "无需工作收入即可维持当前生活水平，被动收入达到月支出120%",
+            "unlocks": ["complete_life_freedom"],
+            "estimated_time": "18个月",
+            "automation_reward": "财富保值增值全自动管理系统",
+            "freq": "每季度1次",
+            "cycle": 540,
+            "target": 6
+          },
+          {
+            "id": "time_sovereignty",
+            "name": "时间主权实现",
+            "icon": "👑",
+            "priority": "F1",
+            "description": "工作时间降至每周20小时以下",
+            "requirements": ["flexible_work_negotiation", "morning_routine"],
+            "action": "第1-3月：逐步减少工作时间 | 第4-6月：转为项目制/咨询制工作模式",
+            "success_metric": "每周工作时间<20小时，收入不减反增",
+            "unlocks": ["complete_life_freedom"],
+            "estimated_time": "6个月",
+            "automation_reward": "时间价值最大化和机会筛选系统",
+            "freq": "每月1次",
+            "cycle": 180,
+            "target": 6
+          },
+          {
+            "id": "lifestyle_sovereignty",
+            "name": "生活方式主权",
+            "icon": "🎮",
+            "priority": "F1",
+            "description": "完全按个人偏好安排生活",
+            "requirements": ["travel_fund_automation", "platform_monetization"],
+            "action": "持续优化：想游戏就游戏、想旅行就旅行、想学习就学习的生活状态",
+            "success_metric": "个人时间100%自主支配，年度旅行无经济压力",
+            "unlocks": ["complete_life_freedom"],
+            "estimated_time": "持续过程",
+            "automation_reward": "生活方式偏好学习和个性化推荐系统",
+            "freq": "每天",
+            "cycle": 365,
+            "target": 300
+          },
+          {
+            "id": "mindfulness_training",
+            "name": "正念冥想精通",
+            "icon": "🧘‍♀️",
+            "priority": "F2",
+            "description": "达到深度正念状态，内心平静自如",
+            "requirements": ["stress_management", "morning_routine"],
+            "action": "第1-2周：每日10分钟基础冥想 | 第3-4周：增加到20分钟并学习不同技巧 | 第5-8周：融入日常生活的正念练习",
+            "success_metric": "能随时进入正念状态，内心平静度和专注力显著提升",
+            "unlocks": ["complete_life_freedom"],
+            "estimated_time": "2个月",
+            "automation_reward": "冥想进度追踪和个性化指导系统",
+            "freq": "每天",
+            "cycle": 60,
+            "target": 50
+          }
+        ]
+      }
+    ],
+    "dependencyMap": {
+      "criticalPath": [
+        "basic_sleep_rhythm → sleep_quality_upgrade → energy_optimization → morning_routine → time_sovereignty",
+        "financial_visibility → income_optimization → investment_foundation → passive_income_scaling → financial_independence",
+        "basic_focus → deep_work_mastery → automation_systems → flexible_work_negotiation → time_sovereignty",
+        "skill_assessment → expertise_building → consulting_income → platform_monetization → lifestyle_sovereignty"
+      ],
+      "parallelTracks": {
+        "foundation_track": ["basic_sleep_rhythm", "basic_movement", "hydration_awareness", "sunlight_exposure", "emotion_awareness", "basic_focus", "gratitude_practice"],
+        "resource_track": ["financial_visibility", "skill_assessment", "time_audit"],
+        "optimization_track": ["sleep_quality_upgrade", "income_optimization", "deep_work_mastery", "expense_automation", "exercise_enhancement"],
+        "system_track": ["investment_foundation", "automation_systems", "expertise_building", "energy_optimization"],
+        "diversification_track": ["side_income_stream", "consulting_income", "travel_fund_automation", "stress_management"],
+        "independence_track": ["flexible_work_negotiation", "passive_income_scaling", "platform_monetization", "morning_routine"],
+        "freedom_track": ["financial_independence", "time_sovereignty", "lifestyle_sovereignty", "mindfulness_training"]
+      },
+      "crossDependencies": [
+        {
+          "tech": "sleep_quality_upgrade",
+          "requires_from_multiple_tracks": ["basic_sleep_rhythm", "emotion_awareness"]
+        },
+        {
+          "tech": "energy_optimization",
+          "requires_from_multiple_tracks": ["exercise_enhancement", "sleep_quality_upgrade"]
+        },
+        {
+          "tech": "consulting_income",
+          "requires_from_multiple_tracks": ["expertise_building", "side_income_stream"]
+        },
+        {
+          "tech": "passive_income_scaling", 
+          "requires_from_multiple_tracks": ["investment_foundation", "side_income_stream"]
+        },
+        {
+          "tech": "complete_life_freedom",
+          "requires_all_final": ["financial_independence", "time_sovereignty", "lifestyle_sovereignty"]
+        }
+      ]
+    },
+    "estimatedTimeline": {
+      "phase0_foundation": "1-2个月（基础习惯建立）",
+      "phase1_resource": "3-4个月（资源认知和盘点）", 
+      "phase2_optimization": "6-8个月（效率和质量提升）",
+      "phase3_system": "8-12个月（系统化建设）",
+      "phase4_diversification": "12-18个月（收入多元化）",
+      "phase5_independence": "18-24个月（工作自主化）",
+      "phase6_complete_freedom": "24-30个月（完全自由实现）",
+      "total_estimated": "2.5-3年实现完全人生自由"
+    },
+    "categories": {
+      "physiological": ["basic_sleep_rhythm", "basic_movement", "hydration_awareness", "sunlight_exposure", "sleep_quality_upgrade", "exercise_enhancement"],
+      "psychological": ["emotion_awareness", "basic_focus", "gratitude_practice", "stress_management", "mindfulness_training"],
+      "financial": ["financial_visibility", "income_optimization", "expense_automation", "investment_foundation", "passive_income_scaling", "financial_independence"],
+      "professional": ["skill_assessment", "deep_work_mastery", "expertise_building", "side_income_stream", "consulting_income", "platform_monetization"],
+      "lifestyle": ["time_audit", "automation_systems", "energy_optimization", "morning_routine", "travel_fund_automation", "flexible_work_negotiation", "time_sovereignty", "lifestyle_sovereignty"]
+    }
+  }
+}
