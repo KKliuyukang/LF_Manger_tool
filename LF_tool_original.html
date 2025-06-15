@@ -1,0 +1,1951 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Factory Manager Tool</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="LF_tool.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase compat CDN依赖，必须在LF_tool.js之前 -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+    <!-- 独立的科技树模块 -->
+    <script src="tech_tree.js?v=2.0"></script>
+</head>
+<body style="--font-family: 'Helvetica Neue', Arial, sans-serif;">
+    <div id="loading-overlay">
+        <div class="container">
+            <div class="header">
+                <h1>⚙️ Life Factorio</h1>
+                <p>构建你的人生自动化工厂</p>
+                <div id="sync-status" style="position:absolute;top:18px;right:32px;font-size:0.98em;color:#888;"></div>
+            </div>
+
+            <div class="main-grid">
+                <!-- 左侧：生产线 -->
+                <div class="panel" style="grid-area: production;">
+                    <h2 class="panel-title"><span class="conveyor-belt">⚙️</span><span>生产线</span></h2>
+                    <div id="productions-list"></div>
+                    <button class="btn btn-add" onclick="window.showProductionModal()">+ 添加生产线</button>
+                </div>
+                
+                <!-- 中间列：日历 + 研发中心 -->
+                <div class="middle-column">
+                    <!-- 日历 -->
+                    <div id="week-calendar" class="panel"></div>
+                    <!-- 研发中心 -->
+                    <div class="panel research-panel">
+                        <h2 class="panel-title"><span class="factory-icon">🏭</span><span>研发中心</span></h2>
+                        <button class="btn dev-library-btn" onclick="window.__devLibraryManualOpen=true; renderDevLibrary();">📚 打开研发库</button>
+                        <div id="active-developments"></div>
+                    </div>
+                </div>
+                
+                <!-- 右侧：资源 & 支出 -->
+                <div style="grid-area: status; display:flex; flex-direction:column; gap:20px;">
+                    <div id="resource-panel" class="panel">
+                        <h2 class="panel-title"><span>📊</span><span>资源数据统计</span></h2>
+                        <div id="resource-stats"></div>
+                    </div>
+                    <div id="expenses-panel" class="panel">
+                        <h2 class="panel-title"><span>💸</span><span>支出管理</span></h2>
+                        <div id="expenses-list"></div>
+                        <button class="btn btn-add" onclick="window.showExpenseModal()">+ 添加支出</button>
+                    </div>
+                </div>
+                
+                <!-- 底部：里程碑 -->
+                <div class="panel" style="grid-area: milestones;">
+                    <h2 class="panel-title"><span>🎯</span><span>里程碑</span></h2>
+                    <div class="experience-section" id="experiences-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div class="context-menu" id="context-menu">
+        <div class="context-menu-item" onclick="window.editContextItem()">编辑</div>
+        <div class="context-menu-item" onclick="window.removeContextItem()">删除</div>
+        <div class="context-menu-item" onclick="window.recordTimeContextItem()">记录用时</div>
+        <div class="context-menu-item" onclick="window.clearTimeContextItem()">清除用时</div>
+    </div>
+
+    <!-- 生产线编辑模态框 -->
+    <div id="production-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">编辑生产线</h3>
+            <form id="production-form">
+                <div class="form-group">
+                    <label class="form-label">生产线名称</label>
+                    <input type="text" class="form-input" id="prod-name" required>
+                </div>
+                <!-- 生活类历史标签 -->
+                <div class="form-group" id="lifestyle-history-group" style="display:none;">
+                    <label class="form-label">历史生活项目 (点击快速选择)</label>
+                    <div id="lifestyle-history-tags" class="lifestyle-tag-container"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">类型</label>
+                    <select class="form-select" id="prod-type">
+                        <option value="production">产线（需要投入时间换收入，如全职工作、副业等）</option>
+                        <option value="investment">资产（如股票、债券、房地产等，统计支出和被动收入）</option>
+                        <option value="automation">自动化（长期培养的习惯或行为，主要用于打卡记录）</option>
+                        <option value="lifestyle">日常（日常行为记录，如娱乐、社交、学习等）</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="income-type-group">
+                    <label class="form-label">
+                        <input type="checkbox" class="form-checkbox" id="has-active-income">
+                        有主动收入
+                    </label>
+                    <div class="form-row" id="active-income-row" style="display: none; margin-top: 10px;">
+                        <input type="number" class="form-input" id="active-amount" placeholder="金额">
+                        <select class="form-select" id="active-currency">
+                            <option value="CNY">人民币 ¥</option>
+                            <option value="AUD">澳元 A$</option>
+                            <option value="USD">美元 $</option>
+                            <option value="EUR">欧元 €</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" class="form-checkbox" id="has-passive-income">
+                        有被动收入
+                    </label>
+                    <div class="form-row" id="passive-income-row" style="display: none; margin-top: 10px;">
+                        <input type="number" class="form-input" id="passive-amount" placeholder="金额">
+                        <select class="form-select" id="passive-currency">
+                            <option value="CNY">人民币 ¥</option>
+                            <option value="AUD">澳元 A$</option>
+                            <option value="USD">美元 $</option>
+                            <option value="EUR">欧元 €</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" id="expense-group" style="display: none;">
+                    <label class="form-label">支出金额</label>
+                    <div class="form-row">
+                        <input type="number" class="form-input" id="prod-expense-amount" placeholder="金额">
+                        <select class="form-select" id="prod-expense-currency">
+                            <option value="CNY">人民币 ¥</option>
+                            <option value="AUD">澳元 A$</option>
+                            <option value="USD">美元 $</option>
+                            <option value="EUR">欧元 €</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" id="linked-dev-group">
+                    <label class="form-label">关联研发项目（可选）</label>
+                    <select class="form-select" id="linked-dev">
+                        <option value="">无</option>
+                    </select>
+                </div>
+                <!-- 投资类专属字段 -->
+                <div id="investment-fields" style="display:none;">
+                    <div class="form-group">
+                        <label class="form-label">投入金额</label>
+                        <div class="form-row">
+                            <input type="number" class="form-input" id="invest-amount" placeholder="投入金额">
+                            <select class="form-select" id="invest-currency">
+                                <option value="CNY">人民币 ¥</option>
+                                <option value="AUD">澳元 A$</option>
+                                <option value="USD">美元 $</option>
+                                <option value="EUR">欧元 €</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">投入时间</label>
+                        <input type="date" class="form-input" id="invest-date">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">当前价值</label>
+                        <div class="form-row">
+                            <input type="number" class="form-input" id="invest-current" placeholder="当前价值">
+                            <select class="form-select" id="invest-current-currency">
+                                <option value="CNY">人民币 ¥</option>
+                                <option value="AUD">澳元 A$</option>
+                                <option value="USD">美元 $</option>
+                                <option value="EUR">欧元 €</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="window.closeModal('production-modal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 研发库模态框 -->
+    <div id="dev-library-modal" class="modal">
+        <div class="modal-content">
+            <div class="dev-library-grid" id="dev-library-list"></div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('dev-library-modal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 研究详情弹窗 -->
+    <div id="research-detail-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px; width: 90%; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+            <div class="modal-header">
+                <h3 id="research-title" class="modal-title"></h3>
+                <button class="modal-close" onclick="window.closeModal('research-detail-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="research-description" class="modal-description"></p>
+                <div id="research-requirements" class="modal-requirements"></div>
+            </div>
+            <div class="modal-footer">
+                <div class="create-production-checkbox">
+                    <input type="checkbox" id="create-production-checkbox">
+                    <label for="create-production-checkbox">创建对应的生产线</label>
+                </div>
+                <div class="modal-buttons">
+                    <button id="start-research-button" class="btn btn-primary">开始研究</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* 研发库弹窗样式 */
+        #dev-library-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        #dev-library-modal .modal-content {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 研究详情弹窗样式 */
+        #research-detail-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+        }
+
+        #research-detail-modal .modal-content {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #research-detail-modal .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        #research-detail-modal .modal-title {
+            font-size: 1.5em;
+            color: #3498db;
+            margin: 0;
+        }
+
+        #research-detail-modal .modal-close {
+            background: none;
+            border: none;
+            color: #95a5a6;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        #research-detail-modal .modal-close:hover {
+            color: #e74c3c;
+        }
+
+        #research-detail-modal .modal-body {
+            margin-bottom: 20px;
+        }
+
+        #research-detail-modal .modal-description {
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        #research-detail-modal .modal-requirements {
+            margin-bottom: 15px;
+        }
+
+        #research-detail-modal .requirement {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 0 5px 5px 0;
+            background-color: #34495e;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        #research-detail-modal .requirement.completed {
+            background-color: #27ae60;
+        }
+
+        #research-detail-modal .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #34495e;
+        }
+
+        #research-detail-modal .create-production-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #95a5a6;
+            font-size: 0.9em;
+        }
+
+        #research-detail-modal .create-production-checkbox input {
+            margin: 0;
+            width: 16px;
+            height: 16px;
+        }
+
+        #research-detail-modal .create-production-checkbox label {
+            cursor: pointer;
+        }
+    </style>
+
+    <!-- 操作按钮 (已移除，功能集成到数据管理中) -->
+
+    <!-- 记录用时弹窗 -->
+    <dialog id="record-time-dialog" style="border:none;border-radius:12px;box-shadow:0 4px 24px #0002;padding:0;max-width:340px;width:96vw;">
+      <form method="dialog" id="record-time-form" style="padding:24px 20px 16px 20px;">
+        <h3 style="margin-bottom:16px;font-size:1.15em;">记录用时</h3>
+        <div class="form-group">
+          <label class="form-label">日期</label>
+          <input type="date" class="form-input" id="rt-date">
+                            </div>
+        <div class="form-group">
+          <label class="form-label">起始时间</label>
+          <input type="time" class="form-input" id="rt-start">
+                        </div>
+        <div class="form-group">
+          <label class="form-label">结束时间</label>
+          <input type="time" class="form-input" id="rt-end">
+                            </div>
+        <div style="margin:12px 0 16px 0;">
+          <div style="font-size:0.95em;color:#888;margin-bottom:8px;text-align:center;">快速时长设置</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">
+            <button type="button" class="time-btn time-btn-forward" onclick="window.timeButtonClick(this, 'forward', 15)" title="点击叠加：开始时间向前推15分钟">⏪ 15分</button>
+            <button type="button" class="time-btn time-btn-forward" onclick="window.timeButtonClick(this, 'forward', 30)" title="点击叠加：开始时间向前推30分钟">⏪ 30分</button>
+            <button type="button" class="time-btn time-btn-forward" onclick="window.timeButtonClick(this, 'forward', 60)" title="点击叠加：开始时间向前推1小时">⏪ 1时</button>
+            <button type="button" class="time-btn time-btn-forward" onclick="window.timeButtonClick(this, 'forward', 120)" title="点击叠加：开始时间向前推2小时">⏪ 2时</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+            <button type="button" class="time-btn time-btn-backward" onclick="window.timeButtonClick(this, 'backward', 15)" title="点击叠加：结束时间向后推15分钟">15分 ⏩</button>
+            <button type="button" class="time-btn time-btn-backward" onclick="window.timeButtonClick(this, 'backward', 30)" title="点击叠加：结束时间向后推30分钟">30分 ⏩</button>
+            <button type="button" class="time-btn time-btn-backward" onclick="window.timeButtonClick(this, 'backward', 60)" title="点击叠加：结束时间向后推1小时">1时 ⏩</button>
+            <button type="button" class="time-btn time-btn-backward" onclick="window.timeButtonClick(this, 'backward', 120)" title="点击叠加：结束时间向后推2小时">2时 ⏩</button>
+          </div>
+                    </div>
+        <div class="modal-buttons">
+          <button type="submit" class="btn btn-primary">保存</button>
+          <button type="button" class="btn btn-secondary" onclick="window.closeRecordTimeDialog()">取消</button>
+                                    </div>
+      </form>
+    </dialog>
+
+    <!-- 自定义模态框（弹窗）挂载点 -->
+    <div id="custom-modal" class="modal" style="display:none;"></div>
+
+    <!-- 支出编辑模态框 -->
+    <div id="expense-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">编辑支出</h3>
+            <form id="expense-form">
+                <div class="form-group">
+                    <label class="form-label">支出名称</label>
+                    <input type="text" class="form-input" id="expense-name" required>
+                                    </div>
+                <div class="form-group">
+                    <label class="form-label">金额</label>
+                    <input type="text" class="form-input" id="expense-amount" required autocomplete="off" inputmode="decimal">
+                                    </div>
+                <div class="form-group">
+                    <label class="form-label">币种</label>
+                    <select class="form-select" id="expense-currency">
+                        <option value="CNY">人民币 ¥</option>
+                        <option value="AUD">澳元 A$</option>
+                        <option value="USD">美元 $</option>
+                        <option value="EUR">欧元 €</option>
+                    </select>
+                                </div>
+                <div class="form-group">
+                    <label class="form-label">支出时间</label>
+                    <input type="date" class="form-input" id="expense-date" required>
+                                    </div>
+                <div class="form-group">
+                    <label class="form-label">类型</label>
+                    <select class="form-select" id="expense-type">
+                        <option value="single">单次支出</option>
+                        <option value="recurring">固定支出</option>
+                    </select>
+                                    </div>
+                <div class="form-group" id="expense-frequency-group" style="display:none;">
+                    <label class="form-label">频率</label>
+                    <select class="form-select" id="expense-frequency">
+                        <option value="monthly">每月</option>
+                        <option value="biweekly">每2周</option>
+                        <option value="yearly">每年</option>
+                    </select>
+                                </div>
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <input type="text" class="form-input" id="expense-remark">
+                                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="window.closeModal('expense-modal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                            </div>
+            </form>
+                </div>
+    </div>
+
+    <!-- 研发库管理弹窗 -->
+    <div id="dev-library-manage-modal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <h3 class="modal-title">研发库管理</h3>
+            <div style="margin-bottom:12px;">
+                <button class="btn btn-primary" onclick="window.exportDevLibrary()">导出研发库</button>
+                <button class="btn btn-secondary" onclick="window.showImportDevLibrary()">批量导入/粘贴</button>
+                <button class="btn btn-add" onclick="window.showAddDevLibraryItem()">+ 新增研发项目</button>
+                                </div>
+            <div id="dev-library-manage-list"></div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('dev-library-manage-modal')">关闭</button>
+                            </div>
+                                </div>
+                            </div>
+    <!-- 研发库批量导入弹窗 -->
+    <div id="dev-library-import-modal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <h3 class="modal-title">批量导入/粘贴研发库</h3>
+            <div style="margin-bottom:10px;">请粘贴JSON数组，每项需包含：icon, category, researchName, prodName, freq, cycle, target, action, science</div>
+            <textarea id="dev-library-import-text" style="width:100%;height:120px;"></textarea>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-primary" onclick="window.importDevLibrary()">导入</button>
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('dev-library-import-modal')">取消</button>
+                        </div>
+        </div>
+    </div>
+
+    <!-- 研发库管理按钮 (已移除) -->
+
+    <!-- 里程碑管理弹窗 -->
+    <div id="milestone-manage-modal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <h3 class="modal-title">里程碑管理</h3>
+            <div style="margin-bottom:12px;">
+                <button class="btn btn-primary" onclick="window.exportMilestones()">导出里程碑</button>
+                <button class="btn btn-secondary" onclick="window.showImportMilestones()">批量导入/粘贴</button>
+                <button class="btn btn-add" onclick="window.showAddMilestoneItem()">+ 新增里程碑</button>
+                    </div>
+            <div id="milestone-manage-list"></div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('milestone-manage-modal')">关闭</button>
+                </div>
+        </div>
+    </div>
+    <!-- 里程碑批量导入弹窗 -->
+    <div id="milestone-import-modal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <h3 class="modal-title">批量导入/粘贴里程碑</h3>
+            <div style="margin-bottom:10px;">请粘贴JSON数组，每项需包含：name, desc, count, repeatable, difficulty</div>
+            <textarea id="milestone-import-text" style="width:100%;height:120px;"></textarea>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-primary" onclick="window.importMilestones()">导入</button>
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('milestone-import-modal')">取消</button>
+            </div>
+        </div>
+    </div>
+    <!-- 数据管理按钮 -->
+    <button class="btn btn-secondary" style="position:fixed;top:18px;left:32px;z-index:100;" onclick="window.showDataManagePanel()">💾 数据管理</button>
+
+    <!-- 时间记录统计面板 -->
+    <div id="time-records-modal" class="modal">
+        <div class="modal-content" style="max-width:800px;max-height:80vh;overflow-y:auto;">
+            <h3 class="modal-title">时间记录统计</h3>
+            
+            <!-- 时间范围选择 -->
+            <div style="margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn btn-small" onclick="window.showTimeRecords('today')">今天</button>
+                <button class="btn btn-small" onclick="window.showTimeRecords('week')">本周</button>
+                <button class="btn btn-small" onclick="window.showTimeRecords('lastWeek')">上周</button>
+                <button class="btn btn-small" onclick="window.showTimeRecords('month')">本月</button>
+                <button class="btn btn-small" onclick="window.showTimeRecords('lastMonth')">上月</button>
+                <button class="btn btn-small" onclick="window.showTimeRecords('year')">今年</button>
+                <button class="btn btn-small" onclick="window.showTimeRecords('all')">全部</button>
+            </div>
+            
+            <!-- 统计结果显示区域 -->
+            <div id="time-records-content"></div>
+            
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('time-records-modal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据管理面板 -->
+    <div id="data-manage-modal" class="modal">
+        <div class="modal-content" style="max-width:600px;max-height:80vh;overflow-y:auto;">
+            <h3 class="modal-title">💾 数据管理中心</h3>
+            
+            <!-- 状态信息 -->
+            <div id="data-status-info" style="background:#f8f9fa;border-radius:8px;padding:15px;margin-bottom:20px;">
+                <div style="font-weight:bold;margin-bottom:10px;">📊 当前状态</div>
+                <div id="status-details"></div>
+            </div>
+            
+            <!-- 家庭码管理 -->
+            <div style="background:#fff3cd;border-radius:8px;padding:15px;margin-bottom:20px;">
+                <div style="font-weight:bold;margin-bottom:10px;">🏠 家庭码管理</div>
+                <div style="margin-bottom:10px;">
+                    <span>当前家庭码：</span>
+                    <code id="current-family-code" style="background:#e9ecef;padding:4px 8px;border-radius:4px;"></code>
+                    <button class="btn btn-small btn-secondary" onclick="window.copyFamilyCode()" style="margin-left:8px;">📋 复制</button>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <input type="text" id="new-family-code" placeholder="输入新的家庭码" class="form-input" style="width:200px;display:inline-block;margin-right:8px;">
+                    <button class="btn btn-small btn-primary" onclick="window.changeFamilyCode()">🔄 更换</button>
+                </div>
+                <div style="font-size:0.9em;color:#666;">
+                    ⚠️ 更换家庭码会切换到新的云端数据空间
+                </div>
+            </div>
+            
+            <!-- 手动备份恢复 -->
+            <div style="background:#d1ecf1;border-radius:8px;padding:15px;margin-bottom:20px;">
+                <div style="font-weight:bold;margin-bottom:10px;">📁 手动备份与恢复</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                    <button class="btn btn-primary" onclick="window.createManualBackup()">💾 创建备份文件</button>
+                    <button class="btn btn-secondary" onclick="window.loadFromFile()">📂 从文件恢复</button>
+                    <button class="btn btn-secondary" onclick="window.saveToFile()">💾 导出数据</button>
+                    <button class="btn btn-secondary" onclick="window.saveToLocal()">💿 本地保存</button>
+                </div>
+                <div style="font-size:0.9em;color:#666;">
+                    手动备份会下载包含所有数据的JSON文件
+                </div>
+            </div>
+            
+            <!-- 自动云备份 -->
+            <div style="background:#d4edda;border-radius:8px;padding:15px;margin-bottom:20px;">
+                <div style="font-weight:bold;margin-bottom:10px;">☁️ 自动云备份</div>
+                <div style="margin-bottom:10px;">
+                    <label style="display:flex;align-items:center;cursor:pointer;">
+                        <input type="checkbox" id="auto-backup-enabled" onchange="window.toggleAutoBackup(this.checked)" style="margin-right:8px;">
+                        <span>启用自动云备份（每10分钟）</span>
+                    </label>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <span>上次备份：</span>
+                    <span id="last-backup-time">未备份</span>
+                    <button class="btn btn-small btn-secondary" onclick="window.createCloudBackup()" style="margin-left:8px;">🔄 立即备份</button>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <button class="btn btn-small btn-secondary" onclick="window.listCloudBackups()">📋 查看备份列表</button>
+                    <button class="btn btn-small btn-secondary" onclick="window.showRestoreFromCloud()">☁️ 从云备份恢复</button>
+                </div>
+                <div style="font-size:0.9em;color:#666;">
+                    云备份独立存储，不影响正常使用数据
+                </div>
+            </div>
+            
+            <!-- 数据管理功能 -->
+            <div style="background:#e3f2fd;border-radius:8px;padding:15px;margin-bottom:20px;">
+                <div style="font-weight:bold;margin-bottom:10px;">🛠️ 数据管理功能</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                    <button class="btn btn-secondary" onclick="window.showDevLibraryManage()">🛠️ 研发库管理</button>
+                    <button class="btn btn-secondary" onclick="window.showMilestoneManage()">🏆 里程碑管理</button>
+                    <button class="btn btn-secondary" onclick="window.showTimeRecordsPanel()">📊 时间统计</button>
+                </div>
+                <div style="font-size:0.9em;color:#666;">
+                    管理研发项目库、里程碑数据和时间记录统计
+                </div>
+            </div>
+            
+            <!-- 紧急恢复 -->
+            <div style="background:#f8d7da;border-radius:8px;padding:15px;margin-bottom:20px;">
+                <div style="font-weight:bold;margin-bottom:10px;">🚨 紧急数据恢复</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                    <button class="btn btn-danger" onclick="window.emergencyDataRecovery()">🔄 尝试自动恢复</button>
+                    <button class="btn btn-secondary" onclick="window.showDataDebugInfo()">🔍 调试信息</button>
+                </div>
+                <div style="font-size:0.9em;color:#666;">
+                    当数据丢失时使用，会尝试从本地存储和云端恢复
+                </div>
+            </div>
+            
+            <div style="text-align:right;">
+                <button onclick="window.closeModal('data-manage-modal')" class="btn btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="LF_tool.js"></script>
+    
+    <!-- [ULTIMATE CACHE BUSTING] The entire content of tech_tree.js is now embedded here. -->
+    <script>
+// =================================================================================
+// Life Factorio - Tech Tree Module
+// This file contains the new, standalone implementation for the technology tree.
+// It replaces the original functions in LF_tool.js when loaded.
+// =================================================================================
+
+/**
+ * Checks if a research project has been started or completed.
+ * This function OVERWRITES the old version in LF_tool.js.
+ * @param {string} researchName - The name of the technology to check.
+ * @returns {boolean} - True if the research exists in gameData.
+ */
+function hasResearch(researchName) {
+    if (!gameData || !gameData.developments) {
+        console.error("gameData.developments is not available for hasResearch check.");
+        return false;
+    }
+    // Correctly checks the developments array for the research project.
+    return gameData.developments.some(dev => dev.researchName === researchName);
+}
+
+/**
+ * Sorts nodes within layers to minimize edge crossings using a barycenter heuristic.
+ * Enhanced version for clearer hierarchical layout.
+ * @param {object} techTree - The original tech tree data structure.
+ * @returns {object} A new tech tree object with layers sorted for optimal layout.
+ */
+/**
+ * Advanced layout algorithm combining Topological Sort with Hierarchical Layout
+ * Simplified version for HTML embedding
+ */
+function sortNodesForLayout(techTree) {
+    console.log('🔄 Starting topological + hierarchical layout (HTML version)...');
+    
+    // Create a deep copy to avoid modifying the original data
+    const sortedTree = JSON.parse(JSON.stringify(techTree));
+    
+    // Build dependency graph
+    const graph = buildDependencyGraphSimple(sortedTree);
+    
+    // Apply topological sorting
+    const topologicalLayers = performTopologicalSortingSimple(graph);
+    
+    // Apply hierarchical layout
+    const optimizedTree = applyHierarchicalLayoutSimple(topologicalLayers, graph);
+    
+    console.log('✅ Layout completed (HTML version)');
+    return optimizedTree;
+}
+
+// Simplified dependency graph builder
+function buildDependencyGraphSimple(techTree) {
+    const graph = { nodes: new Map(), inDegree: new Map() };
+    
+    // Add all nodes
+    techTree.layers.forEach((layer, layerIndex) => {
+        layer.technologies.forEach((tech, techIndex) => {
+            graph.nodes.set(tech.id, {
+                ...tech,
+                originalLayer: layerIndex,
+                originalIndex: techIndex,
+                dependencies: tech.requirements || [],
+                dependents: []
+            });
+            graph.inDegree.set(tech.id, 0);
+        });
+    });
+    
+    if (techTree.finalGoal) {
+        graph.nodes.set(techTree.finalGoal.id, {
+            ...techTree.finalGoal,
+            originalLayer: techTree.layers.length,
+            originalIndex: 0,
+            dependencies: techTree.finalGoal.requirements || [],
+            dependents: []
+        });
+        graph.inDegree.set(techTree.finalGoal.id, 0);
+    }
+    
+    // Build edges and calculate in-degrees
+    for (let [nodeId, node] of graph.nodes) {
+        if (node.dependencies && node.dependencies.length > 0) {
+            node.dependencies.forEach(depId => {
+                if (graph.nodes.has(depId)) {
+                    graph.nodes.get(depId).dependents.push(nodeId);
+                    graph.inDegree.set(nodeId, graph.inDegree.get(nodeId) + 1);
+                }
+            });
+        }
+    }
+    
+    return graph;
+}
+
+// Simplified topological sorting
+function performTopologicalSortingSimple(graph) {
+    const layers = [];
+    const visited = new Set();
+    const inDegreeClone = new Map(graph.inDegree);
+    
+    // Find nodes with no dependencies
+    let currentLayer = [];
+    for (let [nodeId, degree] of inDegreeClone) {
+        if (degree === 0) {
+            currentLayer.push(graph.nodes.get(nodeId));
+        }
+    }
+    
+    while (currentLayer.length > 0) {
+        // Sort current layer
+        currentLayer.sort((a, b) => {
+            if (a.originalLayer !== b.originalLayer) {
+                return a.originalLayer - b.originalLayer;
+            }
+            return b.dependents.length - a.dependents.length;
+        });
+        
+        layers.push([...currentLayer]);
+        
+        // Prepare next layer
+        const nextLayer = [];
+        currentLayer.forEach(node => {
+            visited.add(node.id);
+            node.dependents.forEach(dependentId => {
+                if (!visited.has(dependentId)) {
+                    const newDegree = inDegreeClone.get(dependentId) - 1;
+                    inDegreeClone.set(dependentId, newDegree);
+                    if (newDegree === 0) {
+                        nextLayer.push(graph.nodes.get(dependentId));
+                    }
+                }
+            });
+        });
+        
+        currentLayer = nextLayer;
+    }
+    
+    return layers;
+}
+
+// Simplified hierarchical layout
+function applyHierarchicalLayoutSimple(topologicalLayers, graph) {
+    const result = { layers: [], finalGoal: null };
+    
+    topologicalLayers.forEach((layer, layerIndex) => {
+        const regularNodes = layer.filter(node => node.originalLayer < 999);
+        const finalGoalNodes = layer.filter(node => node.originalLayer >= 999);
+        
+        if (finalGoalNodes.length > 0) {
+            result.finalGoal = finalGoalNodes[0];
+            return;
+        }
+        
+        if (regularNodes.length === 0) return;
+        
+        // Group nodes by connection similarity
+        const groups = groupNodesByConnectionsSimple(regularNodes);
+        
+        // Optimize positions within groups
+        const optimizedNodes = [];
+        groups.forEach(group => {
+            // Calculate barycenter for each node
+            group.forEach(node => {
+                let barycenter = 0;
+                let parentCount = 0;
+                
+                if (node.dependencies && node.dependencies.length > 0) {
+                    node.dependencies.forEach(depId => {
+                        const parentNode = graph.nodes.get(depId);
+                        if (parentNode && parentNode.sortedIndex !== undefined) {
+                            barycenter += parentNode.sortedIndex;
+                            parentCount++;
+                        }
+                    });
+                }
+                
+                node.barycenter = parentCount > 0 ? barycenter / parentCount : node.originalIndex;
+            });
+            
+            // Sort by barycenter
+            group.sort((a, b) => a.barycenter - b.barycenter);
+            optimizedNodes.push(...group);
+        });
+        
+        // Add layout metadata
+        optimizedNodes.forEach((node, index) => {
+            node.layerIndex = layerIndex;
+            node.sortedIndex = index;
+        });
+        
+        result.layers.push({ technologies: optimizedNodes });
+    });
+    
+    return result;
+}
+
+// Simplified node grouping
+function groupNodesByConnectionsSimple(nodes) {
+    const groups = [];
+    const processed = new Set();
+    
+    nodes.forEach(node => {
+        if (processed.has(node.id)) return;
+        
+        const group = [node];
+        processed.add(node.id);
+        
+        // Find nodes with similar connections
+        nodes.forEach(otherNode => {
+            if (processed.has(otherNode.id)) return;
+            
+            // Check for common dependencies
+            const commonDeps = node.dependencies.filter(dep => 
+                otherNode.dependencies.includes(dep)
+            );
+            
+            if (commonDeps.length > 0) {
+                group.push(otherNode);
+                processed.add(otherNode.id);
+            }
+        });
+        
+        groups.push(group);
+    });
+    
+    return groups;
+}
+
+/**
+ * Calculates optimal node positions using a force-directed-like layout algorithm.
+ * This function abandons a strict grid for a more organic layout.
+ * @param {object} techTree The tech tree data.
+ * @returns {Map<string, {x: number, y: number}>} A map of node IDs to their calculated positions.
+ */
+function calculateNodePositions(techTree) {
+    const positions = new Map();
+    const containerWidth = 2400; // Increased width for better spacing
+    const layerHeight = 200; // Reduced height for more compact layout
+    const nodeWidth = 200; // Node width including margins
+    const minNodeSpacing = 50; // Minimum spacing between nodes
+    
+    // 1. Build comprehensive tech map
+    const techMap = new Map();
+    techTree.layers.forEach((layer, layerIndex) => {
+        layer.technologies.forEach((tech, techIndex) => {
+            techMap.set(tech.id, { ...tech, layerIndex, techIndex });
+        });
+    });
+    if (techTree.finalGoal) {
+        techMap.set(techTree.finalGoal.id, { 
+            ...techTree.finalGoal, 
+            layerIndex: techTree.layers.length 
+        });
+    }
+
+    // 2. Calculate positions layer by layer for hierarchical layout
+    techTree.layers.forEach((layer, layerIndex) => {
+        const y = 100 + layerIndex * layerHeight;
+        const techs = layer.technologies;
+        const techCount = techs.length;
+        
+        if (techCount === 0) return;
+        
+        // Calculate optimal spacing for this layer
+        const availableWidth = containerWidth - 200; // Leave margins
+        const totalSpacing = Math.max(techCount * nodeWidth + (techCount - 1) * minNodeSpacing, availableWidth * 0.6);
+        const actualSpacing = Math.max(nodeWidth + minNodeSpacing, totalSpacing / techCount);
+        
+        // Center the layer
+        const startX = (containerWidth - (techCount - 1) * actualSpacing) / 2;
+        
+        // Position nodes in this layer
+        techs.forEach((tech, techIndex) => {
+            const x = startX + techIndex * actualSpacing;
+            positions.set(tech.id, { x, y });
+        });
+    });
+    
+    // 3. Position final goal
+    if (techTree.finalGoal) {
+        const finalY = 100 + techTree.layers.length * layerHeight;
+        positions.set(techTree.finalGoal.id, { 
+            x: containerWidth / 2 - nodeWidth / 2, 
+            y: finalY 
+        });
+    }
+    
+    // 4. Advanced layout optimization for connection quality
+    const maxIterations = 100;
+    
+    // Helper function to calculate connection complexity score
+    function calculateConnectionComplexity(fromPos, toPos, allPositions, excludeNodes = []) {
+        const fromX = fromPos.x + nodeWidth / 2;
+        const fromY = fromPos.y + nodeWidth * 0.7; // Assume node height ~= width
+        const toX = toPos.x + nodeWidth / 2;
+        const toY = toPos.y;
+        
+        // Check if direct line would intersect nodes
+        let intersectionCount = 0;
+        for (let [nodeId, nodePos] of allPositions) {
+            if (excludeNodes.includes(nodeId)) continue;
+            
+            const rect = {
+                left: nodePos.x - 10,
+                top: nodePos.y - 10,
+                right: nodePos.x + nodeWidth + 10,
+                bottom: nodePos.y + nodeWidth * 0.7 + 10
+            };
+            
+            // Simple line-rect intersection check
+            if (lineIntersectsRect(fromX, fromY, toX, toY, rect)) {
+                intersectionCount++;
+            }
+        }
+        
+        // Calculate complexity score: distance + intersection penalty
+        const distance = Math.abs(toX - fromX) + Math.abs(toY - fromY);
+        const complexity = distance + intersectionCount * 500; // Heavy penalty for intersections
+        
+        return complexity;
+    }
+    
+    // Helper function for line-rect intersection (simplified)
+    function lineIntersectsRect(x1, y1, x2, y2, rect) {
+        if ((x1 < rect.left && x2 < rect.left) || 
+            (x1 > rect.right && x2 > rect.right) ||
+            (y1 < rect.top && y2 < rect.top) || 
+            (y1 > rect.bottom && y2 > rect.bottom)) {
+            return false;
+        }
+        return true; // Simplified check
+    }
+    
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
+        let totalMovement = 0;
+        let improvementMade = false;
+        
+        // Process each layer (except first and last)
+        for (let layerIndex = 1; layerIndex < techTree.layers.length; layerIndex++) {
+            const layer = techTree.layers[layerIndex];
+            
+            layer.technologies.forEach(tech => {
+                if (!tech.requirements || tech.requirements.length === 0) return;
+                
+                const currentPos = positions.get(tech.id);
+                if (!currentPos) return;
+                
+                // Calculate current total complexity for this node's connections
+                let currentComplexity = 0;
+                const excludeNodes = [tech.id];
+                
+                tech.requirements.forEach(reqId => {
+                    const parentPos = positions.get(reqId);
+                    if (parentPos) {
+                        excludeNodes.push(reqId);
+                        currentComplexity += calculateConnectionComplexity(
+                            parentPos, currentPos, positions, excludeNodes
+                        );
+                    }
+                });
+                
+                // Try different positions within a reasonable range
+                const testRange = 100; // pixels
+                const step = 25;
+                let bestPos = { ...currentPos };
+                let bestComplexity = currentComplexity;
+                
+                for (let testX = currentPos.x - testRange; testX <= currentPos.x + testRange; testX += step) {
+                    // Keep within bounds
+                    if (testX < 50 || testX > containerWidth - nodeWidth - 50) continue;
+                    
+                    const testPos = { x: testX, y: currentPos.y };
+                    
+                    // Check for overlaps with layer mates
+                    let hasOverlap = false;
+                    const layerMates = layer.technologies.filter(t => t.id !== tech.id);
+                    
+                    for (let mate of layerMates) {
+                        const matePos = positions.get(mate.id);
+                        if (matePos && Math.abs(matePos.x - testX) < nodeWidth + minNodeSpacing) {
+                            hasOverlap = true;
+                            break;
+                        }
+                    }
+                    
+                    if (hasOverlap) continue;
+                    
+                    // Calculate complexity for this test position
+                    let testComplexity = 0;
+                    tech.requirements.forEach(reqId => {
+                        const parentPos = positions.get(reqId);
+                        if (parentPos) {
+                            testComplexity += calculateConnectionComplexity(
+                                parentPos, testPos, positions, excludeNodes
+                            );
+                        }
+                    });
+                    
+                    // Also consider children connections
+                    for (let [childId, childTech] of techMap) {
+                        if (childTech.requirements && childTech.requirements.includes(tech.id)) {
+                            const childPos = positions.get(childId);
+                            if (childPos) {
+                                testComplexity += calculateConnectionComplexity(
+                                    testPos, childPos, positions, [tech.id, childId]
+                                );
+                            }
+                        }
+                    }
+                    
+                    // Update best position if this is better
+                    if (testComplexity < bestComplexity) {
+                        bestComplexity = testComplexity;
+                        bestPos = testPos;
+                        improvementMade = true;
+                    }
+                }
+                
+                // Apply the best position found
+                if (bestPos.x !== currentPos.x) {
+                    totalMovement += Math.abs(bestPos.x - currentPos.x);
+                    positions.set(tech.id, bestPos);
+                }
+            });
+        }
+        
+        // Early termination if no significant improvement
+        if (!improvementMade || totalMovement < 5) break;
+        
+        // Reduce search range over time for fine-tuning
+        if (iteration > maxIterations * 0.6) {
+            testRange = Math.max(25, testRange * 0.9);
+        }
+    }
+    
+    return positions;
+}
+
+/**
+ * Simplified node position optimization for HTML version
+ * Focuses on reducing line-node intersections and improving alignment
+ */
+function createLayerBasedLayout(techTree) {
+    console.log('🎯 Creating simple layer-based layout...');
+    
+    const nodePositions = new Map();
+    const containerWidth = 2400;
+    const layerHeight = 200; // Vertical spacing between layers
+    const nodeWidth = 180;
+    const minSpacing = 220; // Minimum horizontal spacing between nodes
+    
+    // Sort layers by their layer property to ensure correct order
+    const sortedLayers = [...techTree.layers].sort((a, b) => a.layer - b.layer);
+    console.log('🔄 Layer sorting:', sortedLayers.map(l => `${l.layer}: ${l.name}`));
+    
+    // Process each layer in correct order
+    sortedLayers.forEach((layer, sortedIndex) => {
+        const technologies = layer.technologies;
+        const layerY = 100 + sortedIndex * layerHeight; // Y position for this layer
+        
+        console.log(`📍 Processing layer ${layer.layer} (${layer.name}) with ${technologies.length} technologies`);
+        
+        if (technologies.length === 0) return;
+        
+        // Calculate horizontal positions for this layer
+        if (technologies.length === 1) {
+            // Single node - center it
+            const centerX = containerWidth / 2;
+            nodePositions.set(technologies[0].id, { x: centerX, y: layerY });
+        } else {
+            // Multiple nodes - distribute evenly
+            const totalSpacing = (technologies.length - 1) * minSpacing;
+            const totalWidth = technologies.length * nodeWidth + totalSpacing;
+            
+            let startX;
+            if (totalWidth <= containerWidth - 200) {
+                // Nodes fit comfortably - center them
+                startX = (containerWidth - totalWidth) / 2;
+            } else {
+                // Nodes need more space - use minimum margins
+                startX = 100;
+                const availableWidth = containerWidth - 200;
+                const actualSpacing = (availableWidth - technologies.length * nodeWidth) / (technologies.length - 1);
+                
+                technologies.forEach((tech, index) => {
+                    const x = startX + index * (nodeWidth + actualSpacing);
+                    nodePositions.set(tech.id, { x, y: layerY });
+                });
+                return;
+            }
+            
+            // Standard even distribution
+            technologies.forEach((tech, index) => {
+                const x = startX + index * (nodeWidth + minSpacing);
+                nodePositions.set(tech.id, { x, y: layerY });
+            });
+        }
+    });
+    
+    // Add final goal if it exists
+    if (techTree.finalGoal) {
+        const finalY = 100 + sortedLayers.length * layerHeight;
+        const centerX = containerWidth / 2;
+        nodePositions.set(techTree.finalGoal.id, { x: centerX, y: finalY });
+        console.log(`🎯 Positioned final goal at center: (${centerX}, ${finalY})`);
+    }
+    
+    console.log(`✅ Layer-based layout completed for ${nodePositions.size} nodes`);
+    return nodePositions;
+}
+
+// Global flag to prevent automatic/unwanted rendering calls
+window.__devLibraryManualOpen = false;
+
+/**
+ * Renders the entire technology tree modal.
+ * This is the main entry point for displaying the tech tree.
+ */
+async function renderDevLibrary() {
+    // Only render if opened manually by the user via a button click
+    if (!window.__devLibraryManualOpen) {
+        console.log("renderDevLibrary call skipped: not triggered by manual user action.");
+        return;
+    }
+    window.__devLibraryManualOpen = false; // Reset flag after use
+
+    try {
+        // Wait for the data to be loaded
+        const originalTechTreeData = await loadDevLibraryFromJSON();
+        
+        if (!originalTechTreeData || !originalTechTreeData.techTree) {
+            throw new Error("Loaded data is not in the correct format.");
+        }
+
+        // ** NEW: Sort nodes to reduce line crossings **
+        const techTree = sortNodesForLayout(originalTechTreeData.techTree);
+        
+        // ** NEW: Use simple layer-based layout **
+        const nodePositions = createLayerBasedLayout(techTree);
+        
+        // --- PROCEED WITH RENDERING using the calculated positions ---
+        
+        // Create a map here for rendering purposes (with sorted layerIndex)
+        const techRenderMap = new Map();
+        const sortedLayers = [...techTree.layers].sort((a, b) => a.layer - b.layer);
+        sortedLayers.forEach((layer, sortedIndex) => {
+            layer.technologies.forEach(tech => {
+                techRenderMap.set(tech.id, { ...tech, layerIndex: sortedIndex });
+            });
+        });
+        if (techTree.finalGoal) {
+            techRenderMap.set(techTree.finalGoal.id, { ...techTree.finalGoal, layerIndex: sortedLayers.length });
+        }
+        
+        // Remove any existing modal to prevent duplicates
+        const existingModal = document.getElementById('dev-library-modal');
+        if (existingModal) existingModal.remove();
+
+        // Create the main modal container
+        const modal = document.createElement('div');
+        modal.id = 'dev-library-modal';
+        Object.assign(modal.style, {
+            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.85)', zIndex: '1000', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', color: '#333'
+        });
+
+        // Create the content area
+        const content = document.createElement('div');
+        content.id = 'dev-library-content';
+        Object.assign(content.style, {
+            backgroundColor: '#f4f4f9', padding: '20px', borderRadius: '10px',
+            width: '95%', height: '90%', position: 'relative',
+            boxShadow: '0 5px 15px rgba(0,0,0,0.3)', overflow: 'auto'
+        });
+
+        // Create a dedicated close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'X';
+        Object.assign(closeButton.style, {
+            position: 'fixed', top: '20px', left: '20px', zIndex: '10001',
+            background: '#e74c3c', color: 'white', border: 'none', borderRadius: '50%',
+            width: '40px', height: '40px', fontSize: '18px', cursor: 'pointer',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+        });
+        closeButton.onclick = () => modal.remove();
+        modal.appendChild(closeButton);
+
+        // Create the container for all tech nodes and lines
+        const techContainer = document.createElement('div');
+        techContainer.id = 'tech-container';
+        techContainer.style.position = 'relative';
+        // Set a fixed large size for the container to hold absolute positions
+        techContainer.style.width = '2400px';
+        techContainer.style.height = `${(sortedLayers.length + 2) * 200}px`;
+
+        // **LAYOUT REWORK: Render all nodes with absolute positions**
+        const allNodes = [...techTree.layers.flatMap(l => l.technologies), techTree.finalGoal].filter(Boolean);
+        allNodes.forEach(tech => {
+            if (tech) {
+                const pos = nodePositions.get(tech.id);
+                if (pos) {
+                    const isFinalGoal = tech.id === techTree.finalGoal?.id;
+                    const techInfo = techRenderMap.get(tech.id);
+                    const node = createTechNode(tech, techInfo.layerIndex, isFinalGoal);
+                    Object.assign(node.style, {
+                        position: 'absolute',
+                        left: `${pos.x}px`,
+                        top: `${pos.y}px`,
+                    });
+                    techContainer.appendChild(node);
+                }
+            }
+        });
+        
+        content.appendChild(techContainer);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+
+        // Draw connection lines after a short delay to ensure nodes are rendered
+        setTimeout(() => drawLines(techTree, techContainer, techRenderMap), 150);
+
+    } catch (error) {
+        console.error("Failed to render dev library:", error);
+        showCustomModal({ title: 'Error', content: `Could not load technology tree data. Please check the console for details. Error: ${error.message}` });
+    }
+}
+
+/**
+ * Creates a single visual node for a technology.
+ * @param {object} tech - The technology data object.
+ * @param {number} layerIndex - The layer index of the technology for coloring.
+ * @param {boolean} isGoal - True if this is the final goal node.
+ * @returns {HTMLElement} The created node element.
+ */
+function createTechNode(tech, layerIndex, isGoal = false) {
+    const node = document.createElement('div');
+    node.id = `tech-${tech.id}`;
+    node.className = 'tech-node';
+
+    // **VISUAL UPGRADE: Define a color palette for layers**
+    const layerColors = ['#3498db', '#1abc9c', '#9b59b6', '#f1c40f', '#e67e22', '#e74c3c', '#34495e', '#7f8c8d'];
+    const borderColor = isGoal ? '#c0392b' : layerColors[layerIndex % layerColors.length];
+
+    // **BUG FIX: Refined status checking to align with main app logic**
+    const devProject = gameData.developments.find(d => d.researchName === tech.name);
+    // A research is "completed" only if its progress reaches the max and it's not a repeatable quest that's active.
+    let isResearched = false;
+    let isResearching = false;
+    
+    if (devProject) {
+        // hasResearch checks for existence. isResearching means it exists and is active.
+        isResearching = devProject.active && (!devProject.paused);
+        // isResearched means it's fully progressed.
+        if (devProject.progress !== undefined && devProject.maxProgress !== undefined) {
+             // A project is only truly "researched" if progress is full.
+            isResearched = devProject.progress >= devProject.maxProgress;
+        }
+        // If it's researched, it's no longer considered "researching" for the purpose of node color.
+        if(isResearched) isResearching = false;
+    }
+    
+    // Apply styles based on status
+    Object.assign(node.style, {
+        background: isResearched ? '#bdc3c7' : (isResearching ? '#f39c12' : 'white'), // Use a distinct 'researching' color
+        border: `3px solid ${borderColor}`,
+        borderRadius: '8px', padding: '10px', margin: '15px', cursor: 'pointer',
+        minWidth: '150px', textAlign: 'center',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        position: 'relative', zIndex: '10' // Nodes above lines
+    });
+    
+    if (isGoal) {
+        Object.assign(node.style, {
+            borderColor: '#c0392b',
+            background: 'linear-gradient(45deg, #e74c3c, #c0392b)',
+            color: 'white'
+        });
+    }
+
+    node.innerHTML = `<div style="font-size: 24px;">${tech.icon || '🧪'}</div><div style="font-weight: bold; margin-top: 5px;">${tech.name}</div>`;
+    
+    // Add interactions
+    node.onmouseover = () => { node.style.transform = 'scale(1.05)'; node.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)'; };
+    node.onmouseout = () => { node.style.transform = 'scale(1)'; node.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; };
+    node.onclick = () => showTechDetailModal(tech);
+
+    return node;
+}
+
+/**
+ * Draws SVG lines connecting the technology nodes.
+ * @param {object} techTreeData - The full tech tree data object.
+ * @param {HTMLElement} container - The parent container of the nodes.
+ * @param {Map} techMap - A map of all tech data, including layerIndex.
+ */
+function drawLines(techTreeData, container, techMap) {
+    // Ensure container is scrollable to get full dimensions
+    const scrollWidth = container.scrollWidth;
+    const scrollHeight = container.scrollHeight;
+
+    let svg = container.querySelector('#tech-lines-svg');
+    if (svg) svg.remove(); // Clear previous lines
+
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.id = 'tech-lines-svg';
+    Object.assign(svg.style, {
+        position: 'absolute', top: '0', left: '0',
+        width: `${scrollWidth}px`, height: `${scrollHeight}px`,
+        zIndex: '5', // Lines below nodes
+        pointerEvents: 'none' // Allow clicks to pass through
+    });
+
+    // Create defs for arrow markers and styles
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    
+    // Add interactive highlight styles
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.textContent = `
+        .connection-path {
+            transition: all 0.3s ease;
+            stroke-width: 2;
+            fill: none;
+            opacity: 0.7;
+        }
+        .connection-path.highlighted {
+            stroke-width: 4;
+            opacity: 1;
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+        .connection-path.dimmed {
+            opacity: 0.15;
+        }
+        .connection-arrow {
+            transition: all 0.3s ease;
+            opacity: 0.7;
+        }
+        .connection-arrow.highlighted {
+            opacity: 1;
+            filter: drop-shadow(0 0 6px currentColor);
+        }
+        .connection-arrow.dimmed {
+            opacity: 0.15;
+        }
+    `;
+    defs.appendChild(style);
+    svg.appendChild(defs);
+    
+    // Function to create arrow marker for specific color
+    function createArrowMarker(color, nodeId) {
+        const markerId = `arrowhead-${nodeId}`;
+        // Check if marker already exists
+        if (defs.querySelector(`#${markerId}`)) {
+            return markerId;
+        }
+        
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        marker.setAttribute('id', markerId);
+        marker.setAttribute('viewBox', '0 0 12 8');
+        marker.setAttribute('refX', '10');
+        marker.setAttribute('refY', '4');
+        marker.setAttribute('markerWidth', '8');
+        marker.setAttribute('markerHeight', '6');
+        marker.setAttribute('orient', 'auto');
+        const arrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        arrowPath.setAttribute('d', 'M 0 0 L 12 4 L 0 8 z');
+        arrowPath.setAttribute('fill', color);
+        marker.appendChild(arrowPath);
+        defs.appendChild(marker);
+        return markerId;
+    }
+    
+    // Get standardized connection points for a node (only from edges, perpendicular)
+    function getNodeConnectionPoints(nodeElement) {
+        const rect = nodeElement.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        // Convert to container-relative coordinates
+        const left = rect.left - containerRect.left + container.scrollLeft;
+        const top = rect.top - containerRect.top + container.scrollTop;
+        const right = left + rect.width;
+        const bottom = top + rect.height;
+        const centerX = left + rect.width / 2;
+        const centerY = top + rect.height / 2;
+        
+        return {
+            // Output points (where lines exit from this node)
+            top: { x: centerX, y: top, direction: 'up' },
+            bottom: { x: centerX, y: bottom, direction: 'down' },
+            left: { x: left, y: centerY, direction: 'left' },
+            right: { x: right, y: centerY, direction: 'right' },
+            
+            // Input points (where lines enter this node)
+            topIn: { x: centerX, y: top, direction: 'down' },
+            bottomIn: { x: centerX, y: bottom, direction: 'up' },
+            leftIn: { x: left, y: centerY, direction: 'right' },
+            rightIn: { x: right, y: centerY, direction: 'left' },
+            
+            // Node bounds for reference
+            bounds: { left, top, right, bottom, centerX, centerY }
+        };
+    }
+    
+    // Choose optimal connection points between two nodes
+    function chooseConnectionPoints(fromNode, toNode) {
+        const fromPoints = getNodeConnectionPoints(fromNode);
+        const toPoints = getNodeConnectionPoints(toNode);
+        
+        // Determine relative position
+        const deltaX = toPoints.bounds.centerX - fromPoints.bounds.centerX;
+        const deltaY = toPoints.bounds.centerY - fromPoints.bounds.centerY;
+        
+        let fromPoint, toPoint;
+        
+        // Choose connection points based on relative position
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            // Horizontal connection preferred
+            if (deltaX > 0) {
+                // To node is to the right
+                fromPoint = fromPoints.right;
+                toPoint = toPoints.leftIn;
+            } else {
+                // To node is to the left
+                fromPoint = fromPoints.left;
+                toPoint = toPoints.rightIn;
+            }
+        } else {
+            // Vertical connection preferred
+            if (deltaY > 0) {
+                // To node is below
+                fromPoint = fromPoints.bottom;
+                toPoint = toPoints.topIn;
+            } else {
+                // To node is above
+                fromPoint = fromPoints.top;
+                toPoint = toPoints.bottomIn;
+            }
+        }
+        
+        return { from: fromPoint, to: toPoint };
+    }
+    
+    // Create tree-style routing with minimal collision avoidance
+    function createTreeStylePath(fromPoint, toPoint) {
+        const startX = fromPoint.x;
+        const startY = fromPoint.y;
+        const endX = toPoint.x;
+        const endY = toPoint.y;
+        
+        // Simple tree-style routing: exit perpendicular, then route to target
+        const exitDistance = 30; // Distance to exit perpendicular from node
+        
+        let path = `M ${startX} ${startY}`;
+        
+        // Exit perpendicular from source node
+        let exitX = startX;
+        let exitY = startY;
+        
+        switch (fromPoint.direction) {
+            case 'up':
+                exitY = startY - exitDistance;
+                break;
+            case 'down':
+                exitY = startY + exitDistance;
+                break;
+            case 'left':
+                exitX = startX - exitDistance;
+                break;
+            case 'right':
+                exitX = startX + exitDistance;
+                break;
+        }
+        
+        path += ` L ${exitX} ${exitY}`;
+        
+        // Route to target entry point
+        let entryX = endX;
+        let entryY = endY;
+        
+        switch (toPoint.direction) {
+            case 'up':
+                entryY = endY - exitDistance;
+                break;
+            case 'down':
+                entryY = endY + exitDistance;
+                break;
+            case 'left':
+                entryX = endX - exitDistance;
+                break;
+            case 'right':
+                entryX = endX + exitDistance;
+                break;
+        }
+        
+        // Create orthogonal path from exit to entry
+        if (exitX !== entryX && exitY !== entryY) {
+            // Need intermediate point
+            if (fromPoint.direction === 'up' || fromPoint.direction === 'down') {
+                // Vertical exit, go to target X first
+                path += ` L ${entryX} ${exitY} L ${entryX} ${entryY}`;
+            } else {
+                // Horizontal exit, go to target Y first
+                path += ` L ${exitX} ${entryY} L ${entryX} ${entryY}`;
+            }
+        } else if (exitX !== entryX) {
+            path += ` L ${entryX} ${exitY}`;
+        } else if (exitY !== entryY) {
+            path += ` L ${exitX} ${entryY}`;
+        }
+        
+        // Enter target node perpendicularly
+        path += ` L ${endX} ${endY}`;
+        
+        return path;
+    }
+    
+    // Store connection data for interactive highlighting
+    const connectionData = new Map();
+    
+    // Generate consistent colors for each source node
+    function getNodeColor(nodeId) {
+        const colors = [
+            '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6',
+            '#1abc9c', '#e67e22', '#34495e', '#f1c40f', '#e91e63',
+            '#8e44ad', '#16a085', '#27ae60', '#2980b9', '#d35400'
+        ];
+        
+        // Create a simple hash from nodeId to get consistent color
+        let hash = 0;
+        for (let i = 0; i < nodeId.length; i++) {
+            hash = nodeId.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    }
+
+    // Draw connections for each tech - handle nested data structure
+    console.log('🔍 Drawing connections for tech tree data:', techTreeData);
+    
+    // Extract all technologies from layers
+    const allTechs = [];
+    if (techTreeData && techTreeData.layers) {
+        techTreeData.layers.forEach(layer => {
+            if (layer.technologies) {
+                layer.technologies.forEach(tech => {
+                    tech.layerIndex = layer.layer; // Add layer info
+                    allTechs.push(tech);
+                });
+            }
+        });
+    }
+    
+    // Also add final goal if it exists
+    if (techTreeData && techTreeData.finalGoal) {
+        allTechs.push(techTreeData.finalGoal);
+    }
+    
+    console.log(`📦 Found ${allTechs.length} technologies to process`);
+    
+    // Draw connections for each tech
+    allTechs.forEach(tech => {
+        if (!tech.requirements || tech.requirements.length === 0) return;
+
+        const toNode = container.querySelector(`#tech-${tech.id}`);
+        if (!toNode) {
+            console.warn(`❌ Target node not found: tech-${tech.id}`);
+            return;
+        }
+
+        const color = getNodeColor(tech.id);
+        const markerId = createArrowMarker(color, tech.id);
+
+        tech.requirements.forEach(reqId => {
+            const fromNode = container.querySelector(`#tech-${reqId}`);
+            if (!fromNode) {
+                console.warn(`❌ Source node not found: tech-${reqId}`);
+                return;
+            }
+
+            console.log(`🔗 Creating connection: ${reqId} -> ${tech.id}`);
+
+            // Get optimal connection points
+            const connectionPoints = chooseConnectionPoints(fromNode, toNode);
+            
+            // Create tree-style path
+            const pathData = createTreeStylePath(connectionPoints.from, connectionPoints.to);
+
+            // Create path element
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', pathData);
+            path.setAttribute('stroke', color);
+            path.setAttribute('marker-end', `url(#${markerId})`);
+            path.classList.add('connection-path');
+            path.setAttribute('data-from', reqId);
+            path.setAttribute('data-to', tech.id);
+
+            svg.appendChild(path);
+            
+            // Store connection data for highlighting
+            if (!connectionData.has(reqId)) {
+                connectionData.set(reqId, { outgoing: [], incoming: [] });
+            }
+            if (!connectionData.has(tech.id)) {
+                connectionData.set(tech.id, { outgoing: [], incoming: [] });
+            }
+            
+            connectionData.get(reqId).outgoing.push({ element: path, target: tech.id });
+            connectionData.get(tech.id).incoming.push({ element: path, source: reqId });
+        });
+    });
+
+    container.appendChild(svg);
+    
+    // Add interactive highlighting
+    setupInteractiveHighlighting(container, connectionData);
+}
+
+// Setup interactive highlighting system
+function setupInteractiveHighlighting(container, connectionData) {
+    // Remove existing event listeners
+    const nodes = container.querySelectorAll('[id^="tech-"]');
+    
+    nodes.forEach(node => {
+        const nodeId = node.id.replace('tech-', '');
+        
+        // Mouse enter - highlight related connections
+        node.addEventListener('mouseenter', () => {
+            const connections = connectionData.get(nodeId);
+            if (!connections) return;
+            
+            // Get all connection paths
+            const allPaths = container.querySelectorAll('.connection-path');
+            
+            // Dim all connections first
+            allPaths.forEach(path => {
+                path.classList.add('dimmed');
+                path.classList.remove('highlighted');
+            });
+            
+            // Highlight related connections
+            const relatedPaths = [
+                ...connections.incoming.map(conn => conn.element),
+                ...connections.outgoing.map(conn => conn.element)
+            ];
+            
+            relatedPaths.forEach(path => {
+                path.classList.remove('dimmed');
+                path.classList.add('highlighted');
+            });
+            
+            // Also highlight the node itself
+            node.style.transform = 'scale(1.05)';
+            node.style.zIndex = '1000';
+            node.style.filter = 'drop-shadow(0 0 10px rgba(0,0,0,0.3))';
+        });
+        
+        // Mouse leave - restore normal state
+        node.addEventListener('mouseleave', () => {
+            // Remove all highlighting
+            const allPaths = container.querySelectorAll('.connection-path');
+            allPaths.forEach(path => {
+                path.classList.remove('dimmed', 'highlighted');
+            });
+            
+            // Restore node appearance
+            node.style.transform = '';
+            node.style.zIndex = '';
+            node.style.filter = '';
+        });
+    });
+}
+
+/**
+ * Shows a detailed modal for a specific technology.
+ * @param {object} tech - The technology data object.
+ */
+function showTechDetailModal(tech) {
+    const existingModal = document.getElementById('tech-detail-modal');
+    if (existingModal) existingModal.remove();
+
+    const detailModal = document.createElement('div');
+    detailModal.id = 'tech-detail-modal';
+    Object.assign(detailModal.style, {
+        position: 'fixed', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)', backgroundColor: 'white',
+        padding: '25px', borderRadius: '12px',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.2)', zIndex: '10000', // Highest z-index
+        width: '90%', maxWidth: '500px',
+        borderTop: '5px solid #3498db'
+    });
+
+    // Determine current status
+    const devProject = gameData.developments.find(d => d.researchName === tech.name);
+    let statusText = '';
+    let researchLevel = '';
+    
+    if (devProject) {
+        if (devProject.progress >= devProject.maxProgress) {
+            statusText = '<span style="color: #27ae60;font-weight:bold;">(已完成)</span>';
+        } else if (devProject.active && !devProject.paused) {
+            statusText = '<span style="color:#f39c12;font-weight:bold;">(研究中)</span>';
+        }
+        if (devProject.level > 0) {
+            researchLevel = ` <span style="color:#9b59b6; font-size: 0.9em;">LV.${devProject.level}</span>`;
+        }
+    }
+    
+    // **BUG FIX**: The button to start research should only appear if the project hasn't been started at all.
+    const canStartResearch = !devProject;
+
+    // Helper to resolve dependency IDs to names
+    const allTechs = [...window.devLibraryData.techTree.layers.flatMap(l => l.technologies), window.devLibraryData.techTree.finalGoal].filter(Boolean);
+    const getTechName = (id) => { const t = allTechs.find(t => t.id === id); return t ? t.name : id; };
+    
+    const requirementsHTML = (tech.requirements && tech.requirements.length > 0) ? tech.requirements.map(getTechName).join(', ') : '无';
+    const unlocksHTML = (tech.unlocks && tech.unlocks.length > 0) ? tech.unlocks.map(getTechName).join(', ') : '无';
+
+    // 计算周期 (cycleDays) 和目标 (targetDays)
+    const et = tech.estimated_time;
+    let cycleDays = 0;
+    if (et.includes('个月')) cycleDays = parseInt(et) * 30;
+    else if (et.includes('周')) cycleDays = parseInt(et) * 7;
+    else if (!isNaN(parseInt(et))) cycleDays = parseInt(et);
+    const targetDays = Math.floor(cycleDays * 0.8);
+
+    detailModal.innerHTML = `
+        <style>
+            .detail-grid{display:grid;grid-template-columns:100px 1fr;gap:8px 15px;align-items:center;}
+            .detail-grid strong{color:#555;text-align:right;}
+            .detail-grid span{color:#333;}
+            .create-production-label { display: flex; align-items: center; justify-content: center; margin-top: 15px; cursor: pointer; }
+            .create-production-label input { margin-right: 8px; }
+        </style>
+        <h2 style="text-align:center;margin-top:0;color:#2c3e50;">${tech.icon || '🧪'} ${tech.name}${researchLevel} ${statusText}</h2>
+        <p style="text-align:center;color:#7f8c8d;margin-top:-10px;margin-bottom:20px;">${tech.description}</p>
+        <div class="detail-grid">
+            <strong>优先级</strong><span>${tech.priority || 'N/A'}</span>
+            <strong>需要前置</strong><span>${requirementsHTML}</span>
+            <strong>解锁科技</strong><span>${unlocksHTML}</span>
+            <strong>核心行动</strong><span style="font-weight:bold;color:#3498db;">${tech.action || 'N/A'}</span>
+            <strong>成功标志</strong><span>${tech.success_metric || 'N/A'}</span>
+            <strong>预计用时</strong><span>${tech.estimated_time || 'N/A'}</span>
+            <strong>自动化奖励</strong><span>${tech.automation_reward || 'N/A'}</span>
+            <strong>频率</strong><span>${tech.freq || 'N/A'}</span>
+            <strong>周期</strong><span>${cycleDays} 天</span>
+            <strong>目标</strong><span>${targetDays} 次</span>
+        </div>
+        ${canStartResearch ? `
+            <label class="create-production-label">
+                <input type="checkbox" id="tech-create-production-checkbox" checked>
+                创建对应的生产线
+            </label>
+            <div style="text-align:center; margin-top: 15px;">
+                <button id="start-research-btn" class="btn btn-primary">🚀 开始研究</button>
+            </div>
+        ` : ''}
+
+        <div style="text-align: center; margin-top: 10px;">
+             <button id="close-detail-btn" class="btn btn-secondary">关闭</button>
+        </div>
+    `;
+
+    document.body.appendChild(detailModal);
+
+    // Add event listeners for buttons
+    const startBtn = document.getElementById('start-research-btn');
+    if (startBtn) {
+        startBtn.onclick = () => {
+            console.log('--- Tech Tree Debug: "Start Research" button clicked! ---');
+            const checkboxElement = document.getElementById('tech-create-production-checkbox');
+            console.log('Found checkbox element:', checkboxElement);
+            
+            let createProduction = false;
+            if (checkboxElement) {
+                console.log('Checkbox element .checked property is:', checkboxElement.checked);
+                createProduction = checkboxElement.checked;
+            } else {
+                console.log('Checkbox element NOT found!');
+            }
+
+            // 将周期和目标挂载到tech对象
+            tech.cycle = cycleDays;
+            tech.target = targetDays;
+            tech.base_progress = cycleDays;
+            startResearch(tech, createProduction); // Pass checkbox state and metrics to startResearch
+            detailModal.remove(); // Close detail modal
+            // Also close the main tech tree modal to give immediate feedback to the user
+            const mainDevModal = document.getElementById('dev-library-modal');
+            if (mainDevModal) mainDevModal.remove();
+        };
+    }
+    document.getElementById('close-detail-btn').onclick = () => detailModal.remove();
+}
+
+/**
+ * Starts a new research project. Overwrites the original function.
+ * Adds the research to gameData and syncs production lines.
+ * @param {object} research - The technology object to start researching.
+ * @param {boolean} createProductionLine - Whether to create a corresponding production line.
+ */
+function startResearch(research, createProductionLine) {
+    console.log("内联脚本中的startResearch函数被调用，createProductionLine=", createProductionLine);
+    
+    // 检查必要的函数是否存在
+    if (typeof renderProductions !== 'function') {
+        console.error("renderProductions 函数不存在！");
+        alert("系统错误：renderProductions 函数不存在，请刷新页面重试");
+        return;
+    }
+    
+    if (hasResearch(research.name)) {
+        console.warn(`Attempted to research "${research.name}", but it already exists.`);
+        showCustomModal({ title: "提示", content: `你已经研究过或正在研究 "${research.name}"。` });
+        return;
+    }
+
+    // **BUG FIX & FEATURE UPGRADE: Create a complete object for the main app**
+    // 从 tech 对象中获取频率数据（来自JSON文件）
+    const freq = research.freq || '每天';
+    
+    const newResearch = {
+        researchName: research.name,
+        prodName: research.production_line_content || research.name,
+        icon: research.icon || '🧪',
+        level: 1,
+        progress: 0,
+        maxProgress: research.base_progress || 21,
+        active: true,
+        paused: false,
+        repeatable: research.repeatable || false,
+        checkedToday: false,
+        isNew: true,
+        description: research.description,
+        action: research.action,
+        success_metric: research.success_metric,
+        cycle: research.cycle,
+        target: research.target,
+        freq: freq,
+    };
+
+    gameData.developments.push(newResearch);
+    renderDevelopments(); 
+    
+    let productionMessage = ''; // To provide feedback in the final modal
+
+    // **FINAL FIX**: Manually create the production line item instead of calling the destructive syncResearchProductions()
+    if (createProductionLine) {
+        console.log('--- Tech Tree Debug: Starting Production Line Creation ---');
+        console.log('Checkbox "createProductionLine" is:', createProductionLine);
+        
+        // Ensure production array exists
+        if (!gameData.productions) {
+            gameData.productions = [];
+        }
+        console.log('Productions array (before add):', JSON.parse(JSON.stringify(gameData.productions)));
+
+        // Check if a production line for this research already exists to avoid duplicates
+        const productionExists = gameData.productions.some(p => p.linkedDev === newResearch.researchName);
+        console.log('Does a linked production already exist?', productionExists);
+
+        if (!productionExists) {
+            try {
+                // **NEW APPROACH**: Use the exact same logic as saveProduction() function
+                const newProduction = {
+                    name: newResearch.prodName,
+                    type: 'automation', // 改为automation类型，更符合自动化习惯
+                    activeIncome: 0,
+                    activeCurrency: 'CNY',
+                    passiveIncome: 0,
+                    passiveCurrency: 'CNY',
+                    expense: 0,
+                    expenseCurrency: 'CNY',
+                    linkedDev: newResearch.researchName, // Link to the research project
+                    lastCheckIn: null,
+                    hasActiveIncome: false,
+                    hasPassiveIncome: false,
+                    timeCost: 0
+                };
+                
+                console.log('Creating new production object:', newProduction);
+                gameData.productions.push(newProduction);
+                console.log('Productions array (after add):', JSON.parse(JSON.stringify(gameData.productions)));
+                
+                // **CRITICAL**: Call the same functions that saveProduction() calls
+                console.log('调用renderProductions前，生产线数量:', gameData.productions.length);
+                renderProductions();
+                console.log('调用renderProductions后');
+                renderResourceStats();
+                renderDevelopments();
+                renderWeekCalendar();
+                
+                productionMessage = '\\n\\n✅ 关联生产线已成功添加！';
+            } catch (error) {
+                console.error('创建生产线时出错:', error);
+                productionMessage = '\\n\\n❌ 创建生产线失败: ' + error.message;
+            }
+        } else {
+            productionMessage = '\\n\\nℹ️ 关联生产线已存在，未重复添加。';
+        }
+    }
+    
+    // Save state and notify user
+    try {
+        if (typeof saveToCloud !== 'function') {
+            console.error("saveToCloud 函数不存在！");
+            alert("警告：saveToCloud 函数不存在，数据可能无法保存");
+        } else {
+            saveToCloud();
+        }
+    } catch (error) {
+        console.error("保存数据时出错:", error);
+    }
+    
+    console.log(`Research started: ${research.name}`);
+    showCustomModal({ title: "研究已开始", content: `新的研究项目 "${research.name}" 已添加到你的研发列表中。${productionMessage}` });
+} 
+</script>
+
+    <script>
+        // DOM加载完成后执行
+        // 当页面完全加载后，立即预加载科技树数据
+        window.addEventListener('load', () => {
+            if (window.loadDevLibraryFromJSON) {
+                window.loadDevLibraryFromJSON();
+            }
+        });
+    </script>
+</body>
+</html>

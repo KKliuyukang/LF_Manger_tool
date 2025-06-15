@@ -1,149 +1,7 @@
 // Life Factorio - 人生工厂 脚本分离文件
 
-// === 紧急数据恢复功能 ===
-window.emergencyDataRecovery = function() {
-    console.log('🔍 开始数据恢复检查...');
-    
-    // 1. 检查localStorage
-    const localData = localStorage.getItem('lifeFactorio');
-    if (localData) {
-        try {
-            const parsed = JSON.parse(localData);
-            console.log('✅ 发现本地数据:', parsed);
-            
-            if (parsed.gameData) {
-                // 恢复数据
-                gameData = parsed.gameData;
-                lastDailyReset = parsed.lastDailyReset || lastDailyReset;
-                console.log('🔄 正在恢复数据...');
-                
-                // 重新渲染所有内容
-                fixDataLinks();
-                renderProductions();
-                renderDevelopments();
-                renderMilestones();
-                renderDevLibrary();
-                renderResourceStats();
-                renderWeekCalendar();
-                renderExpenses();
-                
-                alert('✅ 成功从本地存储恢复数据！');
-                return true;
-            }
-        } catch (e) {
-            console.error('❌ 本地数据解析失败:', e);
-        }
-    } else {
-        console.log('❌ 未找到本地数据');
-    }
-    
-    // 2. 检查是否有云端数据
-    if (familyCode && isCloudReady) {
-        console.log('🔍 尝试从云端恢复数据...');
-        db.collection('groups').doc(familyCode).get().then(doc => {
-            if (doc.exists && doc.data().gameData) {
-                gameData = doc.data().gameData;
-                lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
-                
-                fixDataLinks();
-                renderProductions();
-                renderDevelopments();
-                renderMilestones();
-                renderDevLibrary();
-                renderResourceStats();
-                renderWeekCalendar();
-                renderExpenses();
-                
-                alert('✅ 成功从云端恢复数据！');
-                console.log('✅ 云端数据恢复成功');
-                return true;
-            } else {
-                console.log('❌ 云端也没有找到数据');
-                alert('❌ 本地和云端都没有找到数据备份');
-                return false;
-            }
-        }).catch(error => {
-            console.error('❌ 云端数据获取失败:', error);
-            alert('❌ 无法连接到云端，请检查网络连接');
-            return false;
-        });
-    } else {
-        console.log('❌ 云端服务未就绪');
-        alert('❌ 云端服务未连接，请刷新页面重试');
-        return false;
-    }
-}
 
-window.showDataRecoveryPanel = function() {
-    showCustomModal({
-        title: '🚨 数据恢复中心',
-        content: `
-            <div style="text-align:center;padding:10px;">
-                <div style="margin-bottom:20px;color:#e74c3c;font-weight:bold;">检测到数据丢失</div>
-                
-                <div style="margin-bottom:15px;">
-                    <button class="btn btn-primary" onclick="window.emergencyDataRecovery()" style="width:100%;margin-bottom:10px;">
-                        🔄 尝试自动恢复数据
-                    </button>
-                </div>
-                
-                <div style="margin-bottom:15px;">
-                    <button class="btn btn-secondary" onclick="window.loadFromFile()" style="width:100%;margin-bottom:10px;">
-                        📁 从备份文件恢复
-                    </button>
-                </div>
-                
-                <div style="margin-bottom:15px;">
-                    <button class="btn btn-secondary" onclick="window.showDataDebugInfo()" style="width:100%;">
-                        🔍 查看详细调试信息
-                    </button>
-                </div>
-                
-                <div style="font-size:0.9em;color:#666;margin-top:15px;line-height:1.4;">
-                    <strong>数据恢复说明：</strong><br>
-                    1. 首先尝试自动恢复<br>
-                    2. 如果有备份文件，可选择文件恢复<br>
-                    3. 查看调试信息了解具体问题
-                </div>
-            </div>
-        `,
-        onConfirm: () => true
-    });
-}
 
-window.showDataDebugInfo = function() {
-    const localData = localStorage.getItem('lifeFactorio');
-    const hasLocal = !!localData;
-    const localSize = localData ? localData.length : 0;
-    
-    showCustomModal({
-        title: '🔍 数据调试信息',
-        content: `
-            <div style="font-family:monospace;font-size:0.9em;line-height:1.6;">
-                <div><strong>当前状态：</strong></div>
-                <div>• 家庭码: ${familyCode || '未设置'}</div>
-                <div>• 云端连接: ${isCloudReady ? '✅ 已连接' : '❌ 未连接'}</div>
-                <div>• 本地数据: ${hasLocal ? `✅ 存在 (${localSize} 字节)` : '❌ 不存在'}</div>
-                <div>• 当前生产线数量: ${(gameData.productions || []).length}</div>
-                <div>• 当前研发项目数量: ${(gameData.developments || []).length}</div>
-                <div>• 时间记录数量: ${(gameData.timeLogs || []).length}</div>
-                
-                <div style="margin-top:15px;"><strong>可能的问题：</strong></div>
-                <div>1. 浏览器清除了本地存储</div>
-                <div>2. 云端同步失败</div>
-                <div>3. 数据迁移过程出错</div>
-                <div>4. 家庭码更改导致云端数据不匹配</div>
-                
-                <div style="margin-top:15px;">
-                    <button class="btn btn-small btn-secondary" onclick="console.log('Local data:', localStorage.getItem('lifeFactorio'))">
-                        在控制台输出本地数据
-                    </button>
-                </div>
-            </div>
-        `,
-        onConfirm: () => true
-    });
-}
 
 let saveTimeout = null;
 let fileHandle = null;
@@ -2149,49 +2007,6 @@ function showTechDetailModal(tech) {
     };
 }
 
-// 旧版研究函数已被删除，现在使用内联脚本中的新版本
-
-function hasResearch(researchName) {
-    // 修正: 检查 gameData.developments 数组而不是不存在的 researchedItems
-    return gameData.developments.some(dev => dev.researchName === researchName);
-}
-
-// 检查资源是否足够
-function hasEnoughResources(cost) {
-    return Object.entries(cost).every(([resource, amount]) => 
-        resources[resource] >= amount
-    );
-}
-
-// 更新研究状态
-function updateResearchStatus() {
-    // 更新研发树中的节点状态
-    document.querySelectorAll('.research-node').forEach(node => {
-        const nodeContent = node.querySelector('.node-content');
-        if (nodeContent) {
-            nodeContent.className = `node-content ${hasResearch(node.dataset.name) ? 'completed' : ''}`;
-        }
-    });
-
-    // 更新研究详情中的前置研究状态
-    document.querySelectorAll('.requirement').forEach(req => {
-        req.className = `requirement ${hasResearch(req.textContent) ? 'completed' : ''}`;
-    });
-}
-
-// 研究项目库类别色彩映射
-function getCategoryTagClass(category) {
-    const mapping = {
-        '基础资源': 'tag-blue',
-        '效率优化': 'tag-green',
-        '系统建设': 'tag-yellow',
-        '收入多元': 'tag-purple',
-        '工作自主': 'tag-orange',
-        '终极自由': 'tag-red',
-        '默认': 'tag-grey'
-    };
-    return mapping[category] || mapping['默认'];
-}
 
 // 科技树节点详情显示
 window.showTechNodeDetails = function(nodeId, project) {
@@ -2665,7 +2480,9 @@ function resetTimeResource() {
 }
 
 // 3. 渲染精力状态和时间资源
-function renderTimeAndEnergy() {}
+function renderTimeAndEnergy() {
+    renderWeekCalendar();
+}
 
 // 4. 渲染周日历
 function renderWeekCalendar() {
@@ -4664,12 +4481,6 @@ function updateProductionColorMap() {
     });
 }
 
-function formatDateLocal(date) {
-    const y = date.getFullYear();
-    const m = (date.getMonth()+1).toString().padStart(2,'0');
-    const d = date.getDate().toString().padStart(2,'0');
-    return `${y}-${m}-${d}`;
-}
 
 window._calendarBlockContextMenu = function(e, date, name, hour, minute) {
     const log = (gameData.timeLogs||[]).find(l=>l.date===date&&l.name===name&&l.hour==hour&&l.minute==minute);
