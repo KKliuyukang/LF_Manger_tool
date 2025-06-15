@@ -41,9 +41,47 @@ const firebaseConfig = {
   appId: "1:491039499098:web:9a2d1422f3c292c062c963",
   measurementId: "G-543VXB6WLC"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
+
+// 全局变量声明
+let firebaseApp = null;
+let firebaseDb = null;
+let firebaseAuth = null;
+
+// 优化Firebase初始化
+async function initializeFirebase() {
+    try {
+        // 检查Firebase是否已加载
+        if (typeof firebase === 'undefined') {
+            throw new Error('Firebase SDK not loaded');
+        }
+
+        // 如果已经初始化，直接返回
+        if (firebaseApp) {
+            return { db: firebaseDb, auth: firebaseAuth };
+        }
+
+        // 初始化Firebase
+        firebaseApp = firebase.initializeApp(firebaseConfig);
+        firebaseDb = firebase.firestore();
+        firebaseAuth = firebase.auth();
+
+        // 设置持久化
+        await firebaseDb.enablePersistence()
+            .catch((err) => {
+                if (err.code === 'failed-precondition') {
+                    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+                } else if (err.code === 'unimplemented') {
+                    console.warn('The current browser does not support persistence.');
+                }
+            });
+
+        return { db: firebaseDb, auth: firebaseAuth };
+    } catch (error) {
+        console.error('Firebase initialization error:', error);
+        updateSyncStatus('连接失败，请检查网络', 'error');
+        return null;
+    }
+}
 
 let firebaseUserId = null;
 let firebaseUnsubscribe = null;
@@ -493,6 +531,8 @@ window.init = async function() {
     }
     
     console.log(`✅ 系统初始化完成`);
+    updateStatisticsPanel();
+    listenToExpenseChanges();
 };
 
 // 2. 页面加载时调用window.init()
@@ -1178,43 +1218,8 @@ window.editSavings = function() {
     }
 }
 
-window.editEstimatedExpense = function() {
-    const currentExpense = gameData.finance.estimatedMonthlyExpense || 0;
-    const currentCurrency = gameData.finance.estimatedExpenseCurrency || 'CNY';
-    
-    showCustomModal({
-        title: '设置预计月支出',
-        content: `
-            <div class='form-group'>
-                <label class='form-label'>预计月支出金额</label>
-                <input type='number' id='estimated-expense-amount' class='form-input' value='${currentExpense}' placeholder='0'>
-            </div>
-            <div class='form-group'>
-                <label class='form-label'>货币</label>
-                <select id='estimated-expense-currency' class='form-select'>
-                    <option value='CNY' ${currentCurrency === 'CNY' ? 'selected' : ''}>人民币 ¥</option>
-                    <option value='AUD' ${currentCurrency === 'AUD' ? 'selected' : ''}>澳元 A$</option>
-                    <option value='USD' ${currentCurrency === 'USD' ? 'selected' : ''}>美元 $</option>
-                    <option value='EUR' ${currentCurrency === 'EUR' ? 'selected' : ''}>欧元 €</option>
-                </select>
-            </div>
-            <div style='font-size:0.9em;color:#666;margin-top:10px;'>
-                用于与实际月支出进行对比，帮助你了解预算执行情况
-            </div>
-        `,
-        onConfirm: () => {
-            const amount = parseFloat(document.getElementById('estimated-expense-amount').value) || 0;
-            const currency = document.getElementById('estimated-expense-currency').value;
-            
-            gameData.finance.estimatedMonthlyExpense = amount;
-            gameData.finance.estimatedExpenseCurrency = currency;
-            
-            renderResourceStats();
-            saveToCloud();
-            return true;
-        }
-    });
-}
+// 移除预计月支出的手动编辑弹窗
+window.editEstimatedExpense = undefined;
 
 window.showTodayTimeDetails = function() {
     const today = getLocalDateString(); // 修复：使用本地日期
@@ -1777,7 +1782,10 @@ function renderDevLibrary() {
     const techContainer = document.createElement('div');
     techContainer.id = 'tech-container';
     techContainer.style.position = 'relative';
-
+    
+    // 添加缩放控制
+    addZoomControls(techContainer);
+    
     const finalGoal = techTreeData.finalGoal;
     if (finalGoal) {
         const goalNode = createTechNode(finalGoal, 0, true);
@@ -2646,118 +2654,122 @@ window.addEventListener('DOMContentLoaded',function(){
 
 // 新增：渲染资源数据统计面板
 function renderResourceStats() {
-    const container = document.getElementById('resource-stats');
-    if (!container) return;
-    let totalActive = 0, totalPassive = 0, totalExpense = 0;
-    let activeBreakdown = [], passiveBreakdown = [], expenseBreakdown = [];
-    let activeIncomesByCurrency = {}, passiveIncomesByCurrency = {}, expensesByCurrency = {};
-    (gameData.productions || []).forEach(prod => {
-        if (prod.hasActiveIncome && prod.activeIncome > 0) {
-            if (!activeIncomesByCurrency[prod.activeCurrency]) activeIncomesByCurrency[prod.activeCurrency] = 0;
-            activeIncomesByCurrency[prod.activeCurrency] += prod.activeIncome;
-        }
-        if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
-            if (!passiveIncomesByCurrency[prod.passiveCurrency]) passiveIncomesByCurrency[prod.passiveCurrency] = 0;
-            passiveIncomesByCurrency[prod.passiveCurrency] += prod.passiveIncome;
-        }
-        if (prod.expense > 0) {
-            if (!expensesByCurrency[prod.expenseCurrency]) expensesByCurrency[prod.expenseCurrency] = 0;
-            expensesByCurrency[prod.expenseCurrency] += prod.expense;
-        }
-    });
-    Object.entries(activeIncomesByCurrency).forEach(([currency, amount]) => {
-        totalActive += convertToCNY(amount, currency);
-        activeBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-    });
-    Object.entries(passiveIncomesByCurrency).forEach(([currency, amount]) => {
-        totalPassive += convertToCNY(amount, currency);
-        passiveBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-    });
-    Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
-        totalExpense += convertToCNY(amount, currency);
-        expenseBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-    });
-    let savings = gameData.finance.totalSavings;
-    let savingsCurrency = gameData.finance.savingsCurrency;
-    let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
-    let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
-    let today = getLocalDateString(); // 修复：使用本地日期
-    let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
-        // 确保时间成本为正值，如果timeCost异常则重新计算
-        let timeCost = log.timeCost || 0;
-        if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
-            timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
-        }
-        return sum + Math.max(0, timeCost); // 确保不会是负数
-    }, 0);
-    let html = '';
-    html += `<div class='resource-stats-section'>
-        <div class='resource-label'>累计存款
-            <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
-        </div>
-        <div class='resource-main-value'>${savingsStr}</div>
-        <div class='resource-sub'>${savingsUpdate}</div>
-    </div>`;
-    html += `<div class='resource-divider'></div>`;
-    html += `<div class='resource-stats-section'>
-        <div class='resource-label'>今天主动用时 
-            <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
-        </div>
-        <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
-    </div>`;
-    html += `<div class='resource-divider'></div>`;
-    html += `<div class='resource-row'>
-        <span class='resource-label'>主动收入</span>
-        <span class='resource-main-value' style='font-size:1.2em;color:#2980b9;'>¥${Math.round(totalActive).toLocaleString()}</span>
-    </div>`;
-    if (activeBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${activeBreakdown.join(' + ')})</div>`;
-    
-    html += `<div class='resource-row'>
-        <span class='resource-label'>被动收入</span>
-        <span class='resource-main-value' style='font-size:1.2em;color:#16a085;'>¥${Math.round(totalPassive).toLocaleString()}</span>
-    </div>`;
-    if (passiveBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${passiveBreakdown.join(' + ')})</div>`;
-    
-    html += `<div class='resource-divider'></div>`;
-    // 使用合并的月支出统计（包括生产线支出和支出面板的支出）
-    const monthlyTotal = getMonthlyExpenseTotalMerged();
-    const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
-    
-    // 预计月支出
-    const estimatedExpense = gameData.finance.estimatedMonthlyExpense || 0;
-    const estimatedCurrency = gameData.finance.estimatedExpenseCurrency || 'CNY';
-    const estimatedInCNY = convertToCNY(estimatedExpense, estimatedCurrency);
-    
-    html += `<div class='resource-row'>
-        <span class='resource-label'>预计月支出
-            <button class='resource-btn-edit' onclick='window.editEstimatedExpense()'>✏️</button>
-        </span>
-        <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedInCNY).toLocaleString()}</span>
-    </div>`;
-    
-    // 实际月支出与对比
-    const difference = monthlyTotal - estimatedInCNY;
-    const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
-    const diffSymbol = difference > 0 ? '+' : '';
-    
-    html += `<div class='resource-row'>
-        <span class='resource-label'>实际月支出</span>
-        <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(monthlyTotal).toLocaleString()}</span>
-    </div>`;
-    
-    if (estimatedInCNY > 0) {
-        html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
-            差额：${diffSymbol}¥${Math.abs(Math.round(difference)).toLocaleString()} 
-            (${difference > 0 ? '超支' : difference < 0 ? '节省' : '无差异'})
+    try {
+        console.log('renderResourceStats called', JSON.stringify(gameData));
+        let html = '';
+        const container = document.getElementById('resource-stats');
+        if (!container) return;
+        let totalActive = 0, totalPassive = 0, totalExpense = 0;
+        let activeBreakdown = [], passiveBreakdown = [], expenseBreakdown = [];
+        let activeIncomesByCurrency = {}, passiveIncomesByCurrency = {}, expensesByCurrency = {};
+        (gameData.productions || []).forEach(prod => {
+            if (prod.hasActiveIncome && prod.activeIncome > 0) {
+                if (!activeIncomesByCurrency[prod.activeCurrency]) activeIncomesByCurrency[prod.activeCurrency] = 0;
+                activeIncomesByCurrency[prod.activeCurrency] += prod.activeIncome;
+            }
+            if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
+                if (!passiveIncomesByCurrency[prod.passiveCurrency]) passiveIncomesByCurrency[prod.passiveCurrency] = 0;
+                passiveIncomesByCurrency[prod.passiveCurrency] += prod.passiveIncome;
+            }
+            if (prod.expense > 0) {
+                if (!expensesByCurrency[prod.expenseCurrency]) expensesByCurrency[prod.expenseCurrency] = 0;
+                expensesByCurrency[prod.expenseCurrency] += prod.expense;
+            }
+        });
+        Object.entries(activeIncomesByCurrency).forEach(([currency, amount]) => {
+            totalActive += convertToCNY(amount, currency);
+            activeBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+        });
+        Object.entries(passiveIncomesByCurrency).forEach(([currency, amount]) => {
+            totalPassive += convertToCNY(amount, currency);
+            passiveBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+        });
+        Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
+            totalExpense += convertToCNY(amount, currency);
+            expenseBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+        });
+        let savings = gameData.finance.totalSavings;
+        let savingsCurrency = gameData.finance.savingsCurrency;
+        let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
+        let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
+        let today = getLocalDateString(); // 修复：使用本地日期
+        let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
+            // 确保时间成本为正值，如果timeCost异常则重新计算
+            let timeCost = log.timeCost || 0;
+            if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
+                timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
+            }
+            return sum + Math.max(0, timeCost); // 确保不会是负数
+        }, 0);
+        html += `<div class='resource-stats-section'>
+            <div class='resource-label'>累计存款
+                <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
+            </div>
+            <div class='resource-main-value'>${savingsStr}</div>
+            <div class='resource-sub'>${savingsUpdate}</div>
         </div>`;
+        html += `<div class='resource-divider'></div>`;
+        html += `<div class='resource-stats-section'>
+            <div class='resource-label'>今天主动用时 
+                <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
+            </div>
+            <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
+        </div>`;
+        html += `<div class='resource-divider'></div>`;
+        html += `<div class='resource-row'>
+            <span class='resource-label'>主动收入</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#2980b9;'>¥${Math.round(totalActive).toLocaleString()}</span>
+        </div>`;
+        if (activeBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${activeBreakdown.join(' + ')})</div>`;
+        
+        html += `<div class='resource-row'>
+            <span class='resource-label'>被动收入</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#16a085;'>¥${Math.round(totalPassive).toLocaleString()}</span>
+        </div>`;
+        if (passiveBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${passiveBreakdown.join(' + ')})</div>`;
+        
+        html += `<div class='resource-divider'></div>`;
+        // 使用合并的月支出统计（包括生产线支出和支出面板的支出）
+        const monthlyTotal = getMonthlyExpenseTotalMerged();
+        const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
+        
+        // 预计月支出（自动统计，合计所有本月应发生的固定和单次支出）
+        const estimatedExpense = getPlannedExpenseTotalThisMonth();
+        const estimatedInCNY = estimatedExpense; // 已经是CNY
+        html += `<div class='resource-row'>
+            <span class='resource-label'>预计月支出</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedInCNY).toLocaleString()}</span>
+        </div>`;
+        
+        // 实际月支出与对比
+        const actualExpense = getActualExpenseTotalThisMonth();
+        html += `<div class='resource-row'>
+            <span class='resource-label'>实际月支出</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(actualExpense).toLocaleString()}</span>
+        </div>`;
+        
+        // 差额
+        const difference = actualExpense - estimatedInCNY;
+        const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
+        const diffSymbol = difference > 0 ? '+' : '';
+        
+        if (estimatedInCNY > 0) {
+            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
+                差额：${diffSymbol}¥${Math.abs(Math.round(difference)).toLocaleString()} 
+                (${difference > 0 ? '超支' : difference < 0 ? '节省' : '无差异'})
+            </div>`;
+        }
+        
+        // 支出明细紧挨着实际月支出
+        const allExpenseDetails = [];
+        if (expenseBreakdown.length) allExpenseDetails.push(...expenseBreakdown);
+        if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
+        if (allExpenseDetails.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>`;
+        container.innerHTML = html;
+    } catch (e) {
+        console.error('renderResourceStats error:', e);
+        document.getElementById('resource-stats').innerHTML = '<div style="color:red">统计面板渲染出错：' + e.message + '</div>';
     }
-    
-    // 支出明细紧挨着实际月支出
-    const allExpenseDetails = [];
-    if (expenseBreakdown.length) allExpenseDetails.push(...expenseBreakdown);
-    if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
-    if (allExpenseDetails.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>`;
-    container.innerHTML = html;
 }
 
 // 清除用时记录
@@ -3012,61 +3024,101 @@ async function saveToBoundFile() {
 }
 
 // 云端登录并监听
-function firebaseLoginAndSync() {
-    auth.signInAnonymously().then(() => {
-        listenCloudData();
-    });
+async function firebaseLoginAndSync() {
+    try {
+        const { db, auth } = await initializeFirebase();
+        if (!db || !auth) {
+            throw new Error('Firebase initialization failed');
+        }
+
+        // 匿名登录
+        const userCredential = await auth.signInAnonymously();
+        firebaseUserId = userCredential.user.uid;
+        console.log('Firebase anonymous login successful');
+
+        // 开始监听数据
+        await listenCloudData();
+    } catch (error) {
+        console.error('Firebase login error:', error);
+        updateSyncStatus('登录失败，请重试', 'error');
+    }
 }
 
-// 监听云端数据变化
-function listenCloudData() {
-    if (!familyCode) return;
-    if (firebaseUnsubscribe) firebaseUnsubscribe();
-    isCloudLoading = true;
-    firebaseUnsubscribe = db.collection('groups').doc(familyCode)
-        .onSnapshot(doc => {
-            isCloudLoading = false;
-            if (doc.exists && doc.data().gameData) {
-                gameData = migrateData(doc.data().gameData);
-                lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
-                // 云端数据加载后重新检查每日重置
-                checkDailyReset();
-                fixDataLinks();
-                renderProductions();
-                renderDevelopments();
-                renderMilestones();
-                renderDevLibrary();
-                renderResourceStats();
-                renderWeekCalendar();
-                renderExpenses(); // 新增：云端同步后渲染支出栏
-                cloudInitDone = true;
-                updateSyncStatus('已同步', new Date().toLocaleTimeString());
-            } else if (!cloudInitDone) {
-                saveToCloud();
-                cloudInitDone = true;
-            }
-            isCloudReady = true;
-        });
+// 优化云端数据监听
+async function listenCloudData() {
+    if (!familyCode) {
+        console.log('未设置家庭码，无法同步');
+        return;
+    }
+
+    try {
+        const { db } = await initializeFirebase();
+        if (!db) return;
+
+        if (firebaseUnsubscribe) {
+            firebaseUnsubscribe();
+        }
+
+        isCloudLoading = true;
+        firebaseUnsubscribe = db.collection('groups')
+            .doc(familyCode)
+            .onSnapshot((doc) => {
+                isCloudLoading = false;
+                if (doc.exists && doc.data().gameData) {
+                    gameData = migrateData(doc.data().gameData);
+                    lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
+                    checkDailyReset();
+                    fixDataLinks();
+                    renderProductions();
+                    renderDevelopments();
+                    renderMilestones();
+                    renderDevLibrary();
+                    renderResourceStats();
+                    renderWeekCalendar();
+                    renderExpenses();
+                    cloudInitDone = true;
+                    updateSyncStatus('已同步', 'success');
+                } else if (!cloudInitDone) {
+                    saveToCloud();
+                    cloudInitDone = true;
+                }
+                isCloudReady = true;
+            }, (error) => {
+                console.error('Cloud sync error:', error);
+                updateSyncStatus('同步失败，请重试', 'error');
+            });
+    } catch (error) {
+        console.error('Cloud data listening error:', error);
+        updateSyncStatus('连接失败，请检查网络', 'error');
+    }
 }
 
-// 保存到云端
-function saveToCloud() {
+// 优化云端保存
+async function saveToCloud() {
     if (!familyCode || isCloudLoading) return;
-    isCloudSaving = true;
-    updateSyncStatus('同步中');
-    db.collection('groups').doc(familyCode).set({
-        gameData: gameData,
-        lastDailyReset: lastDailyReset,
-        saveTime: new Date().toISOString()
-    }).then(() => {
+    
+    try {
+        isCloudSaving = true;
+        updateSyncStatus('正在保存...', 'pending');
+        
+        const { db } = await initializeFirebase();
+        if (!db) return;
+
+        await db.collection('groups')
+            .doc(familyCode)
+            .set({
+                gameData: gameData,
+                lastDailyReset: lastDailyReset,
+                saveTime: new Date().toISOString()
+            });
+        
+        updateSyncStatus('已保存', 'success');
+    } catch (error) {
+        console.error('Cloud save error:', error);
+        updateSyncStatus('保存失败，请重试', 'error');
+    } finally {
         isCloudSaving = false;
-        updateSyncStatus('已同步', new Date().toLocaleTimeString());
-    }).catch((error) => {
-        console.warn('云端同步失败，切换到本地保存:', error.message);
-        isCloudSaving = false;
-        updateSyncStatus('离线');
-        saveToLocal();
-    });
+    }
 }
 
 let familyCode = localStorage.getItem('lifeFactoryFamilyCode') || null;
@@ -3074,15 +3126,15 @@ let autoBackupEnabled = localStorage.getItem('lifeFactoryAutoBackup') === 'true'
 let autoBackupInterval = null;
 let lastBackupTime = localStorage.getItem('lifeFactoryLastBackup') || null;
 
-function askFamilyCode() {
-    let code = prompt('请输入家庭码/团队码（所有设备输入相同即可同步）：', familyCode || '');
-    if (code && code.trim()) {
-        familyCode = code.trim();
-        localStorage.setItem('lifeFactoryFamilyCode', familyCode);
-        firebaseLoginAndSync();
+async function askFamilyCode() {
+    const code = prompt('请输入家庭码（用于云端同步）：');
+    if (code) {
+        window.familyCode = code;
+        localStorage.setItem('familyCode', code);
+        await firebaseLoginAndSync();
     } else {
-        alert('必须输入家庭码才能使用！');
-        askFamilyCode();
+        console.log('未输入家庭码，使用本地模式');
+        updateSyncStatus('本地模式', 'warning');
     }
 }
 
@@ -4714,3 +4766,373 @@ window.fixAllTimezoneIssues = function() {
     console.log('✅ 全面时区问题修复完成');
     alert('🎉 时区问题已全面修复！现在所有时间显示都会使用本地时间。');
 };
+
+function createTreeStylePath(fromPoint, toPoint) {
+    const { x: startX, y: startY } = fromPoint;
+    const { x: endX, y: endY } = toPoint;
+    
+    // 计算控制点
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const radius = 20; // 圆角半径
+    
+    // 创建圆角路径
+    let path = `M ${startX} ${startY}`;
+    
+    if (Math.abs(dx) > Math.abs(dy)) {
+        // 水平距离大于垂直距离
+        const midX = startX + dx / 2;
+        path += ` L ${midX - radius} ${startY}`;
+        path += ` Q ${midX} ${startY}, ${midX} ${startY + radius}`;
+        path += ` L ${midX} ${endY - radius}`;
+        path += ` Q ${midX} ${endY}, ${midX + radius} ${endY}`;
+        path += ` L ${endX} ${endY}`;
+    } else {
+        // 垂直距离大于水平距离
+        const midY = startY + dy / 2;
+        path += ` L ${startX} ${midY - radius}`;
+        path += ` Q ${startX} ${midY}, ${startX + radius} ${midY}`;
+        path += ` L ${endX - radius} ${midY}`;
+        path += ` Q ${endX} ${midY}, ${endX} ${midY + radius}`;
+        path += ` L ${endX} ${endY}`;
+    }
+    
+    return path;
+}
+
+// 添加缩放控制
+function addZoomControls(container) {
+    const zoomControls = document.createElement('div');
+    zoomControls.className = 'tech-tree-zoom-controls';
+    
+    const zoomIn = document.createElement('button');
+    zoomIn.textContent = '+';
+    zoomIn.onclick = () => zoomTechTree(1.2);
+    
+    const zoomOut = document.createElement('button');
+    zoomOut.textContent = '-';
+    zoomOut.onclick = () => zoomTechTree(0.8);
+    
+    const reset = document.createElement('button');
+    reset.textContent = '重置';
+    reset.onclick = () => resetTechTreeZoom();
+    
+    zoomControls.appendChild(zoomOut);
+    zoomControls.appendChild(reset);
+    zoomControls.appendChild(zoomIn);
+    
+    container.appendChild(zoomControls);
+}
+
+let currentZoom = 1;
+const minZoom = 0.5;
+const maxZoom = 2;
+
+function zoomTechTree(factor) {
+    const container = document.querySelector('.tech-tree-container');
+    if (!container) return;
+    
+    currentZoom = Math.min(Math.max(currentZoom * factor, minZoom), maxZoom);
+    container.style.transform = `scale(${currentZoom})`;
+    container.style.transformOrigin = 'center center';
+}
+
+function resetTechTreeZoom() {
+    currentZoom = 1;
+    const container = document.querySelector('.tech-tree-container');
+    if (container) {
+        container.style.transform = 'scale(1)';
+    }
+}
+
+// 修改renderDevLibrary函数
+function renderDevLibrary() {
+    // ... existing code ...
+    
+    const techContainer = document.createElement('div');
+    techContainer.id = 'tech-container';
+    techContainer.style.position = 'relative';
+    
+    // 添加缩放控制
+    addZoomControls(techContainer);
+    
+    // ... rest of the existing code ...
+}
+
+// ... existing code ...
+
+// 计算预计支出
+function calculateExpectedExpenses() {
+    const expenses = gameData.expenses || [];
+    let total = 0;
+    
+    expenses.forEach(expense => {
+        if (expense.active) {
+            // 根据频率计算月度支出
+            let monthlyAmount = expense.amount;
+            switch (expense.freq) {
+                case 'daily':
+                    monthlyAmount *= 30;
+                    break;
+                case 'weekly':
+                    monthlyAmount *= 4;
+                    break;
+                case 'yearly':
+                    monthlyAmount /= 12;
+                    break;
+            }
+            total += monthlyAmount;
+        }
+    });
+    
+    return total;
+}
+
+// 更新统计面板
+function updateStatisticsPanel() {
+    const expectedExpenses = calculateExpectedExpenses();
+    const expectedExpensesElement = document.getElementById('expected-expenses');
+    if (expectedExpensesElement) {
+        expectedExpensesElement.textContent = `预计支出：${expectedExpenses.toFixed(2)}`;
+    }
+}
+
+// 监听支出变化
+function listenToExpenseChanges() {
+    const expensesContainer = document.getElementById('expenses-container');
+    if (expensesContainer) {
+        const observer = new MutationObserver(() => {
+            updateStatisticsPanel();
+        });
+        
+        observer.observe(expensesContainer, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            characterData: true
+        });
+    }
+}
+
+// 在初始化时调用
+function initializeApp() {
+    // ... existing code ...
+    updateStatisticsPanel();
+    listenToExpenseChanges();
+    // ... existing code ...
+}
+
+// ... existing code ...
+
+// 获取本月所有应发生的支出（预计月支出）
+function getPlannedExpenseTotalThisMonth() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    let total = 0;
+    // 单次支出：只要本月内的都算
+    (gameData.expenses||[]).forEach(exp => {
+        if (!exp || !exp.amount || !exp.currency) return;
+        if (exp.type === 'single') {
+            const d = new Date(exp.date);
+            if (d.getFullYear() === year && d.getMonth() === month) {
+                total += convertToCNY(exp.amount, exp.currency);
+            }
+        } else if (exp.type === 'recurring') {
+            // 固定支出：本月内应发生几次都算
+            const start = new Date(exp.date);
+            if (start > now) return; // 未来开始的不算
+            if (exp.frequency === 'monthly') {
+                if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
+                    total += convertToCNY(exp.amount, exp.currency);
+                }
+            } else if (exp.frequency === 'biweekly') {
+                let firstDay = new Date(year, month, 1);
+                let lastDay = new Date(year, month + 1, 0);
+                let cycleStart = new Date(start);
+                while (cycleStart < firstDay) {
+                    cycleStart.setDate(cycleStart.getDate() + 14);
+                }
+                while (cycleStart <= lastDay) {
+                    total += convertToCNY(exp.amount, exp.currency);
+                    cycleStart.setDate(cycleStart.getDate() + 14);
+                }
+            } else if (exp.frequency === 'yearly') {
+                // 每年一次，只要本月是起始月
+                if (start.getMonth() === month && start.getFullYear() <= year) {
+                    total += convertToCNY(exp.amount, exp.currency);
+                }
+            }
+        }
+    });
+    return total;
+}
+
+// 获取本月已到期的支出（实际月支出）
+function getActualExpenseTotalThisMonth() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    let total = 0;
+    // 单次支出：本月内且日期<=今天
+    (gameData.expenses||[]).forEach(exp => {
+        if (!exp || !exp.amount || !exp.currency) return;
+        if (exp.type === 'single') {
+            const d = new Date(exp.date);
+            if (d.getFullYear() === year && d.getMonth() === month && d <= now) {
+                total += convertToCNY(exp.amount, exp.currency);
+            }
+        } else if (exp.type === 'recurring') {
+            const start = new Date(exp.date);
+            if (start > now) return; // 未来开始的不算
+            if (exp.frequency === 'monthly') {
+                // 本月应发生且日期<=今天
+                const thisMonthDate = new Date(year, month, start.getDate());
+                if (thisMonthDate <= now && start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
+                    total += convertToCNY(exp.amount, exp.currency);
+                }
+            } else if (exp.frequency === 'biweekly') {
+                let firstDay = new Date(year, month, 1);
+                let lastDay = new Date(year, month + 1, 0);
+                let cycleStart = new Date(start);
+                while (cycleStart < firstDay) {
+                    cycleStart.setDate(cycleStart.getDate() + 14);
+                }
+                while (cycleStart <= lastDay && cycleStart <= now) {
+                    total += convertToCNY(exp.amount, exp.currency);
+                    cycleStart.setDate(cycleStart.getDate() + 14);
+                }
+            } else if (exp.frequency === 'yearly') {
+                // 每年一次，只要本月是起始月且日期<=今天
+                if (start.getMonth() === month && start.getFullYear() <= year) {
+                    const thisYearDate = new Date(year, month, start.getDate());
+                    if (thisYearDate <= now) {
+                        total += convertToCNY(exp.amount, exp.currency);
+                    }
+                }
+            }
+        }
+    });
+    return total;
+}
+
+// 替换资源统计面板展示
+function renderResourceStats() {
+    try {
+        console.log('renderResourceStats called', JSON.stringify(gameData));
+        let html = '';
+        const container = document.getElementById('resource-stats');
+        if (!container) return;
+        let totalActive = 0, totalPassive = 0, totalExpense = 0;
+        let activeBreakdown = [], passiveBreakdown = [], expenseBreakdown = [];
+        let activeIncomesByCurrency = {}, passiveIncomesByCurrency = {}, expensesByCurrency = {};
+        (gameData.productions || []).forEach(prod => {
+            if (prod.hasActiveIncome && prod.activeIncome > 0) {
+                if (!activeIncomesByCurrency[prod.activeCurrency]) activeIncomesByCurrency[prod.activeCurrency] = 0;
+                activeIncomesByCurrency[prod.activeCurrency] += prod.activeIncome;
+            }
+            if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
+                if (!passiveIncomesByCurrency[prod.passiveCurrency]) passiveIncomesByCurrency[prod.passiveCurrency] = 0;
+                passiveIncomesByCurrency[prod.passiveCurrency] += prod.passiveIncome;
+            }
+            if (prod.expense > 0) {
+                if (!expensesByCurrency[prod.expenseCurrency]) expensesByCurrency[prod.expenseCurrency] = 0;
+                expensesByCurrency[prod.expenseCurrency] += prod.expense;
+            }
+        });
+        Object.entries(activeIncomesByCurrency).forEach(([currency, amount]) => {
+            totalActive += convertToCNY(amount, currency);
+            activeBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+        });
+        Object.entries(passiveIncomesByCurrency).forEach(([currency, amount]) => {
+            totalPassive += convertToCNY(amount, currency);
+            passiveBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+        });
+        Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
+            totalExpense += convertToCNY(amount, currency);
+            expenseBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+        });
+        let savings = gameData.finance.totalSavings;
+        let savingsCurrency = gameData.finance.savingsCurrency;
+        let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
+        let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
+        let today = getLocalDateString(); // 修复：使用本地日期
+        let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
+            // 确保时间成本为正值，如果timeCost异常则重新计算
+            let timeCost = log.timeCost || 0;
+            if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
+                timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
+            }
+            return sum + Math.max(0, timeCost); // 确保不会是负数
+        }, 0);
+        html += `<div class='resource-stats-section'>
+            <div class='resource-label'>累计存款
+                <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
+            </div>
+            <div class='resource-main-value'>${savingsStr}</div>
+            <div class='resource-sub'>${savingsUpdate}</div>
+        </div>`;
+        html += `<div class='resource-divider'></div>`;
+        html += `<div class='resource-stats-section'>
+            <div class='resource-label'>今天主动用时 
+                <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
+            </div>
+            <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
+        </div>`;
+        html += `<div class='resource-divider'></div>`;
+        html += `<div class='resource-row'>
+            <span class='resource-label'>主动收入</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#2980b9;'>¥${Math.round(totalActive).toLocaleString()}</span>
+        </div>`;
+        if (activeBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${activeBreakdown.join(' + ')})</div>`;
+        
+        html += `<div class='resource-row'>
+            <span class='resource-label'>被动收入</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#16a085;'>¥${Math.round(totalPassive).toLocaleString()}</span>
+        </div>`;
+        if (passiveBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${passiveBreakdown.join(' + ')})</div>`;
+        
+        html += `<div class='resource-divider'></div>`;
+        // 使用合并的月支出统计（包括生产线支出和支出面板的支出）
+        const monthlyTotal = getMonthlyExpenseTotalMerged();
+        const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
+        
+        // 预计月支出（自动统计，合计所有本月应发生的固定和单次支出）
+        const estimatedExpense = getPlannedExpenseTotalThisMonth();
+        const estimatedInCNY = estimatedExpense; // 已经是CNY
+        html += `<div class='resource-row'>
+            <span class='resource-label'>预计月支出</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedInCNY).toLocaleString()}</span>
+        </div>`;
+        
+        // 实际月支出与对比
+        const actualExpense = getActualExpenseTotalThisMonth();
+        html += `<div class='resource-row'>
+            <span class='resource-label'>实际月支出</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(actualExpense).toLocaleString()}</span>
+        </div>`;
+        
+        // 差额
+        const difference = actualExpense - estimatedInCNY;
+        const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
+        const diffSymbol = difference > 0 ? '+' : '';
+        
+        if (estimatedInCNY > 0) {
+            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
+                差额：${diffSymbol}¥${Math.abs(Math.round(difference)).toLocaleString()} 
+                (${difference > 0 ? '超支' : difference < 0 ? '节省' : '无差异'})
+            </div>`;
+        }
+        
+        // 支出明细紧挨着实际月支出
+        const allExpenseDetails = [];
+        if (expenseBreakdown.length) allExpenseDetails.push(...expenseBreakdown);
+        if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
+        if (allExpenseDetails.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>`;
+        container.innerHTML = html;
+    } catch (e) {
+        console.error('renderResourceStats error:', e);
+        document.getElementById('resource-stats').innerHTML = '<div style="color:red">统计面板渲染出错：' + e.message + '</div>';
+    }
+}
+// ... existing code ...
