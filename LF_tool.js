@@ -41,47 +41,9 @@ const firebaseConfig = {
   appId: "1:491039499098:web:9a2d1422f3c292c062c963",
   measurementId: "G-543VXB6WLC"
 };
-
-// 全局变量声明
-let firebaseApp = null;
-let firebaseDb = null;
-let firebaseAuth = null;
-
-// 优化Firebase初始化
-async function initializeFirebase() {
-    try {
-        // 检查Firebase是否已加载
-        if (typeof firebase === 'undefined') {
-            throw new Error('Firebase SDK not loaded');
-        }
-
-        // 如果已经初始化，直接返回
-        if (firebaseApp) {
-            return { db: firebaseDb, auth: firebaseAuth };
-        }
-
-        // 初始化Firebase
-        firebaseApp = firebase.initializeApp(firebaseConfig);
-        firebaseDb = firebase.firestore();
-        firebaseAuth = firebase.auth();
-
-        // 设置持久化
-        await firebaseDb.enablePersistence()
-            .catch((err) => {
-                if (err.code === 'failed-precondition') {
-                    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-                } else if (err.code === 'unimplemented') {
-                    console.warn('The current browser does not support persistence.');
-                }
-            });
-
-        return { db: firebaseDb, auth: firebaseAuth };
-    } catch (error) {
-        console.error('Firebase initialization error:', error);
-        updateSyncStatus('连接失败，请检查网络', 'error');
-        return null;
-    }
-}
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
 
 let firebaseUserId = null;
 let firebaseUnsubscribe = null;
@@ -91,258 +53,22 @@ let isCloudLoading = false;
 let cloudInitDone = false;
 
 // 初始化数据
-let gameData = {
+window.gameData = {
     version: DATA_VERSION,
     finance: {
-        totalSavings: 20000,
+        totalSavings: 0,
         savingsCurrency: 'CNY',
-        savingsUpdateTime: null,
-        estimatedMonthlyExpense: 0,
-        estimatedExpenseCurrency: 'CNY'
+        savingsUpdateTime: null
     },
-    productions: [
-        {
-            name: "规律睡眠",
-            type: "habit",
-            activeIncome: 0,
-            activeCurrency: 'CNY',
-            passiveIncome: 0,
-            passiveCurrency: 'CNY',
-            expense: 0,
-            expenseCurrency: 'CNY',
-            linkedDev: "睡眠质量提升",
-            lastCheckIn: null,
-            hasActiveIncome: false,
-            hasPassiveIncome: false,
-            timeCost: 480 // 8小时
-        },
-        {
-            name: "复合运动",
-            type: "habit",
-            activeIncome: 0,
-            activeCurrency: 'CNY',
-            passiveIncome: 0,
-            passiveCurrency: 'CNY',
-            expense: 0,
-            expenseCurrency: 'CNY',
-            linkedDev: "体能增强",
-            lastCheckIn: null,
-            hasActiveIncome: false,
-            hasPassiveIncome: false,
-            timeCost: 30
-        }
-    ],
-    developments: [
-        {
-            researchName: "睡眠质量提升",
-            prodName: "规律睡眠",
-            icon: "💤",
-            level: 1,
-            progress: 0,
-            maxProgress: 21,
-            active: true,
-            paused: false,
-            repeatable: true,
-            checkedToday: false,
-            category: "身心精力系统",
-            cycle: 21,
-            target: 18,
-            action: "23:00前上床+7-9小时睡眠+晨起质量记录",
-            science: "哈佛医学院睡眠研究",
-            startDate: new Date().toISOString()
-        },
-        {
-            researchName: "体能增强",
-            prodName: "复合运动",
-            icon: "🏃",
-            level: 1,
-            progress: 0,
-            maxProgress: 30,
-            active: true,
-            paused: false,
-            repeatable: true,
-            checkedToday: false,
-            category: "身心精力系统",
-            cycle: 30,
-            target: 12,
-            action: "20分钟有氧+10分钟力量训练+运动后补水",
-            science: "WHO运动指南",
-            startDate: new Date().toISOString()
-        }
-    ],
-    devLibrary: [
-        // 🌱 身心精力系统
-        { 
-            icon: "💤", 
-            category: "身心精力系统", 
-            researchName: "睡眠质量提升", 
-            prodName: "规律睡眠", 
-            freq: "每天", 
-            cycle: 21, 
-            target: 18, 
-            action: "23:00前上床+7-9小时睡眠+晨起质量记录", 
-            science: "哈佛医学院睡眠研究"
-        },
-        { 
-            icon: "🏃", 
-            category: "身心精力系统", 
-            researchName: "体能增强", 
-            prodName: "复合运动", 
-            freq: "每周3次", 
-            cycle: 30, 
-            target: 12, 
-            action: "20分钟有氧+10分钟力量训练+运动后补水", 
-            science: "WHO运动指南"
-        },
-        { 
-            icon: "🧠", 
-            category: "身心精力系统", 
-            researchName: "专注力训练", 
-            prodName: "正念冥想", 
-            freq: "每天1次", 
-            cycle: 21, 
-            target: 15, 
-            action: "5分钟呼吸冥想+注意力漂移记录", 
-            science: "MIT脑成像研究"
-        },
-        // ⏳ 时间效率系统
-        { 
-            icon: "🌅", 
-            category: "时间效率系统", 
-            researchName: "晨间效率提升", 
-            prodName: "晨间启动", 
-            freq: "工作日每天", 
-            cycle: 14, 
-            target: 10, 
-            action: "起床30分钟内：10分钟日照+500ml饮水+3项计划", 
-            science: "昼夜节律研究"
-        },
-        { 
-            icon: "📊", 
-            category: "时间效率系统", 
-            researchName: "工作专注优化", 
-            prodName: "深度工作", 
-            freq: "每工作日", 
-            cycle: 21, 
-            target: 15, 
-            action: "90分钟专注区块+禁用通知+单任务证明", 
-            science: "Cal Newport研究"
-        },
-        // 心理发展类
-        { 
-            icon: "📝", 
-            category: "心理发展类", 
-            researchName: "认知清晰提升", 
-            prodName: "反思写作", 
-            freq: "每周3次", 
-            cycle: 30, 
-            target: 12, 
-            action: "200字反思日记含情绪标签", 
-            science: "德州大学表达性写作研究"
-        },
-        { 
-            icon: "🙏", 
-            category: "心理发展类", 
-            researchName: "积极心态培养", 
-            prodName: "感恩记录", 
-            freq: "每晚", 
-            cycle: 21, 
-            target: 18, 
-            action: "记录3件感恩事项+1次社交表达", 
-            science: "积极心理学研究"
-        },
-        // 环境优化类
-        { 
-            icon: "🍎", 
-            category: "环境优化类", 
-            researchName: "营养均衡改善", 
-            prodName: "饮食记录", 
-            freq: "每天", 
-            cycle: 21, 
-            target: 18, 
-            action: "记录所有进食+标注蛋白质/蔬菜", 
-            science: "哈佛营养学研究"
-        },
-        { 
-            icon: "📵", 
-            category: "环境优化类", 
-            researchName: "数字健康优化", 
-            prodName: "屏幕断连", 
-            freq: "每天1次", 
-            cycle: 14, 
-            target: 10, 
-            action: "19-21点无屏幕+应用时长控制", 
-            science: "斯坦福数字成瘾研究"
-        },
-        // 社交财务类
-        { 
-            icon: "👥", 
-            category: "社交财务类", 
-            researchName: "关系质量提升", 
-            prodName: "深度社交", 
-            freq: "每周2次", 
-            cycle: 30, 
-            target: 8, 
-            action: "30分钟高质量交流+深度对话记录", 
-            science: "哈佛成人发展研究"
-        },
-        { 
-            icon: "💰", 
-            category: "社交财务类", 
-            researchName: "财务稳健优化", 
-            prodName: "收支管理", 
-            freq: "每周3次", 
-            cycle: 21, 
-            target: 15, 
-            action: "收支记录+消费反思+预算核对", 
-            science: "行为经济学研究"
-        },
-        // 系统类
-        { 
-            icon: "🎯", 
-            category: "系统类", 
-            researchName: "目标管理优化", 
-            prodName: "目标设定", 
-            freq: "每天晨间", 
-            cycle: 30, 
-            target: 24, 
-            action: "SMART目标制定+优先级排序", 
-            science: "目标设定理论"
-        },
-        { 
-            icon: "🔄", 
-            category: "系统类", 
-            researchName: "持续改进提升", 
-            prodName: "周末复盘", 
-            freq: "每周日", 
-            cycle: 56, 
-            target: 6, 
-            action: "周成就总结+3点改进方案", 
-            science: "美军AAR机制"
-        }
-    ],
+    productions: [],
+    developments: [],
+    devLibrary: [],
     timeLogs: [],
     experiences: {
-        "自我成长": [
-            { name: "连续21天早睡早起", desc: "形成规律生物钟，不晚于7点起床", count: 0, repeatable: true, difficulty: 3 },
-            { name: "完成一次职业技能认证", desc: "如证书、课程毕业等", count: 0, repeatable: true, difficulty: 4 },
-            { name: "主动寻求一次心理咨询", desc: "解决内在情绪问题，勇敢面对", count: 0, repeatable: true, difficulty: 4 }
-        ],
-        "探索体验": [
-            { name: "完成一次10公里徒步或越野", desc: "亲近自然、挑战耐力", count: 0, repeatable: true, difficulty: 3 },
-            { name: "去过3个国家", desc: "非中转，实际落地体验", count: 0, repeatable: false, difficulty: 2 },
-            { name: "参加一次马拉松/公开比赛", desc: "锻炼、挑战、完成", count: 0, repeatable: true, difficulty: 4 }
-        ],
-        "财务管理": [
-            { name: "做过一次股票/基金投资", desc: "理解风险后正式操作", count: 0, repeatable: false, difficulty: 2 },
-            { name: "连续记账1个月", desc: "每日坚持记录收支", count: 0, repeatable: true, difficulty: 3 },
-            { name: "设置并跟踪1个年度财务目标", desc: "目标金额 + 每月跟进", count: 0, repeatable: true, difficulty: 3 }
-        ],
-        "创作表达": [
-            { name: "发布一次动画或短片", desc: "作品公开发布至平台", count: 0, repeatable: true, difficulty: 3 },
-            { name: "剪辑发布1支 vlog", desc: "从素材到发布", count: 0, repeatable: true, difficulty: 3 },
-            { name: "搭建个人主页/作品集", desc: "拥有独立链接页面", count: 0, repeatable: true, difficulty: 3 }
-        ]
+        "自我成长": [],
+        "探索体验": [],
+        "财务管理": [],
+        "创作表达": []
     }
 };
 
@@ -474,7 +200,7 @@ function upgradeResearchProject(dev) {
     alert(`🎉 恭喜！${dev.researchName} 已升级到 Lv${dev.level}！\n\n已完成 ${dev.target} 天的目标，项目已移回研发库。`);
     // 刷新界面
     renderDevelopments();
-    renderDevLibrary();
+    forceRenderDevLibrary();
     saveToCloud();
 }
 
@@ -516,7 +242,6 @@ window.init = async function() {
     safeRenderProductions();
     safeRenderDevelopments();
     renderMilestones();
-    renderDevLibrary();
     renderResourceStats();
     renderWeekCalendar();
     renderExpenses(); // 新增：初始化时渲染支出栏
@@ -531,8 +256,6 @@ window.init = async function() {
     }
     
     console.log(`✅ 系统初始化完成`);
-    updateStatisticsPanel();
-    listenToExpenseChanges();
 };
 
 // 2. 页面加载时调用window.init()
@@ -1218,8 +941,43 @@ window.editSavings = function() {
     }
 }
 
-// 移除预计月支出的手动编辑弹窗
-window.editEstimatedExpense = undefined;
+window.editEstimatedExpense = function() {
+    const currentExpense = gameData.finance.estimatedMonthlyExpense || 0;
+    const currentCurrency = gameData.finance.estimatedExpenseCurrency || 'CNY';
+    
+    showCustomModal({
+        title: '设置预计月支出',
+        content: `
+            <div class='form-group'>
+                <label class='form-label'>预计月支出金额</label>
+                <input type='number' id='estimated-expense-amount' class='form-input' value='${currentExpense}' placeholder='0'>
+            </div>
+            <div class='form-group'>
+                <label class='form-label'>货币</label>
+                <select id='estimated-expense-currency' class='form-select'>
+                    <option value='CNY' ${currentCurrency === 'CNY' ? 'selected' : ''}>人民币 ¥</option>
+                    <option value='AUD' ${currentCurrency === 'AUD' ? 'selected' : ''}>澳元 A$</option>
+                    <option value='USD' ${currentCurrency === 'USD' ? 'selected' : ''}>美元 $</option>
+                    <option value='EUR' ${currentCurrency === 'EUR' ? 'selected' : ''}>欧元 €</option>
+                </select>
+            </div>
+            <div style='font-size:0.9em;color:#666;margin-top:10px;'>
+                用于与实际月支出进行对比，帮助你了解预算执行情况
+            </div>
+        `,
+        onConfirm: () => {
+            const amount = parseFloat(document.getElementById('estimated-expense-amount').value) || 0;
+            const currency = document.getElementById('estimated-expense-currency').value;
+            
+            gameData.finance.estimatedMonthlyExpense = amount;
+            gameData.finance.estimatedExpenseCurrency = currency;
+            
+            renderResourceStats();
+            saveToCloud();
+            return true;
+        }
+    });
+}
 
 window.showTodayTimeDetails = function() {
     const today = getLocalDateString(); // 修复：使用本地日期
@@ -1441,249 +1199,78 @@ function updateTimeLogsProductionName(oldName, newName) {
     }
 }
 
-// === 研发库弹窗显示控制开关 ===
-window.__devLibraryManualOpen = false;
-
-// 修改 showDevLibrary 函数
-window.showDevLibrary = function() {
-    window.__devLibraryManualOpen = true;
-    renderDevLibrary();
-};
-
-// 修改 renderDevLibrary 函数开头，若不是手动打开则直接返回
-// 请在原 renderDevLibrary 函数的第一行插入以下判断：
-// if (!window.__devLibraryManualOpen) return;
-// window.__devLibraryManualOpen = false;
-
-window.closeModal = function(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'none';
-        if (modalId === 'dev-library-modal') {
-            const researchTree = document.getElementById('dev-library-list');
-            if (researchTree) {
-                researchTree.innerHTML = '';
-            }
-        }
-    }
-}
-
-// 初始化研发树
-function initResearchTree() {
-    const container = document.getElementById('dev-library-list');
-    if (!container) return;
-
-    // 清空容器
-    container.innerHTML = '';
-
-    // 创建研发树布局
-    const treeContainer = document.createElement('div');
-    treeContainer.className = 'research-tree';
-    container.appendChild(treeContainer);
-
-    // 加载研发数据
-    fetch('life_factorio_tech_tree.json')
-        .then(response => response.json())
-        .then(data => {
-            const researchData = data.research;
-            const nodes = {};
-            const edges = [];
-
-            // 创建节点
-            researchData.forEach(research => {
-                const node = createResearchNode(research);
-                nodes[research.name] = node;
-                treeContainer.appendChild(node);
-            });
-
-            // 创建连接线
-            researchData.forEach(research => {
-                research.requirements.forEach(req => {
-                    if (nodes[req] && nodes[research.name]) {
-                        const edge = createEdge(nodes[req], nodes[research.name]);
-                        edges.push(edge);
-                        treeContainer.appendChild(edge);
-                    }
-                });
-            });
-
-            // 布局节点
-            layoutNodes(nodes, edges);
-        })
-        .catch(error => {
-            console.error('加载研发数据失败:', error);
-            container.innerHTML = '<div class="error">加载研发数据失败</div>';
-        });
-}
-
-// 创建研究节点
-function createResearchNode(research) {
-    const node = document.createElement('div');
-    node.className = 'research-node';
-    node.dataset.name = research.name;
-    node.innerHTML = `
-        <div class="node-content ${hasResearch(research.name) ? 'completed' : ''}">
-            <h4>${research.name}</h4>
-            <p>${research.description}</p>
-        </div>
-    `;
-
-    // 添加点击事件
-    node.addEventListener('click', () => showResearchDetail(research));
-
-    return node;
-}
-
-// 创建连接线
-function createEdge(fromNode, toNode) {
-    const edge = document.createElement('div');
-    edge.className = 'research-edge';
-    edge.dataset.from = fromNode.dataset.name;
-    edge.dataset.to = toNode.dataset.name;
-    return edge;
-}
-
-// 布局节点
-function layoutNodes(nodes, edges) {
-    // 使用简单的网格布局
-    const gridSize = 200;
-    const nodePositions = {};
-    let currentX = 0;
-    let currentY = 0;
-    let maxY = 0;
-
-    // 为每个节点分配位置
-    Object.values(nodes).forEach(node => {
-        nodePositions[node.dataset.name] = {
-            x: currentX,
-            y: currentY
-        };
-
-        currentX += gridSize;
-        if (currentX > 800) {
-            currentX = 0;
-            currentY += gridSize;
-            maxY = Math.max(maxY, currentY);
-        }
-    });
-
-    // 应用位置
-    Object.entries(nodePositions).forEach(([name, pos]) => {
-        const node = nodes[name];
-        if (node) {
-            node.style.left = `${pos.x}px`;
-            node.style.top = `${pos.y}px`;
-        }
-    });
-
-    // 更新连接线
-    edges.forEach(edge => {
-        const fromPos = nodePositions[edge.dataset.from];
-        const toPos = nodePositions[edge.dataset.to];
-        if (fromPos && toPos) {
-            updateEdgePosition(edge, fromPos, toPos);
-        }
-    });
-}
-
-// 更新连接线位置
-function updateEdgePosition(edge, fromPos, toPos) {
-    const fromNode = document.querySelector(`.research-node[data-name="${edge.dataset.from}"]`);
-    const toNode = document.querySelector(`.research-node[data-name="${edge.dataset.to}"]`);
-    
-    if (fromNode && toNode) {
-        const fromRect = fromNode.getBoundingClientRect();
-        const toRect = toNode.getBoundingClientRect();
-        const containerRect = edge.parentElement.getBoundingClientRect();
-
-        const fromX = fromRect.left + fromRect.width / 2 - containerRect.left;
-        const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
-        const toX = toRect.left + toRect.width / 2 - containerRect.left;
-        const toY = toRect.top + toRect.height / 2 - containerRect.top;
-
-        const length = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
-        const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
-
-        edge.style.width = `${length}px`;
-        edge.style.left = `${fromX}px`;
-        edge.style.top = `${fromY}px`;
-        edge.style.transform = `rotate(${angle}deg)`;
-    }
-}
-
-// 显示研究详情
-function showResearchDetail(research) {
-    const modal = document.getElementById('research-detail-modal');
-    const title = document.getElementById('research-title');
-    const description = document.getElementById('research-description');
-    const requirements = document.getElementById('research-requirements');
-    const startButton = document.getElementById('start-research-button');
-
-    title.textContent = research.name;
-    description.textContent = research.description;
-    requirements.innerHTML = research.requirements.map(req => 
-        `<div class="requirement ${hasResearch(req) ? 'completed' : ''}">${req}</div>`
-    ).join('');
-
-    // 更新开始研究按钮状态
-    const canResearch = research.requirements.every(req => hasResearch(req));
-    startButton.disabled = !canResearch;
-    startButton.textContent = canResearch ? '开始研究' : '需要完成前置研究';
-
-    // 显示弹窗
-    modal.style.display = 'block';
-
-    // 添加开始研究事件
-    startButton.onclick = () => {
-        if (canResearch) {
-            startResearch(research);
-        }
-    };
-}
 
 // 开始研究
-function startResearch(research) {
+function startResearch(research, createProductionLine) {
     if (!hasResearch(research.name)) {
-        // 检查资源是否足够
-        if (!hasEnoughResources(research.cost)) {
-            alert('资源不足！');
-            return;
-        }
-
-        // 扣除资源
-        Object.entries(research.cost).forEach(([resource, amount]) => {
-            resources[resource] -= amount;
-        });
-
-        // 添加到已研究列表
-        researchedItems.push(research.name);
+        // 补全字段，保证研发中心渲染正常
+        const dev = {
+            researchName: research.name,
+            prodName: research.prodName || research.name,
+            icon: research.icon || '🧪',
+            level: 1,
+            progress: 0,
+            maxProgress: research.maxProgress || research.target || 1,
+            active: true,
+            paused: false,
+            repeatable: research.repeatable || false,
+            checkedToday: false,
+            category: research.category || '',
+            cycle: research.cycle || 21,
+            target: research.target || 17,
+            action: research.action || '',
+            science: research.science || '',
+            freq: research.freq || '每天',
+            startDate: new Date().toISOString()
+        };
+        gameData.developments.push(dev);
         updateResearchStatus();
+        if (window.renderDevelopments) window.renderDevelopments();
 
-        // 如果勾选了创建生产线，则创建对应的生产线
-        const createProductionCheckbox = document.getElementById('create-production-checkbox');
-        if (createProductionCheckbox && createProductionCheckbox.checked) {
-            createProductionLine(research.name);
+        // 同步创建生产线（与旧版一致）
+        if (createProductionLine) {
+            if (!gameData.productions) gameData.productions = [];
+            const productionExists = gameData.productions.some(p => p.linkedDev === dev.researchName);
+            if (!productionExists) {
+                const newProduction = {
+                    name: dev.prodName,
+                    type: 'automation',
+                    activeIncome: 0,
+                    activeCurrency: 'CNY',
+                    passiveIncome: 0,
+                    passiveCurrency: 'CNY',
+                    expense: 0,
+                    expenseCurrency: 'CNY',
+                    linkedDev: dev.researchName,
+                    lastCheckIn: null,
+                    hasActiveIncome: false,
+                    hasPassiveIncome: false,
+                    timeCost: 0
+                };
+                gameData.productions.push(newProduction);
+                if (window.renderProductions) window.renderProductions();
+            }
         }
 
         // 关闭研究详情弹窗
-        document.getElementById('research-detail-modal').style.display = 'none';
+        const modal = document.getElementById('research-detail-modal');
+        if (modal) modal.style.display = 'none';
         
-        // 更新研发树显示
-        initResearchTree();
+        // 可选：如需刷新科技树面板，可调用 renderDevLibrary()
+        if (window.renderDevLibrary) window.renderDevLibrary();
+        if (window.renderResourceStats) window.renderResourceStats();
+        if (window.renderWeekCalendar) window.renderWeekCalendar();
+        if (typeof window.saveToCloud === 'function') window.saveToCloud();
     }
 }
 
 // 检查是否已研究
 function hasResearch(researchName) {
-    // 修正: 检查 gameData.developments 数组而不是不存在的 researchedItems
+    if (!gameData || !gameData.developments) {
+        console.error("gameData.developments is not available for hasResearch check.");
+        return false;
+    }
     return gameData.developments.some(dev => dev.researchName === researchName);
-}
-
-// 检查资源是否足够
-function hasEnoughResources(cost) {
-    return Object.entries(cost).every(([resource, amount]) => 
-        resources[resource] >= amount
-    );
 }
 
 // 更新研究状态
@@ -1699,630 +1286,6 @@ function updateResearchStatus() {
     // 更新研究详情中的前置研究状态
     document.querySelectorAll('.requirement').forEach(req => {
         req.className = `requirement ${hasResearch(req.textContent) ? 'completed' : ''}`;
-    });
-}
-
-// 研究项目库类别色彩映射
-function getCategoryTagClass(category) {
-    if (!category) return '';
-    if (category.includes('精力')) return 'energy';
-    if (category.includes('时间')) return 'time';
-    if (category.includes('认知')||category.includes('心理')) return 'cognition';
-    if (category.includes('财务')) return 'finance';
-    if (category.includes('社交')) return 'social';
-    if (category.includes('环境')) return 'env';
-    if (category.includes('系统')) return 'system';
-    return '';
-}
-
-// 科技树样式研发库 - 使用优化的科技树结构
-function renderDevLibrary() {
-    if (!window.__devLibraryManualOpen) {
-        console.log("renderDevLibrary call skipped: not manually opened.");
-        return; 
-    }
-    // 重置状态，确保只有一次有效执行
-    window.__devLibraryManualOpen = false; 
-
-    if (!window.devLibraryData || !window.devLibraryData.techTree) {
-        console.error("科技树数据未加载!");
-        showCustomModal({ title: '错误', content: '科技树数据未加载，请检查 life_factorio_tech_tree.json 文件是否正确。' });
-        return;
-    }
-
-    const techTreeData = window.devLibraryData.techTree;
-    const existingModal = document.getElementById('dev-library-modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    const modal = document.createElement('div');
-    modal.id = 'dev-library-modal';
-    modal.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(0,0,0,0.8);
-        z-index: 1000; display: flex; align-items: center; justify-content: center;
-        color: #333;
-    `;
-
-    const content = document.createElement('div');
-    content.id = 'dev-library-content';
-    content.style.cssText = `
-        background-color: #f4f4f9;
-        padding: 20px;
-        border-radius: 10px;
-        width: 95%;
-        height: 90%;
-        position: relative;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        overflow: auto;
-    `;
-    
-    // 添加关闭按钮
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'X';
-    closeButton.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        z-index: 10001; /* 确保在最顶层 */
-        background: #e74c3c;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        font-size: 18px;
-        cursor: pointer;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-    `;
-    closeButton.onclick = () => modal.remove();
-    modal.appendChild(closeButton);
-
-    const techContainer = document.createElement('div');
-    techContainer.id = 'tech-container';
-    techContainer.style.position = 'relative';
-    
-    // 添加缩放控制
-    addZoomControls(techContainer);
-    
-    const finalGoal = techTreeData.finalGoal;
-    if (finalGoal) {
-        const goalNode = createTechNode(finalGoal, 0, true);
-        goalNode.style.position = 'absolute';
-        goalNode.style.left = '50%';
-        goalNode.style.transform = 'translateX(-50%)';
-        goalNode.style.top = '20px';
-        techContainer.appendChild(goalNode);
-    }
-    
-    const layerContainer = document.createElement('div');
-    layerContainer.style.display = 'flex';
-    layerContainer.style.justifyContent = 'space-around';
-    layerContainer.style.marginTop = '150px'; // 为最终目标留出空间
-    layerContainer.style.padding = '20px';
-    
-    techTreeData.layers.forEach(layer => {
-        const layerDiv = document.createElement('div');
-        layerDiv.className = 'tech-layer';
-        layerDiv.style.textAlign = 'center';
-        
-        const layerTitle = document.createElement('h3');
-        layerTitle.textContent = `${layer.name} (L${layer.layer})`;
-        layerTitle.style.color = '#2c3e50';
-        layerDiv.appendChild(layerTitle);
-        
-        layer.technologies.forEach(tech => {
-            const node = createTechNode(tech, layer.layer);
-            layerDiv.appendChild(node);
-        });
-        layerContainer.appendChild(layerDiv);
-    });
-
-    techContainer.appendChild(layerContainer);
-    content.appendChild(techContainer);
-    modal.appendChild(content);
-    document.body.appendChild(modal);
-
-    // 延迟绘制连接线以确保节点已渲染并定位
-    setTimeout(() => drawLines(techTreeData, techContainer), 100);
-}
-
-function createTechNode(tech, layer, isGoal = false) {
-    const node = document.createElement('div');
-    node.id = `tech-${tech.id}`;
-    node.className = 'tech-node';
-    const isResearched = hasResearch(tech.name);
-    const isResearching = gameData.developments.some(d => d.researchName === tech.name && d.active);
-
-    node.style.cssText = `
-        background: ${isResearched ? '#bdc3c7' : (isResearching ? '#f1c40f' : 'white')};
-        border: 2px solid ${isGoal ? '#e74c3c' : '#3498db'};
-        border-radius: 8px;
-        padding: 10px;
-        margin: 15px;
-        cursor: pointer;
-        min-width: 150px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: transform 0.2s, box-shadow 0.2s;
-        position: relative;
-        z-index: 10; /* 节点在连接线之上 */
-    `;
-    
-    if (isGoal) {
-        node.style.borderColor = '#c0392b';
-        node.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
-        node.style.color = 'white';
-    }
-
-    node.innerHTML = `
-        <div style="font-size: 24px;">${tech.icon || '🧪'}</div>
-        <div style="font-weight: bold; margin-top: 5px;">${tech.name}</div>
-    `;
-
-    node.onmouseover = () => { node.style.transform = 'scale(1.05)'; node.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)'; };
-    node.onmouseout = () => { node.style.transform = 'scale(1)'; node.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; };
-    node.onclick = () => showTechDetailModal(tech);
-
-    return node;
-}
-
-function drawLines(techTreeData, container) {
-    const existingSvg = container.querySelector('#tech-lines-svg');
-    if (existingSvg) {
-        existingSvg.remove();
-    }
-
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.id = 'tech-lines-svg';
-    svg.style.cssText = `
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 5; /* 连接线在节点之下 */
-        pointer-events: none; /* 允许点击穿透 */
-    `;
-    
-    const allTechs = [...techTreeData.layers.flatMap(l => l.technologies), techTreeData.finalGoal];
-    
-    allTechs.forEach(tech => {
-        if (tech && tech.requirements && tech.requirements.length > 0) {
-            tech.requirements.forEach(reqId => {
-                const fromNode = document.getElementById(`tech-${reqId}`);
-                const toNode = document.getElementById(`tech-${tech.id}`);
-
-                if (fromNode && toNode) {
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    const containerRect = container.getBoundingClientRect();
-                    const fromRect = fromNode.getBoundingClientRect();
-                    const toRect = toNode.getBoundingClientRect();
-
-                    // 计算相对位置
-                    const x1 = fromRect.left + fromRect.width / 2 - containerRect.left + container.scrollLeft;
-                    const y1 = fromRect.top + fromRect.height - containerRect.top + container.scrollTop;
-                    const x2 = toRect.left + toRect.width / 2 - containerRect.left + container.scrollLeft;
-                    const y2 = toRect.top - containerRect.top + container.scrollTop;
-
-                    line.setAttribute('x1', x1);
-                    line.setAttribute('y1', y1);
-                    line.setAttribute('x2', x2);
-                    line.setAttribute('y2', y2);
-                    line.setAttribute('stroke', '#7f8c8d');
-                    line.setAttribute('stroke-width', '2');
-                    svg.appendChild(line);
-                }
-            });
-        }
-    });
-
-    container.prepend(svg); // prepent 确保在子节点的最底层
-}
-
-function showTechDetailModal(tech) {
-    const existingModal = document.getElementById('tech-detail-modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    const detailModal = document.createElement('div');
-    detailModal.id = 'tech-detail-modal';
-    detailModal.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        padding: 25px;
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        z-index: 10000; /* 确保在最顶层 */
-        width: 90%;
-        max-width: 500px;
-        border-top: 5px solid #3498db;
-    `;
-
-    const isResearched = hasResearch(tech.name);
-    const isResearching = gameData.developments.some(d => d.researchName === tech.name && d.active);
-    let statusText = '';
-    if (isResearched) statusText = '<span style="color: #27ae60; font-weight: bold;"> (已完成)</span>';
-    if (isResearching) statusText = '<span style="color: #f39c12; font-weight: bold;"> (研究中)</span>';
-    
-    let requirementsHTML = '无';
-    if (tech.requirements && tech.requirements.length > 0) {
-        const allTechs = [...window.devLibraryData.techTree.layers.flatMap(l => l.technologies), window.devLibraryData.techTree.finalGoal];
-        requirementsHTML = tech.requirements.map(reqId => {
-            const reqTech = allTechs.find(t => t.id === reqId);
-            return reqTech ? reqTech.name : reqId;
-        }).join(', ');
-    }
-    
-    let unlocksHTML = '无';
-    if (tech.unlocks && tech.unlocks.length > 0) {
-         const allTechs = [...window.devLibraryData.techTree.layers.flatMap(l => l.technologies), window.devLibraryData.techTree.finalGoal];
-        unlocksHTML = tech.unlocks.map(unlockId => {
-            const unlockTech = allTechs.find(t => t.id === unlockId);
-            return unlockTech ? unlockTech.name : unlockId;
-        }).join(', ');
-    }
-
-    // 获取频率数据 - 从JSON文件中获取
-    const freq = tech.freq || 'N/A';
-    detailModal.innerHTML = `
-        <style>
-            .detail-grid { display: grid; grid-template-columns: 100px 1fr; gap: 8px 15px; align-items: center; }
-            .detail-grid strong { color: #555; text-align: right; }
-            .detail-grid span { color: #333; }
-        </style>
-        <h2 style="text-align: center; margin-top: 0; color: #2c3e50;">${tech.icon} ${tech.name} ${statusText}</h2>
-        <p style="text-align: center; color: #7f8c8d; margin-top: -10px; margin-bottom: 20px;">${tech.description}</p>
-        <div class="detail-grid">
-            <strong>优先级</strong>       <span>${tech.priority || 'N/A'}</span>
-            <strong>需要前置</strong>   <span>${requirementsHTML}</span>
-            <strong>解锁科技</strong>   <span>${unlocksHTML}</span>
-            <strong>核心行动</strong>   <span style="font-weight:bold; color:#3498db;">${tech.action || 'N/A'}</span>
-            <strong>成功标志</strong>   <span>${tech.success_metric || 'N/A'}</span>
-            <strong>预计用时</strong>   <span>${tech.estimated_time || 'N/A'}</span>
-            <strong>自动化奖励</strong> <span>${tech.automation_reward || 'N/A'}</span>
-            <strong>频率</strong>       <span>${freq}</span>
-        </div>
-        <div style="text-align: center; margin-top: 25px;">
-            ${!isResearched && !isResearching ? `<button id="start-research-btn" class="btn btn-primary">🚀 开始研究</button>` : ''}
-            <button id="close-detail-btn" class="btn btn-secondary" style="margin-left: 10px;">关闭</button>
-        </div>
-    `;
-
-    document.body.appendChild(detailModal);
-
-    const startBtn = document.getElementById('start-research-btn');
-    if (startBtn) {
-        startBtn.onclick = () => {
-            startResearch(tech);
-            detailModal.remove();
-            
-            // 关闭主研发库弹窗，以提供即时反馈
-            const mainDevModal = document.getElementById('dev-library-modal');
-            if (mainDevModal) {
-                mainDevModal.remove();
-            }
-        };
-    }
-
-    document.getElementById('close-detail-btn').onclick = () => {
-        detailModal.remove();
-    };
-}
-
-
-// 科技树节点详情显示
-window.showTechNodeDetails = function(nodeId, project) {
-    if (!project) {
-        showCustomModal({
-            title: '科技节点',
-            content: '<div style="text-align:center;color:#999;">该科技节点暂未匹配到具体项目</div>'
-        });
-        return;
-    }
-    
-    const existingNames = (gameData.developments || []).map(d => d.researchName);
-    const isCompleted = existingNames.includes(project.researchName);
-    const canAdd = !isCompleted && (gameData.developments || []).filter(d => d.active).length < 3;
-    
-    showCustomModal({
-        title: `${project.icon || '🔬'} ${project.researchName}`,
-        content: `
-            <div style="margin: 20px 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div style="font-size: 1.1em; font-weight: bold;">${project.researchName}</div>
-                    ${isCompleted ? '<span style="color: #27ae60; font-weight: bold;">✅ 已完成</span>' : ''}
-                </div>
-                
-                <div style="margin-bottom: 12px;">
-                    <strong>类别：</strong>${project.category || '未分类'}
-                </div>
-                
-                <div style="display: flex; gap: 20px; margin-bottom: 12px;">
-                    <div><strong>频率：</strong>${project.freq || '未定义'}</div>
-                    <div><strong>周期：</strong>${project.cycle || 21}天</div>
-                    <div><strong>目标：</strong>${project.target || Math.floor((project.cycle || 21) * 0.8)}次</div>
-                </div>
-                
-                <div style="margin-bottom: 12px;">
-                    <strong>行动定义：</strong><br>
-                    <div style="background: #f5f5f5; padding: 10px; border-radius: 8px; margin-top: 5px;">
-                        ${project.action || '未定义'}
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 12px;">
-                    <strong>科学依据：</strong><br>
-                    <div style="background: #f0f8ff; padding: 10px; border-radius: 8px; margin-top: 5px; font-size: 0.9em;">
-                        ${project.science || '未定义'}
-                    </div>
-                </div>
-                
-                ${canAdd ? `
-                    <div style="margin-top: 18px;">
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type='checkbox' id='tech-create-prod' checked>
-                            <span>同步创建生产线</span>
-                        </label>
-                    </div>
-                ` : ''}
-            </div>
-        `,
-        confirmText: canAdd ? '开始研发' : (isCompleted ? null : '已达上限'),
-        onConfirm: canAdd ? () => {
-            // 添加研究项目
-            const newDev = {
-                researchName: project.researchName,
-                prodName: project.prodName,
-                icon: project.icon,
-                level: 1,
-                progress: 0,
-                maxProgress: project.cycle || 21,
-                active: true,
-                paused: false,
-                repeatable: false,
-                checkedToday: false,
-                category: project.category,
-                cycle: project.cycle,
-                target: project.target,
-                action: project.action,
-                science: project.science,
-                freq: project.freq,
-                startDate: new Date().toISOString()
-            };
-            gameData.developments.push(newDev);
-            
-            // 检查是否需要创建生产线
-            const createProd = document.getElementById('tech-create-prod')?.checked !== false;
-            if (createProd) {
-                gameData.productions.push({
-                    name: project.prodName,
-                    type: 'automation',
-                    activeIncome: 0,
-                    activeCurrency: 'CNY',
-                    passiveIncome: 0,
-                    passiveCurrency: 'CNY',
-                    expense: 0,
-                    expenseCurrency: 'CNY',
-                    linkedDev: project.researchName,
-                    lastCheckIn: null,
-                    hasActiveIncome: false,
-                    hasPassiveIncome: false,
-                    timeCost: 0
-                });
-                renderProductions();
-            }
-            
-            renderDevelopments();
-            renderDevLibrary();
-            renderResourceStats();
-            renderWeekCalendar();
-            saveToCloud();
-            return true;
-        } : null
-    });
-}
-
-// 终极目标详情
-window.showFinalGoalDetails = function() {
-    showCustomModal({
-        title: '🌈 完全人生自由',
-        content: `
-            <div style="text-align: center; margin: 20px 0;">
-                <div style="font-size: 3em; margin-bottom: 15px;">🌈</div>
-                <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 15px;">
-                    Life Factorio 的终极目标
-                </div>
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin: 15px 0;">
-                    <div style="font-size: 1.1em; margin-bottom: 10px;">📈 工作时间：每周少于20小时</div>
-                    <div style="font-size: 1.1em; margin-bottom: 10px;">💰 收入覆盖：家庭支出 + 年度旅行</div>
-                    <div style="font-size: 1.1em;">🌍 生活方式：完全自主选择权</div>
-                </div>
-                <div style="color: #666; font-size: 0.95em; line-height: 1.6; margin-top: 15px;">
-                    通过科技树的层层推进，逐步建立起财务自由、时间主权和生活主权，
-                    最终实现真正的人生自由状态。
-                </div>
-            </div>
-        `
-    });
-}
-
-// 统一添加研究项目弹窗为自定义模态框
-window.showAddDevelopmentModal = function(name) {
-    const libItem = gameData.devLibrary.find(item => item.researchName === name);
-    if (!libItem) return;
-    const activeCount = gameData.developments.filter(d => d.active).length;
-    if (activeCount >= 3) {
-        showCustomModal({
-            title: '添加研究项目',
-            content: '<div style="color:#e74c3c;">最多同时进行3个研发项目！</div>'
-        });
-        return;
-    }
-    showCustomModal({
-        title: '添加研究项目',
-        content: `
-            <div class='form-group'><label>项目名称</label><div style='font-weight:bold;font-size:1.1em;'>${libItem.icon} ${libItem.researchName}</div></div>
-            <div class='form-row' style='display:flex;gap:16px;'>
-                <div style='flex:1;'><label style='color:#888;font-size:0.95em;'>类别</label><div><span class='category-tag ${getCategoryTagClass(libItem.category)}'>${libItem.category||''}</span></div></div>
-                <div style='flex:1;'><label style='color:#888;font-size:0.95em;'>频率</label><div>${libItem.freq||''}</div></div>
-            </div>
-            <div class='form-row' style='display:flex;gap:16px;margin-top:8px;'>
-                <div style='flex:1;'><label style='color:#888;font-size:0.95em;'>周期</label><div>${libItem.cycle||21} 天</div></div>
-                <div style='flex:1;'><label style='color:#888;font-size:0.95em;'>目标</label><div>${libItem.target||Math.floor((libItem.cycle||21)*0.8)} 次</div></div>
-            </div>
-            <div class='form-group' style='margin-top:10px;'><label style='color:#888;font-size:0.95em;'>操作定义</label><div>${libItem.action||''}</div></div>
-            <div class='form-group'><label style='color:#888;font-size:0.95em;'>科学依据</label><div>${libItem.science||''}</div></div>
-            <div class='form-group' style='margin-top:18px;'><label><input type='checkbox' id='add-dev-create-prod' checked style='margin-right:8px;'>同步创建生产线</label></div>
-        `,
-        onConfirm: () => {
-            // 1. 添加研究项目
-            const newDev = {
-                researchName: libItem.researchName,
-                prodName: libItem.prodName,
-                icon: libItem.icon,
-                level: 1,
-                progress: 0,
-                maxProgress: libItem.cycle || 21,
-                active: true,
-                paused: false,
-                repeatable: false,
-                checkedToday: false,
-                category: libItem.category,
-                cycle: libItem.cycle,
-                target: libItem.target,
-                action: libItem.action,
-                science: libItem.science,
-                startDate: new Date().toISOString()
-            };
-            gameData.developments.push(newDev);
-            // 2. 是否创建生产线
-            const createProd = document.getElementById('add-dev-create-prod').checked;
-            if (createProd) {
-                gameData.productions.push({
-                    name: libItem.prodName,
-                    type: 'automation', // 研发配套生产线默认自动化
-                    activeIncome: 0,
-                    activeCurrency: 'CNY',
-                    passiveIncome: 0,
-                    passiveCurrency: 'CNY',
-                    expense: 0,
-                    expenseCurrency: 'CNY',
-                    linkedDev: libItem.researchName,
-                    lastCheckIn: null,
-                    hasActiveIncome: false,
-                    hasPassiveIncome: false,
-                    timeCost: 0
-                });
-                renderProductions();
-            }
-            renderDevelopments();
-            renderDevLibrary();
-            renderResourceStats();
-            renderWeekCalendar();
-            saveToCloud();
-            return true;
-        }
-    });
-}
-
-// 显示科技树节点详情
-window.showNodeDetails = function(nodeId) {
-    const techTreeStructure = {
-        "ultimate": { title: "时间与财富自由的生活方式", icon: "🌟", description: "终极目标：实现时间和财富的双重自由" },
-        "launch": { title: "自由发射系统", icon: "🚀", description: "通往自由生活的核心启动系统" },
-        "income_auto": { title: "收入自动化", icon: "💎", description: "建立无需主动工作的收入来源" },
-        "time_sovereignty": { title: "时间主权", icon: "⏰", description: "完全掌控自己的时间分配" },
-        "global_lifestyle": { title: "全球生活模式", icon: "🌍", description: "不受地理位置限制的生活方式" },
-        "finance_system": { title: "财务自由系统", icon: "💰", description: "构建稳定的财务基础" },
-        "time_system": { title: "时间优化系统", icon: "⏳", description: "最大化时间使用效率" },
-        "career_system": { title: "职业加速系统", icon: "🎬", description: "加速职业发展和技能成长" },
-        "support_systems": { title: "支持系统", icon: "🤝", description: "提供全方位的生活支持" },
-        "family_system": { title: "家庭和谐系统", icon: "👨‍👩‍👧", description: "平衡家庭关系与个人目标" },
-        "energy_system": { title: "身心能量系统", icon: "💤", description: "维持最佳的身心状态" }
-    };
-    
-    const node = techTreeStructure[nodeId];
-    if (!node) return;
-    
-    showCustomModal({
-        title: `${node.icon} ${node.title}`,
-        content: `
-            <div style="text-align: center; margin: 20px 0;">
-                <div style="font-size: 3em; margin-bottom: 15px;">${node.icon}</div>
-                <div style="font-size: 1.2em; color: #666; line-height: 1.6;">
-                    ${node.description}
-                </div>
-            </div>
-        `
-    });
-}
-
-// 显示系统分类详情
-function showSystemDetails(systemName) {
-    const title = systemName === 'launch' ? '自由发射系统' : systemName;
-    const content = `
-        <div style="text-align: center; margin: 20px 0;">
-            <h3>${title}</h3>
-            <p>这是${title}的详细说明。</p>
-        </div>
-    `;
-    
-    showCustomModal({
-        title: title,
-        content: content,
-        onConfirm: () => {},
-        onCancel: () => {}
-    });
-}
-
-// 显示项目详情
-function showProjectDetails(projectName) {
-    const project = gameData.devLibrary.find(item => item.researchName === projectName);
-    if (!project) {
-        console.log(`项目 ${projectName} 不存在`);
-        return;
-    }
-    
-    const existingNames = (gameData.developments || []).map(d => d.researchName);
-    const isCompleted = existingNames.includes(projectName);
-    
-    const content = `
-        <div style="margin: 20px 0;">
-            <h3>${project.researchName}</h3>
-            <div style="margin: 15px 0;">
-                <strong>行动内容：</strong>${project.action}
-            </div>
-            <div style="margin: 15px 0;">
-                <strong>频率：</strong>${project.freq}
-            </div>
-            <div style="margin: 15px 0;">
-                <strong>周期：</strong>${project.cycle}天
-            </div>
-            <div style="margin: 15px 0;">
-                <strong>类别：</strong>${project.category || '未分类'}
-            </div>
-            <div style="margin: 15px 0;">
-                <strong>状态：</strong>${isCompleted ? '已完成' : '可开始'}
-            </div>
-        </div>
-    `;
-    
-    const onConfirm = isCompleted ? 
-        null : 
-        () => window.showAddDevelopmentModal(projectName);
-    
-    showCustomModal({
-        title: `研发项目详情`,
-        content: content,
-        onConfirm: onConfirm,
-        confirmText: isCompleted ? null : '开始研发',
-        onCancel: () => {}
     });
 }
 
@@ -2470,16 +1433,6 @@ window.saveToLocal = function() {
     }, 500);
 }
 
-// 1. 增加精力状态管理
-window.setEnergyStatus = function(status) {
-    energyStatus = status;
-    renderResourceStats();
-}
-
-// 封装精力状态按钮HTML
-function getEnergyStatusHTML() {
-    return `精力状态：<button onclick="window.setEnergyStatus('不足')" ${energyStatus==='不足'?'style=\"font-weight:bold;color:#e74c3c\"':''}>不足</button> <button onclick="window.setEnergyStatus('刚好')" ${energyStatus==='刚好'?'style=\"font-weight:bold;color:#f39c12\"':''}>刚好</button> <button onclick="window.setEnergyStatus('旺盛')" ${energyStatus==='旺盛'?'style=\"font-weight:bold;color:#27ae60\"':''}>旺盛</button>`;
-}
 
 // 2. 增加时间资源和日历数据结构
 function resetTimeResource() {
@@ -2654,9 +1607,6 @@ window.addEventListener('DOMContentLoaded',function(){
 
 // 新增：渲染资源数据统计面板
 function renderResourceStats() {
-    try {
-        console.log('renderResourceStats called', JSON.stringify(gameData));
-        let html = '';
         const container = document.getElementById('resource-stats');
         if (!container) return;
         let totalActive = 0, totalPassive = 0, totalExpense = 0;
@@ -2701,6 +1651,7 @@ function renderResourceStats() {
             }
             return sum + Math.max(0, timeCost); // 确保不会是负数
         }, 0);
+    let html = '';
         html += `<div class='resource-stats-section'>
             <div class='resource-label'>累计存款
                 <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
@@ -2733,25 +1684,27 @@ function renderResourceStats() {
         const monthlyTotal = getMonthlyExpenseTotalMerged();
         const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
         
-        // 预计月支出（自动统计，合计所有本月应发生的固定和单次支出）
-        const estimatedExpense = getPlannedExpenseTotalThisMonth();
-        const estimatedInCNY = estimatedExpense; // 已经是CNY
+    // 预计月支出
+    const estimatedExpense = gameData.finance.estimatedMonthlyExpense || 0;
+    const estimatedCurrency = gameData.finance.estimatedExpenseCurrency || 'CNY';
+    const estimatedInCNY = convertToCNY(estimatedExpense, estimatedCurrency);
+    
         html += `<div class='resource-row'>
-            <span class='resource-label'>预计月支出</span>
+        <span class='resource-label'>预计月支出
+            <button class='resource-btn-edit' onclick='window.editEstimatedExpense()'>✏️</button>
+        </span>
             <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedInCNY).toLocaleString()}</span>
         </div>`;
         
         // 实际月支出与对比
-        const actualExpense = getActualExpenseTotalThisMonth();
+    const difference = monthlyTotal - estimatedInCNY;
+    const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
+    const diffSymbol = difference > 0 ? '+' : '';
+    
         html += `<div class='resource-row'>
             <span class='resource-label'>实际月支出</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(actualExpense).toLocaleString()}</span>
+        <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(monthlyTotal).toLocaleString()}</span>
         </div>`;
-        
-        // 差额
-        const difference = actualExpense - estimatedInCNY;
-        const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
-        const diffSymbol = difference > 0 ? '+' : '';
         
         if (estimatedInCNY > 0) {
             html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
@@ -2766,10 +1719,6 @@ function renderResourceStats() {
         if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
         if (allExpenseDetails.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>`;
         container.innerHTML = html;
-    } catch (e) {
-        console.error('renderResourceStats error:', e);
-        document.getElementById('resource-stats').innerHTML = '<div style="color:red">统计面板渲染出错：' + e.message + '</div>';
-    }
 }
 
 // 清除用时记录
@@ -3024,49 +1973,24 @@ async function saveToBoundFile() {
 }
 
 // 云端登录并监听
-async function firebaseLoginAndSync() {
-    try {
-        const { db, auth } = await initializeFirebase();
-        if (!db || !auth) {
-            throw new Error('Firebase initialization failed');
-        }
-
-        // 匿名登录
-        const userCredential = await auth.signInAnonymously();
-        firebaseUserId = userCredential.user.uid;
-        console.log('Firebase anonymous login successful');
-
-        // 开始监听数据
-        await listenCloudData();
-    } catch (error) {
-        console.error('Firebase login error:', error);
-        updateSyncStatus('登录失败，请重试', 'error');
-    }
+function firebaseLoginAndSync() {
+    auth.signInAnonymously().then(() => {
+        listenCloudData();
+    });
 }
 
-// 优化云端数据监听
-async function listenCloudData() {
-    if (!familyCode) {
-        console.log('未设置家庭码，无法同步');
-        return;
-    }
-
-    try {
-        const { db } = await initializeFirebase();
-        if (!db) return;
-
-        if (firebaseUnsubscribe) {
-            firebaseUnsubscribe();
-        }
-
+// 监听云端数据变化
+function listenCloudData() {
+    if (!familyCode) return;
+    if (firebaseUnsubscribe) firebaseUnsubscribe();
         isCloudLoading = true;
-        firebaseUnsubscribe = db.collection('groups')
-            .doc(familyCode)
-            .onSnapshot((doc) => {
+    firebaseUnsubscribe = db.collection('groups').doc(familyCode)
+        .onSnapshot(doc => {
                 isCloudLoading = false;
                 if (doc.exists && doc.data().gameData) {
                     gameData = migrateData(doc.data().gameData);
                     lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
+                // 云端数据加载后重新检查每日重置
                     checkDailyReset();
                     fixDataLinks();
                     renderProductions();
@@ -3075,50 +1999,35 @@ async function listenCloudData() {
                     renderDevLibrary();
                     renderResourceStats();
                     renderWeekCalendar();
-                    renderExpenses();
+                renderExpenses(); // 新增：云端同步后渲染支出栏
                     cloudInitDone = true;
-                    updateSyncStatus('已同步', 'success');
+                updateSyncStatus('已同步', new Date().toLocaleTimeString());
                 } else if (!cloudInitDone) {
                     saveToCloud();
                     cloudInitDone = true;
                 }
                 isCloudReady = true;
-            }, (error) => {
-                console.error('Cloud sync error:', error);
-                updateSyncStatus('同步失败，请重试', 'error');
             });
-    } catch (error) {
-        console.error('Cloud data listening error:', error);
-        updateSyncStatus('连接失败，请检查网络', 'error');
-    }
 }
 
-// 优化云端保存
-async function saveToCloud() {
+// 保存到云端
+function saveToCloud() {
     if (!familyCode || isCloudLoading) return;
-    
-    try {
         isCloudSaving = true;
-        updateSyncStatus('正在保存...', 'pending');
-        
-        const { db } = await initializeFirebase();
-        if (!db) return;
-
-        await db.collection('groups')
-            .doc(familyCode)
-            .set({
+    updateSyncStatus('同步中');
+    db.collection('groups').doc(familyCode).set({
                 gameData: gameData,
                 lastDailyReset: lastDailyReset,
                 saveTime: new Date().toISOString()
-            });
-        
-        updateSyncStatus('已保存', 'success');
-    } catch (error) {
-        console.error('Cloud save error:', error);
-        updateSyncStatus('保存失败，请重试', 'error');
-    } finally {
+    }).then(() => {
         isCloudSaving = false;
-    }
+        updateSyncStatus('已同步', new Date().toLocaleTimeString());
+    }).catch((error) => {
+        console.warn('云端同步失败，切换到本地保存:', error.message);
+        isCloudSaving = false;
+        updateSyncStatus('离线');
+        saveToLocal();
+    });
 }
 
 let familyCode = localStorage.getItem('lifeFactoryFamilyCode') || null;
@@ -3126,15 +2035,15 @@ let autoBackupEnabled = localStorage.getItem('lifeFactoryAutoBackup') === 'true'
 let autoBackupInterval = null;
 let lastBackupTime = localStorage.getItem('lifeFactoryLastBackup') || null;
 
-async function askFamilyCode() {
-    const code = prompt('请输入家庭码（用于云端同步）：');
-    if (code) {
-        window.familyCode = code;
-        localStorage.setItem('familyCode', code);
-        await firebaseLoginAndSync();
+function askFamilyCode() {
+    let code = prompt('请输入家庭码/团队码（所有设备输入相同即可同步）：', familyCode || '');
+    if (code && code.trim()) {
+        familyCode = code.trim();
+        localStorage.setItem('lifeFactoryFamilyCode', familyCode);
+        firebaseLoginAndSync();
     } else {
-        console.log('未输入家庭码，使用本地模式');
-        updateSyncStatus('本地模式', 'warning');
+        alert('必须输入家庭码才能使用！');
+        askFamilyCode();
     }
 }
 
@@ -4767,372 +3676,78 @@ window.fixAllTimezoneIssues = function() {
     alert('🎉 时区问题已全面修复！现在所有时间显示都会使用本地时间。');
 };
 
-function createTreeStylePath(fromPoint, toPoint) {
-    const { x: startX, y: startY } = fromPoint;
-    const { x: endX, y: endY } = toPoint;
-    
-    // 计算控制点
-    const dx = endX - startX;
-    const dy = endY - startY;
-    const radius = 20; // 圆角半径
-    
-    // 创建圆角路径
-    let path = `M ${startX} ${startY}`;
-    
-    if (Math.abs(dx) > Math.abs(dy)) {
-        // 水平距离大于垂直距离
-        const midX = startX + dx / 2;
-        path += ` L ${midX - radius} ${startY}`;
-        path += ` Q ${midX} ${startY}, ${midX} ${startY + radius}`;
-        path += ` L ${midX} ${endY - radius}`;
-        path += ` Q ${midX} ${endY}, ${midX + radius} ${endY}`;
-        path += ` L ${endX} ${endY}`;
-    } else {
-        // 垂直距离大于水平距离
-        const midY = startY + dy / 2;
-        path += ` L ${startX} ${midY - radius}`;
-        path += ` Q ${startX} ${midY}, ${startX + radius} ${midY}`;
-        path += ` L ${endX - radius} ${midY}`;
-        path += ` Q ${endX} ${midY}, ${endX} ${midY + radius}`;
-        path += ` L ${endX} ${endY}`;
+// 数据验证和格式化函数
+const validators = {
+    // 验证生产线数据
+    validateProduction(prod) {
+        if (!prod.name) return false;
+        if (prod.hasActiveIncome && (!prod.activeIncome || !utils.isValidCurrency(prod.activeCurrency))) return false;
+        if (prod.hasPassiveIncome && (!prod.passiveIncome || !utils.isValidCurrency(prod.passiveCurrency))) return false;
+        if (prod.expense && !utils.isValidCurrency(prod.expenseCurrency)) return false;
+        return true;
+    },
+
+    // 验证研发项目数据
+    validateDevelopment(dev) {
+        if (!dev.researchName) return false;
+        if (!dev.cycle || dev.cycle < 1) return false;
+        if (!dev.target || dev.target < 1) return false;
+        return true;
+    },
+
+    // 验证支出数据
+    validateExpense(exp) {
+        if (!exp.name) return false;
+        if (!exp.amount || exp.amount <= 0) return false;
+        if (!utils.isValidCurrency(exp.currency)) return false;
+        if (exp.type === 'recurring' && !['monthly', 'biweekly'].includes(exp.frequency)) return false;
+        return true;
     }
-    
-    return path;
+};
+
+// 数据格式化函数
+const formatters = {
+    // 格式化研发项目显示
+    formatDevelopment(dev) {
+        return {
+            name: dev.researchName,
+            icon: dev.icon || '🔬',
+            progress: `${dev.progress}/${dev.maxProgress}`,
+            percent: Math.min(100, (dev.progress / dev.maxProgress) * 100),
+            status: dev.active ? (dev.paused ? '已暂停' : '进行中') : '已完成'
+        };
+    },
+
+    // 格式化生产线显示
+    formatProduction(prod) {
+        return {
+            name: prod.name,
+            type: prod.type,
+            activeIncome: prod.hasActiveIncome ? utils.formatCurrency(prod.activeIncome, prod.activeCurrency) : null,
+            passiveIncome: prod.hasPassiveIncome ? utils.formatCurrency(prod.passiveIncome, prod.passiveCurrency) : null,
+            expense: prod.expense ? utils.formatCurrency(prod.expense, prod.expenseCurrency) : null
+        };
+    },
+
+    // 格式化支出显示
+    formatExpense(exp) {
+        return {
+            name: exp.name,
+            amount: utils.formatCurrency(exp.amount, exp.currency),
+            frequency: exp.type === 'recurring' ? (exp.frequency === 'monthly' ? '每月' : '每2周') : '一次性'
+        };
+    }
+};
+
+// 修改调用renderDevLibrary的地方，添加强制渲染标记
+function forceRenderDevLibrary() {
+    window.__devLibraryForceRender = true;
+    window.renderDevLibrary();
 }
 
-// 添加缩放控制
-function addZoomControls(container) {
-    const zoomControls = document.createElement('div');
-    zoomControls.className = 'tech-tree-zoom-controls';
-    
-    const zoomIn = document.createElement('button');
-    zoomIn.textContent = '+';
-    zoomIn.onclick = () => zoomTechTree(1.2);
-    
-    const zoomOut = document.createElement('button');
-    zoomOut.textContent = '-';
-    zoomOut.onclick = () => zoomTechTree(0.8);
-    
-    const reset = document.createElement('button');
-    reset.textContent = '重置';
-    reset.onclick = () => resetTechTreeZoom();
-    
-    zoomControls.appendChild(zoomOut);
-    zoomControls.appendChild(reset);
-    zoomControls.appendChild(zoomIn);
-    
-    container.appendChild(zoomControls);
-}
-
-let currentZoom = 1;
-const minZoom = 0.5;
-const maxZoom = 2;
-
-function zoomTechTree(factor) {
-    const container = document.querySelector('.tech-tree-container');
-    if (!container) return;
-    
-    currentZoom = Math.min(Math.max(currentZoom * factor, minZoom), maxZoom);
-    container.style.transform = `scale(${currentZoom})`;
-    container.style.transformOrigin = 'center center';
-}
-
-function resetTechTreeZoom() {
-    currentZoom = 1;
-    const container = document.querySelector('.tech-tree-container');
-    if (container) {
-        container.style.transform = 'scale(1)';
+window.closeModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
     }
 }
-
-// 修改renderDevLibrary函数
-function renderDevLibrary() {
-    // ... existing code ...
-    
-    const techContainer = document.createElement('div');
-    techContainer.id = 'tech-container';
-    techContainer.style.position = 'relative';
-    
-    // 添加缩放控制
-    addZoomControls(techContainer);
-    
-    // ... rest of the existing code ...
-}
-
-// ... existing code ...
-
-// 计算预计支出
-function calculateExpectedExpenses() {
-    const expenses = gameData.expenses || [];
-    let total = 0;
-    
-    expenses.forEach(expense => {
-        if (expense.active) {
-            // 根据频率计算月度支出
-            let monthlyAmount = expense.amount;
-            switch (expense.freq) {
-                case 'daily':
-                    monthlyAmount *= 30;
-                    break;
-                case 'weekly':
-                    monthlyAmount *= 4;
-                    break;
-                case 'yearly':
-                    monthlyAmount /= 12;
-                    break;
-            }
-            total += monthlyAmount;
-        }
-    });
-    
-    return total;
-}
-
-// 更新统计面板
-function updateStatisticsPanel() {
-    const expectedExpenses = calculateExpectedExpenses();
-    const expectedExpensesElement = document.getElementById('expected-expenses');
-    if (expectedExpensesElement) {
-        expectedExpensesElement.textContent = `预计支出：${expectedExpenses.toFixed(2)}`;
-    }
-}
-
-// 监听支出变化
-function listenToExpenseChanges() {
-    const expensesContainer = document.getElementById('expenses-container');
-    if (expensesContainer) {
-        const observer = new MutationObserver(() => {
-            updateStatisticsPanel();
-        });
-        
-        observer.observe(expensesContainer, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            characterData: true
-        });
-    }
-}
-
-// 在初始化时调用
-function initializeApp() {
-    // ... existing code ...
-    updateStatisticsPanel();
-    listenToExpenseChanges();
-    // ... existing code ...
-}
-
-// ... existing code ...
-
-// 获取本月所有应发生的支出（预计月支出）
-function getPlannedExpenseTotalThisMonth() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    let total = 0;
-    // 单次支出：只要本月内的都算
-    (gameData.expenses||[]).forEach(exp => {
-        if (!exp || !exp.amount || !exp.currency) return;
-        if (exp.type === 'single') {
-            const d = new Date(exp.date);
-            if (d.getFullYear() === year && d.getMonth() === month) {
-                total += convertToCNY(exp.amount, exp.currency);
-            }
-        } else if (exp.type === 'recurring') {
-            // 固定支出：本月内应发生几次都算
-            const start = new Date(exp.date);
-            if (start > now) return; // 未来开始的不算
-            if (exp.frequency === 'monthly') {
-                if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
-                    total += convertToCNY(exp.amount, exp.currency);
-                }
-            } else if (exp.frequency === 'biweekly') {
-                let firstDay = new Date(year, month, 1);
-                let lastDay = new Date(year, month + 1, 0);
-                let cycleStart = new Date(start);
-                while (cycleStart < firstDay) {
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-                while (cycleStart <= lastDay) {
-                    total += convertToCNY(exp.amount, exp.currency);
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-            } else if (exp.frequency === 'yearly') {
-                // 每年一次，只要本月是起始月
-                if (start.getMonth() === month && start.getFullYear() <= year) {
-                    total += convertToCNY(exp.amount, exp.currency);
-                }
-            }
-        }
-    });
-    return total;
-}
-
-// 获取本月已到期的支出（实际月支出）
-function getActualExpenseTotalThisMonth() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    let total = 0;
-    // 单次支出：本月内且日期<=今天
-    (gameData.expenses||[]).forEach(exp => {
-        if (!exp || !exp.amount || !exp.currency) return;
-        if (exp.type === 'single') {
-            const d = new Date(exp.date);
-            if (d.getFullYear() === year && d.getMonth() === month && d <= now) {
-                total += convertToCNY(exp.amount, exp.currency);
-            }
-        } else if (exp.type === 'recurring') {
-            const start = new Date(exp.date);
-            if (start > now) return; // 未来开始的不算
-            if (exp.frequency === 'monthly') {
-                // 本月应发生且日期<=今天
-                const thisMonthDate = new Date(year, month, start.getDate());
-                if (thisMonthDate <= now && start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
-                    total += convertToCNY(exp.amount, exp.currency);
-                }
-            } else if (exp.frequency === 'biweekly') {
-                let firstDay = new Date(year, month, 1);
-                let lastDay = new Date(year, month + 1, 0);
-                let cycleStart = new Date(start);
-                while (cycleStart < firstDay) {
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-                while (cycleStart <= lastDay && cycleStart <= now) {
-                    total += convertToCNY(exp.amount, exp.currency);
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-            } else if (exp.frequency === 'yearly') {
-                // 每年一次，只要本月是起始月且日期<=今天
-                if (start.getMonth() === month && start.getFullYear() <= year) {
-                    const thisYearDate = new Date(year, month, start.getDate());
-                    if (thisYearDate <= now) {
-                        total += convertToCNY(exp.amount, exp.currency);
-                    }
-                }
-            }
-        }
-    });
-    return total;
-}
-
-// 替换资源统计面板展示
-function renderResourceStats() {
-    try {
-        console.log('renderResourceStats called', JSON.stringify(gameData));
-        let html = '';
-        const container = document.getElementById('resource-stats');
-        if (!container) return;
-        let totalActive = 0, totalPassive = 0, totalExpense = 0;
-        let activeBreakdown = [], passiveBreakdown = [], expenseBreakdown = [];
-        let activeIncomesByCurrency = {}, passiveIncomesByCurrency = {}, expensesByCurrency = {};
-        (gameData.productions || []).forEach(prod => {
-            if (prod.hasActiveIncome && prod.activeIncome > 0) {
-                if (!activeIncomesByCurrency[prod.activeCurrency]) activeIncomesByCurrency[prod.activeCurrency] = 0;
-                activeIncomesByCurrency[prod.activeCurrency] += prod.activeIncome;
-            }
-            if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
-                if (!passiveIncomesByCurrency[prod.passiveCurrency]) passiveIncomesByCurrency[prod.passiveCurrency] = 0;
-                passiveIncomesByCurrency[prod.passiveCurrency] += prod.passiveIncome;
-            }
-            if (prod.expense > 0) {
-                if (!expensesByCurrency[prod.expenseCurrency]) expensesByCurrency[prod.expenseCurrency] = 0;
-                expensesByCurrency[prod.expenseCurrency] += prod.expense;
-            }
-        });
-        Object.entries(activeIncomesByCurrency).forEach(([currency, amount]) => {
-            totalActive += convertToCNY(amount, currency);
-            activeBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-        });
-        Object.entries(passiveIncomesByCurrency).forEach(([currency, amount]) => {
-            totalPassive += convertToCNY(amount, currency);
-            passiveBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-        });
-        Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
-            totalExpense += convertToCNY(amount, currency);
-            expenseBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-        });
-        let savings = gameData.finance.totalSavings;
-        let savingsCurrency = gameData.finance.savingsCurrency;
-        let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
-        let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
-        let today = getLocalDateString(); // 修复：使用本地日期
-        let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
-            // 确保时间成本为正值，如果timeCost异常则重新计算
-            let timeCost = log.timeCost || 0;
-            if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
-                timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
-            }
-            return sum + Math.max(0, timeCost); // 确保不会是负数
-        }, 0);
-        html += `<div class='resource-stats-section'>
-            <div class='resource-label'>累计存款
-                <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
-            </div>
-            <div class='resource-main-value'>${savingsStr}</div>
-            <div class='resource-sub'>${savingsUpdate}</div>
-        </div>`;
-        html += `<div class='resource-divider'></div>`;
-        html += `<div class='resource-stats-section'>
-            <div class='resource-label'>今天主动用时 
-                <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
-            </div>
-            <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
-        </div>`;
-        html += `<div class='resource-divider'></div>`;
-        html += `<div class='resource-row'>
-            <span class='resource-label'>主动收入</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#2980b9;'>¥${Math.round(totalActive).toLocaleString()}</span>
-        </div>`;
-        if (activeBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${activeBreakdown.join(' + ')})</div>`;
-        
-        html += `<div class='resource-row'>
-            <span class='resource-label'>被动收入</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#16a085;'>¥${Math.round(totalPassive).toLocaleString()}</span>
-        </div>`;
-        if (passiveBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${passiveBreakdown.join(' + ')})</div>`;
-        
-        html += `<div class='resource-divider'></div>`;
-        // 使用合并的月支出统计（包括生产线支出和支出面板的支出）
-        const monthlyTotal = getMonthlyExpenseTotalMerged();
-        const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
-        
-        // 预计月支出（自动统计，合计所有本月应发生的固定和单次支出）
-        const estimatedExpense = getPlannedExpenseTotalThisMonth();
-        const estimatedInCNY = estimatedExpense; // 已经是CNY
-        html += `<div class='resource-row'>
-            <span class='resource-label'>预计月支出</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedInCNY).toLocaleString()}</span>
-        </div>`;
-        
-        // 实际月支出与对比
-        const actualExpense = getActualExpenseTotalThisMonth();
-        html += `<div class='resource-row'>
-            <span class='resource-label'>实际月支出</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(actualExpense).toLocaleString()}</span>
-        </div>`;
-        
-        // 差额
-        const difference = actualExpense - estimatedInCNY;
-        const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
-        const diffSymbol = difference > 0 ? '+' : '';
-        
-        if (estimatedInCNY > 0) {
-            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
-                差额：${diffSymbol}¥${Math.abs(Math.round(difference)).toLocaleString()} 
-                (${difference > 0 ? '超支' : difference < 0 ? '节省' : '无差异'})
-            </div>`;
-        }
-        
-        // 支出明细紧挨着实际月支出
-        const allExpenseDetails = [];
-        if (expenseBreakdown.length) allExpenseDetails.push(...expenseBreakdown);
-        if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
-        if (allExpenseDetails.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>`;
-        container.innerHTML = html;
-    } catch (e) {
-        console.error('renderResourceStats error:', e);
-        document.getElementById('resource-stats').innerHTML = '<div style="color:red">统计面板渲染出错：' + e.message + '</div>';
-    }
-}
-// ... existing code ...
