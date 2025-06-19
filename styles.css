@@ -254,27 +254,32 @@ body {
 .production-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    margin-bottom: 8px;
 }
 
 .production-name {
     font-weight: 600;
     font-size: 0.95em;
+    flex: 1;
+    margin-right: 8px;
 }
 
 .production-tags {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     margin-top: 8px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .tag {
-    padding: 2px 6px;
+    padding: 4px 8px;
     border-radius: 12px;
-    font-size: 0.85em;
+    font-size: 0.75em;
     font-weight: 500;
-    line-height: 1.4;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 
 .tag-production {
@@ -301,31 +306,31 @@ body {
 .tag-active {
     background: #e8f5e6;
     color: #8fae9e;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .tag-passive {
     background: #e6eaf5;
     color: #8a9bb3;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .tag-expense {
     background: #f5eaea;
     color: #b39a9a;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .tag-time {
     background: #eceaf5;
     color: #a39bb3;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .tag-freq {
     background: #e6f5e8;
     color: #8fae9e;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .tag-category {
@@ -365,7 +370,7 @@ body {
 /* 统一所有类型标签样式 */
 .tag-production, .tag-automation, .tag-investment, .tag-lifestyle,
 .tag-active, .tag-passive, .tag-expense, .tag-time, .tag-freq {
-    font-size: 0.85em;
+    font-size: 0.75em;
     padding: 4px 8px;
     border-radius: 12px;
     display: inline-block;
@@ -377,19 +382,30 @@ body {
     background: #27ae60;
     color: white;
     border: none;
-    padding: 4px 12px;
-    border-radius: 5px;
+    padding: 6px 12px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 0.85em;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-top: 8px;
+    min-width: 60px;
 }
 
 .check-btn:hover {
     background: #229954;
+    transform: translateY(-1px);
 }
 
 .check-btn:disabled {
     background: #95a5a6;
     cursor: not-allowed;
+    transform: none;
+}
+
+.check-btn.checked {
+    background: #27ae60;
+    color: white;
 }
 
 /* 现代化右键菜单 */
@@ -2367,6 +2383,147 @@ html {
     .empty-state-subtext {
         font-size: 12px;
     }
+}
+
+/* 移动端特定优化 */
+.mobile-device .production-item {
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 12px;
+}
+
+.mobile-device .production-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.mobile-device .production-name {
+    font-size: 0.9em;
+    margin-right: 0;
+}
+
+.mobile-device .production-tags {
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.mobile-device .tag {
+    padding: 3px 6px;
+    font-size: 0.7em;
+    border-radius: 8px;
+}
+
+.mobile-device .check-btn {
+    padding: 8px 16px;
+    font-size: 0.9em;
+    border-radius: 10px;
+    min-width: 70px;
+    margin-top: 6px;
+}
+
+.mobile-device .panel {
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 12px;
+}
+
+.mobile-device .panel-title {
+    font-size: 1.1em;
+    margin-bottom: 12px;
+}
+
+.mobile-device .btn {
+    padding: 10px 16px;
+    font-size: 0.9em;
+    border-radius: 10px;
+    min-height: 44px; /* 移动端触摸目标最小尺寸 */
+}
+
+.mobile-device .btn-small {
+    padding: 8px 12px;
+    font-size: 0.85em;
+    min-height: 36px;
+}
+
+.mobile-device .form-input,
+.mobile-device .form-select {
+    padding: 12px;
+    font-size: 16px; /* 防止iOS缩放 */
+    border-radius: 8px;
+    min-height: 44px;
+}
+
+.mobile-device .modal-content {
+    padding: 16px;
+    border-radius: 12px;
+    margin: 10px;
+}
+
+.mobile-device .notification {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.9em;
+    max-width: calc(100vw - 20px);
+}
+
+/* 移动端网络状态指示器 */
+.mobile-device .sync-status {
+    font-size: 0.8em;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+}
+
+/* 移动端触摸反馈优化 */
+.mobile-device .btn:active,
+.mobile-device .check-btn:active,
+.mobile-device .production-item:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+}
+
+/* 移动端滚动优化 */
+.mobile-device .panel {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* 移动端键盘优化 */
+.mobile-device input:focus,
+.mobile-device select:focus,
+.mobile-device textarea:focus {
+    font-size: 16px; /* 防止iOS缩放 */
+}
+
+/* 移动端加载状态优化 */
+.mobile-device .loading-spinner {
+    width: 24px;
+    height: 24px;
+}
+
+.mobile-device .loading-text {
+    font-size: 0.9em;
+}
+
+/* 移动端空状态优化 */
+.mobile-device .empty-state {
+    padding: 20px 16px;
+}
+
+.mobile-device .empty-state-icon {
+    font-size: 2em;
+    margin-bottom: 12px;
+}
+
+.mobile-device .empty-state-text {
+    font-size: 1em;
+    margin-bottom: 8px;
+}
+
+.mobile-device .empty-state-subtext {
+    font-size: 0.85em;
 }
 
  

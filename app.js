@@ -2341,90 +2341,186 @@ async function saveToBoundFile() {
 
 // 云端登录并监听
 function firebaseLoginAndSync() {
-    auth.signInAnonymously().then(() => {
-        listenCloudData();
-    });
+    console.log('[云同步] 开始Firebase登录...');
+    
+    // 根据移动端网络状况调整超时时间
+    const timeoutMultiplier = window.MOBILE_TIMEOUT_MULTIPLIER || 1;
+    const loginTimeoutMs = 10000 * timeoutMultiplier;
+    
+    // 添加超时处理
+    const loginTimeout = setTimeout(() => {
+        console.warn('[云同步] Firebase登录超时，切换到本地模式');
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showNotification('云端连接超时，使用本地模式', 'warning', 5000);
+        }
+        updateSyncStatus('离线', new Date().toLocaleTimeString());
+    }, loginTimeoutMs);
+    
+    auth.signInAnonymously()
+        .then(() => {
+            clearTimeout(loginTimeout);
+            console.log('[云同步] Firebase匿名登录成功');
+            listenCloudData();
+        })
+        .catch(error => {
+            clearTimeout(loginTimeout);
+            console.error('[云同步] Firebase登录失败:', error);
+            
+            // 根据错误类型提供不同的处理
+            let errorMessage = '云端连接失败，切换到本地模式';
+            if (error.code === 'auth/network-request-failed') {
+                errorMessage = '网络连接失败，请检查网络设置';
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = '请求过于频繁，请稍后重试';
+            }
+            
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification(errorMessage, 'error', 5000);
+            }
+            updateSyncStatus('连接失败', new Date().toLocaleTimeString());
+        });
 }
 
 // 监听云端数据变化
 function listenCloudData() {
-    if (!familyCode) return;
-    if (firebaseUnsubscribe) firebaseUnsubscribe();
+    if (!familyCode) {
+        console.warn('[云同步] 未设置家庭码，无法监听云端数据');
+        return;
+    }
+    
+    if (firebaseUnsubscribe) {
+        firebaseUnsubscribe();
+    }
+    
     isCloudLoading = true;
-    console.log('[云同步] 开始监听云端数据变化');
+    console.log('[云同步] 开始监听云端数据变化，家庭码:', familyCode);
+    
+    // 根据移动端网络状况调整超时时间
+    const timeoutMultiplier = window.MOBILE_TIMEOUT_MULTIPLIER || 1;
+    const listenTimeoutMs = 15000 * timeoutMultiplier;
+    
+    // 添加监听超时处理
+    const listenTimeout = setTimeout(() => {
+        console.warn('[云同步] 监听超时，尝试重新连接');
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showNotification('云端监听超时，尝试重新连接', 'warning', 3000);
+        }
+        // 重试监听
+        setTimeout(() => {
+            if (isCloudLoading) {
+                listenCloudData();
+            }
+        }, 2000 * timeoutMultiplier);
+    }, listenTimeoutMs);
     
     firebaseUnsubscribe = db.collection('groups').doc(familyCode)
-        .onSnapshot(doc => {
-            isCloudLoading = false;
-            if (doc.exists && doc.data().gameData) {
-                console.log('[云同步] 收到云端数据更新');
+        .onSnapshot(
+            doc => {
+                clearTimeout(listenTimeout);
+                isCloudLoading = false;
                 
-                // 保存旧数据用于比较
-                const oldExpenses = gameData.expenses ? [...gameData.expenses] : [];
-                const oldTimeLogs = gameData.timeLogs ? [...gameData.timeLogs] : [];
-                
-                // 更新数据
-                gameData = migrateData(doc.data().gameData);
-                lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
-                
-                // 防御性初始化
-                if (!Array.isArray(gameData.expenses)) {
-                    console.log('[云同步] 初始化expenses数组');
-                    gameData.expenses = [];
+                if (doc.exists && doc.data().gameData) {
+                    console.log('[云同步] 收到云端数据更新');
+                    
+                    // 保存旧数据用于比较
+                    const oldExpenses = gameData.expenses ? [...gameData.expenses] : [];
+                    const oldTimeLogs = gameData.timeLogs ? [...gameData.timeLogs] : [];
+                    
+                    // 更新数据
+                    gameData = migrateData(doc.data().gameData);
+                    lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
+                    
+                    // 防御性初始化
+                    if (!Array.isArray(gameData.expenses)) {
+                        console.log('[云同步] 初始化expenses数组');
+                        gameData.expenses = [];
+                    }
+                    if (!Array.isArray(gameData.timeLogs)) {
+                        console.log('[云同步] 初始化timeLogs数组');
+                        gameData.timeLogs = [];
+                    }
+                    
+                    // 检查数据是否有变化
+                    const expensesChanged = JSON.stringify(oldExpenses) !== JSON.stringify(gameData.expenses);
+                    const timeLogsChanged = JSON.stringify(oldTimeLogs) !== JSON.stringify(gameData.timeLogs);
+                    
+                    // 云端数据加载后重新检查每日重置
+                    checkDailyReset();
+                    fixDataLinks();
+                    
+                    // 更新界面
+                    renderProductions();
+                    renderDevelopments();
+                    renderMilestones();
+                    renderDevLibrary();
+                    renderResourceStats();
+                    renderWeekCalendar();
+                    
+                    // 如果支出数据有变化，重新渲染支出面板
+                    if (expensesChanged) {
+                        console.log('[云同步] 支出数据已更新，重新渲染支出面板');
+                        renderExpenses();
+                    }
+                    
+                    cloudInitDone = true;
+                    updateSyncStatus('已同步', new Date().toLocaleTimeString());
+                    console.log('[云同步] 数据更新完成');
+                    
+                } else if (!cloudInitDone) {
+                    console.log('[云同步] 未找到云端数据，执行首次保存');
+                    saveToCloud();
+                    cloudInitDone = true;
                 }
-                if (!Array.isArray(gameData.timeLogs)) {
-                    console.log('[云同步] 初始化timeLogs数组');
-                    gameData.timeLogs = [];
+                isCloudReady = true;
+            },
+            error => {
+                clearTimeout(listenTimeout);
+                console.error('[云同步] 监听错误:', error);
+                isCloudLoading = false;
+                
+                // 根据错误类型提供不同的处理
+                let errorMessage = '云端数据监听失败，切换到本地模式';
+                let shouldRetry = false;
+                
+                if (error.code === 'permission-denied') {
+                    errorMessage = '权限不足，请检查家庭码是否正确';
+                } else if (error.code === 'unavailable') {
+                    errorMessage = '云端服务暂时不可用，请稍后重试';
+                    shouldRetry = true;
+                } else if (error.code === 'network-request-failed') {
+                    errorMessage = '网络连接失败，请检查网络设置';
+                    shouldRetry = true;
                 }
                 
-                // 检查数据是否有变化
-                const expensesChanged = JSON.stringify(oldExpenses) !== JSON.stringify(gameData.expenses);
-                const timeLogsChanged = JSON.stringify(oldTimeLogs) !== JSON.stringify(gameData.timeLogs);
+                updateSyncStatus('监听失败', new Date().toLocaleTimeString());
                 
-                // 云端数据加载后重新检查每日重置
-                checkDailyReset();
-                fixDataLinks();
-                
-                // 更新界面
-                renderProductions();
-                renderDevelopments();
-                renderMilestones();
-                renderDevLibrary();
-                renderResourceStats();
-                renderWeekCalendar();
-                
-                // 如果支出数据有变化，重新渲染支出面板
-                if (expensesChanged) {
-                    console.log('[云同步] 支出数据已更新，重新渲染支出面板');
-                    renderExpenses();
+                if (window.ErrorUtils) {
+                    window.ErrorUtils.showNotification(errorMessage, 'error', 5000);
                 }
                 
-                cloudInitDone = true;
-                updateSyncStatus('已同步', new Date().toLocaleTimeString());
-                console.log('[云同步] 数据更新完成');
-                
-            } else if (!cloudInitDone) {
-                console.log('[云同步] 未找到云端数据，执行首次保存');
-                saveToCloud();
-                cloudInitDone = true;
+                // 如果是网络相关错误，尝试重试
+                if (shouldRetry) {
+                    const retryDelay = 5000 * (window.MOBILE_TIMEOUT_MULTIPLIER || 1);
+                    console.log('[云同步] 准备重试监听...');
+                    setTimeout(() => {
+                        if (!isCloudReady) {
+                            listenCloudData();
+                        }
+                    }, retryDelay);
+                }
             }
-            isCloudReady = true;
-        }, error => {
-            console.error('[云同步] 监听错误:', error);
-            isCloudLoading = false;
-            updateSyncStatus('监听失败', new Date().toLocaleTimeString());
-            alert('云端数据监听失败，切换到本地模式');
-        });
+        );
 }
 
 // 保存到云端
-function saveToCloud() {
+function saveToCloud(retryCount = 0) {
     return window.ErrorUtils.safeExecuteAsync(async () => {
         if (!familyCode || !isCloudReady || isCloudSaving) {
             console.warn('[云同步] 无法保存：', {
                 hasFamilyCode: !!familyCode,
                 isCloudReady,
-                isCloudSaving
+                isCloudSaving,
+                retryCount
             });
             
             if (!familyCode) {
@@ -2441,7 +2537,7 @@ function saveToCloud() {
         }
         
         isCloudSaving = true;
-        console.log('[云同步] 开始保存数据');
+        console.log('[云同步] 开始保存数据，重试次数:', retryCount);
         updateSyncStatus('同步中');
         
         // 显示保存加载状态
@@ -2504,44 +2600,84 @@ function saveToCloud() {
             return false;
         }
         
-        // 保存数据
-        await db.collection('groups').doc(familyCode).set({
-            gameData: gameData,
-            lastDailyReset: lastDailyReset,
-            saveTime: new Date().toISOString()
-        });
-        
-        console.log('[云同步] 数据保存成功');
-        isCloudSaving = false;
-        updateSyncStatus('已同步', new Date().toLocaleTimeString());
-        
-        // 隐藏加载状态
-        if (window.ErrorUtils) {
-            window.ErrorUtils.hideLoading('cloud-save');
-            window.ErrorUtils.showNotification('云端同步成功', 'success', 3000);
+        try {
+            // 根据移动端网络状况调整超时时间
+            const timeoutMultiplier = window.MOBILE_TIMEOUT_MULTIPLIER || 1;
+            const saveTimeoutMs = 30000 * timeoutMultiplier;
+            
+            // 添加保存超时处理
+            const saveTimeout = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('保存超时')), saveTimeoutMs);
+            });
+            
+            // 保存数据
+            const savePromise = db.collection('groups').doc(familyCode).set({
+                gameData: gameData,
+                lastDailyReset: lastDailyReset,
+                saveTime: new Date().toISOString()
+            });
+            
+            await Promise.race([savePromise, saveTimeout]);
+            
+            console.log('[云同步] 数据保存成功');
+            isCloudSaving = false;
+            updateSyncStatus('已同步', new Date().toLocaleTimeString());
+            
+            // 隐藏加载状态
+            if (window.ErrorUtils) {
+                window.ErrorUtils.hideLoading('cloud-save');
+                window.ErrorUtils.showNotification('云端同步成功', 'success', 3000);
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('[云同步] 保存失败:', error);
+            isCloudSaving = false;
+            
+            // 隐藏加载状态
+            if (window.ErrorUtils) {
+                window.ErrorUtils.hideLoading('cloud-save');
+            }
+            
+            // 根据错误类型决定是否重试
+            let errorMessage = '云端保存失败';
+            let shouldRetry = false;
+            let retryDelay = 2000;
+            
+            if (error.message === '保存超时') {
+                errorMessage = '保存超时，请检查网络连接';
+                shouldRetry = retryCount < 2; // 最多重试2次
+                retryDelay = 3000 * (window.MOBILE_TIMEOUT_MULTIPLIER || 1);
+            } else if (error.code === 'permission-denied') {
+                errorMessage = '权限不足，请检查家庭码';
+                shouldRetry = false;
+            } else if (error.code === 'unavailable' || error.code === 'network-request-failed') {
+                errorMessage = '网络连接失败，正在重试...';
+                shouldRetry = retryCount < 3; // 网络错误最多重试3次
+                retryDelay = 5000 * (window.MOBILE_TIMEOUT_MULTIPLIER || 1);
+            } else if (error.code === 'resource-exhausted') {
+                errorMessage = '云端资源不足，请稍后重试';
+                shouldRetry = retryCount < 1; // 资源不足只重试1次
+                retryDelay = 10000 * (window.MOBILE_TIMEOUT_MULTIPLIER || 1);
+            }
+            
+            updateSyncStatus('保存失败', new Date().toLocaleTimeString());
+            
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification(errorMessage, 'error', 5000);
+            }
+            
+            // 如果需要重试
+            if (shouldRetry) {
+                console.log(`[云同步] ${retryDelay}ms后重试保存，第${retryCount + 1}次重试`);
+                setTimeout(() => {
+                    saveToCloud(retryCount + 1);
+                }, retryDelay);
+            }
+            
+            return false;
         }
-        
-        // 使用批量渲染优化，避免频繁的单独渲染调用
-        window.batchRender(() => {
-            renderExpenses();
-            renderResourceStats();
-            renderWeekCalendar();
-        }, 'postSave');
-        
-        return true;
-    }, { type: 'data-save', operation: 'saveToCloud' }, (error) => {
-        console.error('[云同步] 保存失败:', error);
-        isCloudSaving = false;
-        updateSyncStatus('同步失败', new Date().toLocaleTimeString());
-        
-        // 隐藏加载状态并显示错误通知
-        if (window.ErrorUtils) {
-            window.ErrorUtils.hideLoading('cloud-save');
-            window.ErrorUtils.showNotification('云端同步失败，已切换到本地保存', 'error', 5000);
-        }
-        
-        saveToLocal();
-        return false;
     });
 }
 
@@ -4354,3 +4490,69 @@ window.showDataManagePanel = function() {
 };
 
 console.log('🚀 高级性能优化模块已加载');
+
+// 移动端网络检测和优化
+function detectMobileAndNetwork() {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isOnline = navigator.onLine;
+    
+    console.log('[网络检测] 设备信息:', {
+        isMobile,
+        isOnline,
+        userAgent: navigator.userAgent.substring(0, 100) + '...',
+        connection: navigator.connection ? {
+            effectiveType: navigator.connection.effectiveType,
+            downlink: navigator.connection.downlink,
+            rtt: navigator.connection.rtt
+        } : '不支持'
+    });
+    
+    // 监听网络状态变化
+    window.addEventListener('online', () => {
+        console.log('[网络检测] 网络已连接');
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showNotification('网络已连接，尝试重新同步', 'success', 3000);
+        }
+        // 如果之前连接失败，尝试重新连接
+        if (!isCloudReady && familyCode) {
+            setTimeout(() => {
+                firebaseLoginAndSync();
+            }, 2000);
+        }
+    });
+    
+    window.addEventListener('offline', () => {
+        console.log('[网络检测] 网络已断开');
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showNotification('网络已断开，切换到本地模式', 'warning', 5000);
+        }
+        updateSyncStatus('离线', new Date().toLocaleTimeString());
+    });
+    
+    // 移动端特殊优化
+    if (isMobile) {
+        console.log('[移动端] 检测到移动设备，应用移动端优化');
+        
+        // 移动端网络连接较慢，增加超时时间
+        if (navigator.connection) {
+            const connection = navigator.connection;
+            if (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g') {
+                console.log('[移动端] 检测到慢速网络，调整超时设置');
+                // 慢速网络增加超时时间
+                window.MOBILE_TIMEOUT_MULTIPLIER = 2;
+            } else if (connection.effectiveType === '3g') {
+                window.MOBILE_TIMEOUT_MULTIPLIER = 1.5;
+            } else {
+                window.MOBILE_TIMEOUT_MULTIPLIER = 1;
+            }
+        }
+        
+        // 移动端触摸优化
+        document.body.classList.add('mobile-device');
+    }
+    
+    return { isMobile, isOnline };
+}
+
+// 初始化网络检测
+const networkInfo = detectMobileAndNetwork();
