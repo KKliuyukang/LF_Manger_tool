@@ -14,6 +14,8 @@
     <script src="data-validator.js"></script>
     <!-- 性能优化模块 -->
     <script src="performance-optimizer.js"></script>
+    <!-- 主应用脚本 -->
+    <script src="LF_tool.js"></script>
 </head>
 <body style="--font-family: 'Helvetica Neue', Arial, sans-serif;">
     <div class="container">
@@ -614,16 +616,14 @@
         </div>
     </div>
     <script src="tech_tree_renderer.js"></script>
-    <script src="LF_tool.js"></script>
-    
-        <script>
-            // DOM加载完成后执行
-            // 当页面完全加载后，立即预加载科技树数据
-            window.addEventListener('load', () => {
-                if (window.loadDevLibraryFromJSON) {
-                    window.loadDevLibraryFromJSON();
-                }
-            });
-        </script>   
+    <script>
+        // DOM加载完成后执行
+        // 当页面完全加载后，立即预加载科技树数据
+        window.addEventListener('load', () => {
+            if (window.loadDevLibraryFromJSON) {
+                window.loadDevLibraryFromJSON();
+            }
+        });
+    </script>   
 </body>
 </html>

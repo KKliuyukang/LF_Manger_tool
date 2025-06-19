@@ -3,6 +3,96 @@
  * 提供统一的错误处理、用户反馈和错误上报功能
  */
 
+// 先创建ErrorUtils，避免循环依赖
+window.ErrorUtils = {
+    /**
+     * 安全执行函数，自动捕获错误
+     * @param {Function} fn - 要执行的函数
+     * @param {Object} context - 错误上下文
+     * @param {Function} fallback - 错误时的回调函数
+     */
+    safeExecute: (fn, context = {}, fallback = null) => {
+        try {
+            return fn();
+        } catch (error) {
+            if (window.errorHandler) {
+                window.errorHandler.handle(error, context);
+            } else {
+                console.error('Error occurred before error handler was initialized:', error);
+            }
+            if (fallback && typeof fallback === 'function') {
+                return fallback(error);
+            }
+            return null;
+        }
+    },
+
+    /**
+     * 异步安全执行函数
+     * @param {Function} asyncFn - 异步函数
+     * @param {Object} context - 错误上下文
+     * @param {Function} fallback - 错误时的回调函数
+     */
+    safeExecuteAsync: async (asyncFn, context = {}, fallback = null) => {
+        try {
+            return await asyncFn();
+        } catch (error) {
+            if (window.errorHandler) {
+                window.errorHandler.handle(error, context);
+            } else {
+                console.error('Error occurred before error handler was initialized:', error);
+            }
+            if (fallback && typeof fallback === 'function') {
+                return fallback(error);
+            }
+            return null;
+        }
+    },
+
+    /**
+     * 验证数据格式
+     * @param {*} data - 要验证的数据
+     * @param {Object} schema - 验证模式
+     */
+    validateData: (data, schema) => {
+        const errors = [];
+        
+        for (const [key, rules] of Object.entries(schema)) {
+            if (rules.required && (data[key] === undefined || data[key] === null || data[key] === '')) {
+                errors.push(`${key} 是必填项`);
+            }
+            
+            if (data[key] !== undefined && data[key] !== null) {
+                if (rules.type && typeof data[key] !== rules.type) {
+                    errors.push(`${key} 类型错误，期望 ${rules.type}`);
+                }
+                
+                if (rules.min && data[key] < rules.min) {
+                    errors.push(`${key} 不能小于 ${rules.min}`);
+                }
+                
+                if (rules.max && data[key] > rules.max) {
+                    errors.push(`${key} 不能大于 ${rules.max}`);
+                }
+                
+                if (rules.pattern && !rules.pattern.test(data[key])) {
+                    errors.push(`${key} 格式不正确`);
+                }
+            }
+        }
+        
+        if (errors.length > 0) {
+            const error = new Error(errors.join(', '));
+            if (window.errorHandler) {
+                window.errorHandler.handle(error, { type: 'validation', errors });
+            }
+            return false;
+        }
+        
+        return true;
+    }
+};
+
 class ErrorHandler {
     constructor() {
         this.errorCount = 0;
@@ -303,86 +393,6 @@ window.handleError = (error, context) => {
 
 window.showError = (message, type = 'error') => {
     window.errorHandler.createErrorNotification(message, type);
-};
-
-// 添加全局错误处理工具函数
-window.ErrorUtils = {
-    /**
-     * 安全执行函数，自动捕获错误
-     * @param {Function} fn - 要执行的函数
-     * @param {Object} context - 错误上下文
-     * @param {Function} fallback - 错误时的回调函数
-     */
-    safeExecute: (fn, context = {}, fallback = null) => {
-        try {
-            return fn();
-        } catch (error) {
-            window.errorHandler.handle(error, context);
-            if (fallback && typeof fallback === 'function') {
-                return fallback(error);
-            }
-            return null;
-        }
-    },
-
-    /**
-     * 异步安全执行函数
-     * @param {Function} asyncFn - 异步函数
-     * @param {Object} context - 错误上下文
-     * @param {Function} fallback - 错误时的回调函数
-     */
-    safeExecuteAsync: async (asyncFn, context = {}, fallback = null) => {
-        try {
-            return await asyncFn();
-        } catch (error) {
-            window.errorHandler.handle(error, context);
-            if (fallback && typeof fallback === 'function') {
-                return fallback(error);
-            }
-            return null;
-        }
-    },
-
-    /**
-     * 验证数据格式
-     * @param {*} data - 要验证的数据
-     * @param {Object} schema - 验证模式
-     */
-    validateData: (data, schema) => {
-        const errors = [];
-        
-        for (const [key, rules] of Object.entries(schema)) {
-            if (rules.required && (data[key] === undefined || data[key] === null || data[key] === '')) {
-                errors.push(`${key} 是必填项`);
-            }
-            
-            if (data[key] !== undefined && data[key] !== null) {
-                if (rules.type && typeof data[key] !== rules.type) {
-                    errors.push(`${key} 类型错误，期望 ${rules.type}`);
-                }
-                
-                if (rules.min && data[key] < rules.min) {
-                    errors.push(`${key} 不能小于 ${rules.min}`);
-                }
-                
-                if (rules.max && data[key] > rules.max) {
-                    errors.push(`${key} 不能大于 ${rules.max}`);
-                }
-                
-                if (rules.pattern && !rules.pattern.test(data[key])) {
-                    errors.push(`${key} 格式不正确`);
-                }
-            }
-        }
-        
-        if (errors.length > 0) {
-            const error = new Error(errors.join(', '));
-            window.errorHandler.handle(error, { type: 'validation', errors });
-            return false;
-        }
-        
-        return true;
-    }
 };
 
 console.log('✅ 错误处理模块已加载'); 
