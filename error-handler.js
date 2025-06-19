@@ -3,6 +3,9 @@
  * 提供统一的错误处理、用户反馈和错误上报功能
  */
 
+// 调试模式开关
+window.DEBUG_MODE = false; // 设置为true可以看到更多调试信息
+
 // 先创建ErrorUtils，避免循环依赖
 window.ErrorUtils = {
     /**
@@ -110,6 +113,11 @@ class ErrorHandler {
         
         // 捕获全局错误
         window.addEventListener('error', (event) => {
+            // 过滤掉脚本错误和跨域错误
+            if (event.message === 'Script error.' || event.filename === '') {
+                return;
+            }
+            
             this.handle(event.error || new Error(event.message), {
                 type: 'global',
                 filename: event.filename,
@@ -126,10 +134,12 @@ class ErrorHandler {
             });
         });
 
-        // 捕获Firebase错误
-        if (window.firebase) {
-            this.setupFirebaseErrorHandling();
-        }
+        // 延迟设置Firebase错误处理，等待Firebase初始化
+        setTimeout(() => {
+            if (window.firebase) {
+                this.setupFirebaseErrorHandling();
+            }
+        }, 2000);
 
         this.isInitialized = true;
         console.log('✅ 错误处理中心已初始化');
@@ -139,20 +149,28 @@ class ErrorHandler {
      * 设置Firebase错误处理
      */
     setupFirebaseErrorHandling() {
-        // Firebase Auth 错误处理
-        if (firebase.auth) {
-            firebase.auth().onAuthStateChanged((user) => {
-                // 正常流程，不需要错误处理
-            }, (error) => {
-                this.handle(error, { type: 'firebase-auth' });
-            });
-        }
+        // 等待Firebase初始化完成
+        if (window.firebase && firebase.apps && firebase.apps.length > 0) {
+            // Firebase Auth 错误处理
+            if (firebase.auth) {
+                firebase.auth().onAuthStateChanged((user) => {
+                    // 正常流程，不需要错误处理
+                }, (error) => {
+                    this.handle(error, { type: 'firebase-auth' });
+                });
+            }
 
-        // Firestore 错误处理
-        if (firebase.firestore) {
-            // 监听Firestore错误
-            const originalOnSnapshot = firebase.firestore().collection('test').onSnapshot;
-            // 这里可以添加Firestore错误拦截逻辑
+            // Firestore 错误处理
+            if (firebase.firestore) {
+                // 监听Firestore错误
+                const originalOnSnapshot = firebase.firestore().collection('test').onSnapshot;
+                // 这里可以添加Firestore错误拦截逻辑
+            }
+        } else {
+            // Firebase还未初始化，稍后重试
+            setTimeout(() => {
+                this.setupFirebaseErrorHandling();
+            }, 1000);
         }
     }
 
@@ -177,18 +195,25 @@ class ErrorHandler {
 
         this.errorLog.push(errorInfo);
         
-        // 控制台输出
-        console.error(`[${context.type || 'unknown'}] Error:`, error);
-        console.error('Error Context:', context);
+        // 控制台输出（仅在调试模式下或重要错误时）
+        if (window.DEBUG_MODE || context.type === 'data-save' || context.type === 'data-load') {
+            console.error(`[${context.type || 'unknown'}] Error:`, error);
+            console.error('Error Context:', context);
+        }
         
         // 检查错误频率
         if (this.errorCount > this.maxErrorsPerSession) {
-            console.warn('错误频率过高，已停止显示用户提示');
+            if (window.DEBUG_MODE) {
+                console.warn('错误频率过高，已停止显示用户提示');
+            }
             return;
         }
 
-        // 显示用户友好的错误信息
-        this.showUserFriendlyError(error, context);
+        // 只对重要错误显示用户友好的错误信息
+        if (context.type === 'data-save' || context.type === 'data-load' || 
+            context.type === 'validation' || context.type === 'firebase-auth') {
+            this.showUserFriendlyError(error, context);
+        }
         
         // 错误上报（可选）
         this.reportError(errorInfo);
@@ -231,6 +256,12 @@ class ErrorHandler {
      * @param {string} type - 错误类型 (error, warning, info)
      */
     createErrorNotification(message, type = 'error') {
+        // 检查document.body是否存在
+        if (!document.body) {
+            console.warn('Document body not ready, cannot show error notification');
+            return;
+        }
+
         // 移除现有的错误通知
         const existingNotifications = document.querySelectorAll('.error-notification');
         existingNotifications.forEach(notification => {
