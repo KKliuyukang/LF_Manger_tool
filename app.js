@@ -1,7 +1,132 @@
 // Life Factorio - 人生工厂 脚本分离文件
 
+// 用户体验优化初始化
+document.addEventListener('DOMContentLoaded', () => {
+    // 添加页面加载动画
+    document.body.classList.add('page-transition');
+    
+    // 初始化按钮反馈
+    initializeButtonFeedback();
+    
+    // 添加工具提示
+    initializeTooltips();
+    
+    // 显示欢迎通知
+    setTimeout(() => {
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showNotification('欢迎使用人生工厂管理工具！', 'success', 3000);
+        }
+    }, 1000);
+});
 
+// 初始化按钮反馈
+function initializeButtonFeedback() {
+    // 为所有按钮添加点击反馈
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('.btn, .check-btn, .btn-add, .btn-small')) {
+            if (window.ErrorUtils) {
+                window.ErrorUtils.addButtonFeedback(e.target);
+            }
+        }
+    });
+}
 
+// 初始化工具提示
+function initializeTooltips() {
+    // 为带有data-tooltip属性的元素添加工具提示
+    document.addEventListener('mouseenter', (e) => {
+        if (e.target.hasAttribute('data-tooltip')) {
+            e.target.classList.add('tooltip');
+        }
+    }, true);
+}
+
+// 增强的渲染函数，包含加载状态
+function renderWithLoading(renderFunction, container, loadingKey, message = '加载中...') {
+    if (window.ErrorUtils) {
+        window.ErrorUtils.showLoading(loadingKey, message);
+    }
+    
+    try {
+        renderFunction();
+        
+        // 添加数据更新动画
+        if (container) {
+            container.classList.add('data-update');
+            setTimeout(() => {
+                container.classList.remove('data-update');
+            }, 500);
+        }
+    } catch (error) {
+        if (window.ErrorUtils) {
+            window.ErrorUtils.handleError(error, { type: 'render' });
+        }
+    } finally {
+        if (window.ErrorUtils) {
+            window.ErrorUtils.hideLoading(loadingKey);
+        }
+    }
+}
+
+// 增强的保存函数，包含成功反馈
+function saveWithFeedback(saveFunction, successMessage = '保存成功') {
+    if (window.ErrorUtils) {
+        window.ErrorUtils.showLoading('save', '保存中...');
+    }
+    
+    try {
+        const result = saveFunction();
+        
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showNotification(successMessage, 'success', 3000);
+            window.ErrorUtils.addSuccessAnimation(document.querySelector('.panel'));
+        }
+        
+        return result;
+    } catch (error) {
+        if (window.ErrorUtils) {
+            window.ErrorUtils.handleError(error, { type: 'data-save' });
+        }
+        return null;
+    } finally {
+        if (window.ErrorUtils) {
+            window.ErrorUtils.hideLoading('save');
+        }
+    }
+}
+
+// 增强的加载函数，包含骨架屏
+function loadWithSkeleton(loadFunction, container, itemCount = 3) {
+    if (window.ErrorUtils && container) {
+        window.ErrorUtils.showSkeleton(container, itemCount);
+    }
+    
+    try {
+        const result = loadFunction();
+        
+        if (window.ErrorUtils && container) {
+            window.ErrorUtils.hideSkeleton(container);
+        }
+        
+        return result;
+    } catch (error) {
+        if (window.ErrorUtils) {
+            window.ErrorUtils.handleError(error, { type: 'data-load' });
+        }
+        return null;
+    }
+}
+
+// 空状态检查函数
+function checkEmptyState(container, data, icon, text, subtext) {
+    if (!data || data.length === 0) {
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showEmptyState(container, icon, text, subtext);
+        }
+        return true;
+    }
+    return false;
+}
 
 let saveTimeout = null;
 let fileHandle = null;
@@ -404,20 +529,39 @@ function getSortedProductions() {
     const typeOrder = {production: 1, work: 1, automation: 2, habit: 2, investment: 3, lifestyle: 4};
     return [...gameData.productions].map((p, i) => ({...p, _realIndex: i})).sort((a, b) => (typeOrder[a.type]||99) - (typeOrder[b.type]||99));
 }
+
+// 渲染生产线
 function renderProductions() {
     return window.ErrorUtils.safeExecute(() => {
         return window.measurePerformance(() => {
             const container = document.getElementById('productions-list');
             if (!container) return;
             
-            // 更新全局的sortedProductions变量
-            sortedProductions = getSortedProductions();
+            // 检查空状态
+            if (checkEmptyState(container, gameData.productions, '🏭', '暂无生产线', '点击下方按钮添加新的生产线')) {
+                return;
+            }
             
-            // 加载隐藏的生产线列表
-            const hiddenProductions = JSON.parse(localStorage.getItem('hiddenProductions') || '[]');
+            // 使用缓存获取排序后的生产线数据
+            const cacheKey = `productions_${gameData.productions.length}_${Date.now() - (Date.now() % 60000)}`; // 按分钟缓存
+            const renderData = window.cache(cacheKey, () => {
+                // 更新全局的sortedProductions变量
+                sortedProductions = getSortedProductions();
+                
+                // 加载隐藏的生产线列表
+                const hiddenProductions = JSON.parse(localStorage.getItem('hiddenProductions') || '[]');
+                
+                // 过滤掉隐藏的生产线
+                const filteredProds = sortedProductions.filter(p => !hiddenProductions.includes(p.name));
+                
+                return {
+                    productions: filteredProds,
+                    today: getLocalDateString(),
+                    timeLogs: gameData.timeLogs || []
+                };
+            }, 60000); // 1分钟缓存
             
-            // 过滤掉隐藏的生产线
-            const filteredProds = sortedProductions.filter(p => !hiddenProductions.includes(p.name));
+            const { productions, today, timeLogs } = renderData;
             
             const typeMap = {
                 production: {text: '产线', desc: '需要投入时间换收入'},
@@ -428,83 +572,92 @@ function renderProductions() {
                 habit: {text: '习惯', desc: '日常习惯（已迁移为自动化）'} // 兼容旧数据
             };
             
-            container.innerHTML = filteredProds
-                .map((prod, index) => {
-                let tags = [];
-                if (prod.hasActiveIncome) {
-                    if (prod.activeIncome > 0) {
-                        tags.push({ text: `主动收入: ${currencySymbols[prod.activeCurrency]}${prod.activeIncome}`, class: 'tag-active' });
-                    } else {
-                        tags.push({ text: '主动收入', class: 'tag-active' });
+            // 使用批量DOM更新优化渲染
+            const updates = productions.map((prod, index) => {
+                return (fragment) => {
+                    const prodElement = document.createElement('div');
+                    prodElement.className = 'production-item';
+                    prodElement.setAttribute('data-sorted-index', index);
+                    prodElement.oncontextmenu = (e) => window.showContextMenu(e, index, 'production');
+                    
+                    // 构建标签
+                    let tags = [];
+                    if (prod.hasActiveIncome) {
+                        if (prod.activeIncome > 0) {
+                            tags.push({ text: `主动收入: ${currencySymbols[prod.activeCurrency]}${prod.activeIncome}`, class: 'tag-active' });
+                        } else {
+                            tags.push({ text: '主动收入', class: 'tag-active' });
+                        }
                     }
-                }
-                if (prod.hasPassiveIncome) {
-                    if (prod.passiveIncome > 0) {
-                        tags.push({ text: `被动收入: ${currencySymbols[prod.passiveCurrency]}${prod.passiveIncome}`, class: 'tag-passive' });
-                    } else {
-                        tags.push({ text: '被动收入', class: 'tag-passive' });
+                    if (prod.hasPassiveIncome) {
+                        if (prod.passiveIncome > 0) {
+                            tags.push({ text: `被动收入: ${currencySymbols[prod.passiveCurrency]}${prod.passiveIncome}`, class: 'tag-passive' });
+                        } else {
+                            tags.push({ text: '被动收入', class: 'tag-passive' });
+                        }
                     }
-                }
-                if (prod.expense > 0) {
-                    tags.push({ text: `支出: ${currencySymbols[prod.expenseCurrency]}${prod.expense}`, class: 'tag-expense' });
-                }
-                if (typeMap[prod.type]) {
-                    let tagClass = `tag-${prod.type}`;
-                    if (prod.type === 'habit') tagClass = 'tag-automation';
-                    if (prod.type === 'work') tagClass = 'tag-production'; // work类型使用production样式
-                    tags.push({ text: typeMap[prod.type].text, class: tagClass });
-                }
-                
-                let investInfo = '';
-                if (prod.type==='investment' && prod.investAmount>0 && prod.investCurrent>0 && prod.investDate) {
-                    let start = new Date(prod.investDate);
-                    let now = new Date();
-                    let days = (now-start)/(1000*60*60*24);
-                    let years = days/365.25;
-                    let rate = (prod.investCurrent-prod.investAmount)/prod.investAmount/years*100;
-                    investInfo = `<div style='color:#bbb;font-size:0.85em;margin-top:4px;'>当前价值：${currencySymbols[prod.investCurrentCurrency]||''}${prod.investCurrent}，年化回报率：${rate.toFixed(2)}%</div>`;
-                }
-                let today = getLocalDateString(); // 修复：使用本地日期而不是UTC日期
-                let todayLogs = (gameData.timeLogs||[]).filter(log=>log.name===prod.name && log.date===today);
-                let totalMins = todayLogs.reduce((sum,log)=>sum+(log.timeCost||0),0);
-                let totalHour = totalMins/60;
-                let timeLabel = '';
-                if (totalMins > 0) {
-                    let hourStr = (Math.round(totalHour*10)/10).toString();
-                    timeLabel = `<span class="tag tag-time" style="background:#e8f5e9;color:#27ae60;">今日累计：${hourStr}小时</span>`;
-                }
-                let canCheckIn = true;
-                if((prod.type==='automation' || prod.type==='habit') && prod.lastCheckIn && new Date().toDateString() === new Date(prod.lastCheckIn).toDateString()) {
-                    canCheckIn = false;
-                }
-                // 恢复原有结构和class，修复按钮HTML
-                return `
-                    <div class="production-item" data-sorted-index="${index}" oncontextmenu="window.showContextMenu(event, ${index}, 'production')">
+                    if (prod.expense > 0) {
+                        tags.push({ text: `支出: ${currencySymbols[prod.expenseCurrency]}${prod.expense}`, class: 'tag-expense' });
+                    }
+                    if (typeMap[prod.type]) {
+                        let tagClass = `tag-${prod.type}`;
+                        if (prod.type === 'habit') tagClass = 'tag-automation';
+                        if (prod.type === 'work') tagClass = 'tag-production';
+                        tags.push({ text: typeMap[prod.type].text, class: tagClass });
+                    }
+                    
+                    // 投资信息
+                    let investInfo = '';
+                    if (prod.type==='investment' && prod.investAmount>0 && prod.investCurrent>0 && prod.investDate) {
+                        let start = new Date(prod.investDate);
+                        let now = new Date();
+                        let days = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+                        let profit = prod.investCurrent - prod.investAmount;
+                        let profitPercent = (profit / prod.investAmount * 100).toFixed(2);
+                        let profitColor = profit >= 0 ? '#27ae60' : '#e74c3c';
+                        investInfo = `<div style="font-size: 0.85em; color: ${profitColor}; margin-top: 4px;">
+                            投资${days}天 | 收益: ${profitPercent}% (${profit >= 0 ? '+' : ''}${currencySymbols[prod.investCurrency]}${profit.toFixed(2)})
+                        </div>`;
+                    }
+                    
+                    // 检查今日是否已打卡
+                    const todayLogs = timeLogs.filter(log => 
+                        log.name === prod.name && log.date === today
+                    );
+                    const isCheckedToday = todayLogs.length > 0;
+                    
+                    // 构建HTML
+                    prodElement.innerHTML = `
                         <div class="production-header">
                             <div class="production-name">${prod.name}</div>
-                            <div>
-                                ${(prod.type==='automation' || prod.type==='habit') ? (canCheckIn ? `<button class='check-btn' onclick='window.logProductionTime(${index})'>打卡</button>` : `<span style='color: #27ae60; font-size: 0.85em;'>✓ 已完成</span>`) : ''}
-                            </div>
-                        </div>
-                        ${tags.length > 0 ? `
                             <div class="production-tags">
                                 ${tags.map(tag => `<span class="tag ${tag.class}">${tag.text}</span>`).join('')}
                             </div>
-                        ` : ''}
-                        ${timeLabel}
+                        </div>
                         ${investInfo}
-                        ${(() => {
-                            const dev = gameData.developments.find(d => d.researchName === prod.linkedDev);
-                            return dev ? `<div style='font-size:0.85em;color:#bbb;margin-top:4px;'>${dev.action}</div>` : '';
-                        })()}
-                    </div>
-                `;
-            }).join('');
+                        <button class="check-btn ${isCheckedToday ? 'checked' : ''}" 
+                                onclick="checkProduction(${prod._realIndex})"
+                                data-tooltip="${isCheckedToday ? '今日已打卡' : '点击打卡'}"
+                                ${isCheckedToday ? 'disabled' : ''}>
+                            ${isCheckedToday ? '✓' : '打卡'}
+                        </button>
+                    `;
+                    
+                    fragment.appendChild(prodElement);
+                };
+            });
+            
+            // 批量更新DOM
+            window.batchDOMUpdate(container, updates);
+            
+            // 添加淡入动画
+            container.classList.add('fade-in');
+            setTimeout(() => {
+                container.classList.remove('fade-in');
+            }, 300);
+            
         }, 'renderProductions');
-    }, { type: 'render', function: 'renderProductions' }, (error) => {
-        console.error('渲染生产线失败:', error);
-        return false;
-    });
+    }, { type: 'render' });
 }
 
 // 渲染研发项目
@@ -519,60 +672,80 @@ function renderDevelopments() {
                 return;
             }
             
-            let html = '';
-            gameData.developments.forEach((dev, idx) => {
-                // 计算进度
-                const progress = calculateProgress(dev);
-                const percent = Math.min(1, progress.count / progress.total);
-                
-                // 格式化tooltip
-                const startDate = dev.startDate ? new Date(dev.startDate).toLocaleDateString() : '未开始';
-                const tip = [
-                    `研究项目：${dev.researchName}`,
-                    `开始时间：${startDate}`,
-                    `操作定义：${dev.action}`,
-                    `频率：${dev.freq}`,
-                    `周期：${dev.cycle}天`,
-                    `目标：${dev.target}次`,
-                    `当前进度：${progress.count}/${progress.total}`
-                ].join('\n');
-                
-                html += `
-                    <div class=\"dev-item ${dev.active ? 'active' : 'paused'}\" title=\"${tip}\">
-                        <div class=\"dev-header\">
-                            <div class=\"dev-name\">
+            // 使用缓存获取研发项目数据
+            const cacheKey = `developments_${gameData.developments.length}_${Date.now() - (Date.now() % 30000)}`; // 按30秒缓存
+            const developmentsData = window.cache(cacheKey, () => {
+                return gameData.developments.map(dev => {
+                    const progress = calculateProgress(dev);
+                    const percent = Math.min(1, progress.count / progress.total);
+                    const startDate = dev.startDate ? new Date(dev.startDate).toLocaleDateString() : '未开始';
+                    
+                    return {
+                        ...dev,
+                        progress,
+                        percent,
+                        startDate,
+                        tip: [
+                            `研究项目：${dev.researchName}`,
+                            `开始时间：${startDate}`,
+                            `操作定义：${dev.action}`,
+                            `频率：${dev.freq}`,
+                            `周期：${dev.cycle}天`,
+                            `目标：${dev.target}次`,
+                            `当前进度：${progress.count}/${progress.total}`
+                        ].join('\n')
+                    };
+                });
+            }, 30000); // 30秒缓存
+            
+            // 使用批量DOM更新
+            const updates = developmentsData.map((dev, idx) => {
+                return (fragment) => {
+                    const devElement = document.createElement('div');
+                    devElement.className = `dev-item ${dev.active ? 'active' : 'paused'}`;
+                    devElement.title = dev.tip;
+                    
+                    devElement.innerHTML = `
+                        <div class="dev-header">
+                            <div class="dev-name">
                                 <span>${dev.icon}</span>
                                 <span>${dev.researchName}</span>
                             </div>
-                            <div class=\"dev-controls\">
+                            <div class="dev-controls">
                                 ${dev.active ? 
-                                    `<button class=\"btn btn-secondary btn-small\" onclick=\"window.pauseDev(${idx})\">暂停</button>` : 
-                                    `<button class=\"btn btn-primary btn-small\" onclick=\"window.resumeDev(${idx})\">继续</button>`
+                                    `<button class="btn btn-secondary btn-small" onclick="window.pauseDev(${idx})">暂停</button>` : 
+                                    `<button class="btn btn-primary btn-small" onclick="window.resumeDev(${idx})">继续</button>`
                                 }
-                                <button class=\"btn btn-danger btn-small\" onclick=\"window.removeDev(${idx})\">移除</button>
+                                <button class="btn btn-danger btn-small" onclick="window.removeDev(${idx})">移除</button>
                             </div>
                         </div>
-                        <div class=\"progress-container\">
-                            <div class=\"progress-info\">
+                        <div class="progress-container">
+                            <div class="progress-info">
                                 <span>进度</span>
-                                <span>${progress.count}/${progress.total}次</span>
+                                <span>${dev.progress.count}/${dev.progress.total}次</span>
                             </div>
-                            <div class=\"progress-bar\">
-                                <div class=\"progress-fill\" style=\"width: ${(percent*100).toFixed(1)}%\"></div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${(dev.percent*100).toFixed(1)}%"></div>
                             </div>
-                            <div style=\"margin-top: 8px; font-size: 0.85em; color: #666;\">${dev.action}</div>
+                            <div style="margin-top: 8px; font-size: 0.85em; color: #666;">${dev.action}</div>
                         </div>
-                        <div style=\"margin-top: 8px; font-size: 0.85em; color: #888;\">
+                        <div style="margin-top: 8px; font-size: 0.85em; color: #888;">
                             频率：${dev.freq}
                         </div>
                         ${dev.startDate ? 
-                            `<div style=\"margin-top: 4px; font-size: 0.85em; color: #666;\">开始于：${new Date(dev.startDate).toLocaleDateString()}</div>` : 
+                            `<div style="margin-top: 4px; font-size: 0.85em; color: #666;">开始于：${dev.startDate}</div>` : 
                             ''
                         }
-                    </div>
-                `;
+                    `;
+                    
+                    fragment.appendChild(devElement);
+                };
             });
-            container.innerHTML = html;
+            
+            // 清空容器并使用批量更新
+            container.innerHTML = '';
+            window.performanceOptimizer.batchDOMUpdates(container, updates);
+            
         }, 'renderDevelopments');
     }, { type: 'render', function: 'renderDevelopments' }, (error) => {
         console.error('渲染研发项目失败:', error);
@@ -1304,9 +1477,16 @@ function updateResearchStatus() {
 }
 
 function saveProduction() {
-    return window.ErrorUtils.safeExecute(() => {
-        const type = document.getElementById('prod-type').value;
+    return saveWithFeedback(() => {
         const productionName = document.getElementById('prod-name').value.trim();
+        const type = document.getElementById('prod-type').value;
+        
+        if (!productionName) {
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification('请输入生产线名称', 'warning', 3000);
+            }
+            return false;
+        }
         
         // 构建生产数据对象
         const productionData = {
@@ -1376,11 +1556,15 @@ function saveProduction() {
         }
 
         closeModal('production-modal');
-        renderProductions();
-        renderResourceStats();
-        renderDevelopments();
-        renderDevLibrary();
-        renderWeekCalendar();
+        
+        // 使用增强的渲染函数
+        renderWithLoading(() => {
+            renderProductions();
+            renderResourceStats();
+            renderDevelopments();
+            renderDevLibrary();
+            renderWeekCalendar();
+        }, document.getElementById('productions-list'), 'render-after-save', '更新界面中...');
         
         // 安全保存到云端
         window.ErrorUtils.safeExecuteAsync(
@@ -1388,15 +1572,14 @@ function saveProduction() {
             { type: 'data-save', operation: 'saveProduction' },
             (error) => {
                 console.error('保存到云端失败:', error);
-                window.showError('数据已保存到本地，但云端同步失败', 'warning');
+                if (window.ErrorUtils) {
+                    window.ErrorUtils.showNotification('数据已保存到本地，但云端同步失败', 'warning', 5000);
+                }
             }
         );
 
         return true;
-    }, { type: 'production-save' }, (error) => {
-        window.showError('保存生产线失败，请重试', 'error');
-        return false;
-    });
+    }, currentEditIndex >= 0 ? '生产线更新成功' : '生产线添加成功');
 }
 
 window.saveToFile = function() {
@@ -1643,118 +1826,172 @@ window.addEventListener('DOMContentLoaded',function(){
 
 // 新增：渲染资源数据统计面板
 function renderResourceStats() {
-        const container = document.getElementById('resource-stats');
-        if (!container) return;
-        let totalActive = 0, totalPassive = 0, totalExpense = 0;
-        let activeBreakdown = [], passiveBreakdown = [], expenseBreakdown = [];
-        let activeIncomesByCurrency = {}, passiveIncomesByCurrency = {}, expensesByCurrency = {};
-        (gameData.productions || []).forEach(prod => {
-            if (prod.hasActiveIncome && prod.activeIncome > 0) {
-                if (!activeIncomesByCurrency[prod.activeCurrency]) activeIncomesByCurrency[prod.activeCurrency] = 0;
-                activeIncomesByCurrency[prod.activeCurrency] += prod.activeIncome;
+    return window.ErrorUtils.safeExecute(() => {
+        return window.measurePerformance(() => {
+            const container = document.getElementById('resource-stats');
+            if (!container) return;
+            
+            // 使用缓存获取资源统计数据
+            const cacheKey = `resourceStats_${gameData.productions.length}_${gameData.timeLogs.length}_${Date.now() - (Date.now() % 30000)}`; // 按30秒缓存
+            const statsData = window.cache(cacheKey, () => {
+                let totalActive = 0, totalPassive = 0, totalExpense = 0;
+                let activeBreakdown = [], passiveBreakdown = [], expenseBreakdown = [];
+                let activeIncomesByCurrency = {}, passiveIncomesByCurrency = {}, expensesByCurrency = {};
+                
+                // 批量处理生产线数据
+                (gameData.productions || []).forEach(prod => {
+                    if (prod.hasActiveIncome && prod.activeIncome > 0) {
+                        if (!activeIncomesByCurrency[prod.activeCurrency]) activeIncomesByCurrency[prod.activeCurrency] = 0;
+                        activeIncomesByCurrency[prod.activeCurrency] += prod.activeIncome;
+                    }
+                    if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
+                        if (!passiveIncomesByCurrency[prod.passiveCurrency]) passiveIncomesByCurrency[prod.passiveCurrency] = 0;
+                        passiveIncomesByCurrency[prod.passiveCurrency] += prod.passiveIncome;
+                    }
+                    if (prod.expense > 0) {
+                        if (!expensesByCurrency[prod.expenseCurrency]) expensesByCurrency[prod.expenseCurrency] = 0;
+                        expensesByCurrency[prod.expenseCurrency] += prod.expense;
+                    }
+                });
+                
+                // 计算各币种总额
+                Object.entries(activeIncomesByCurrency).forEach(([currency, amount]) => {
+                    totalActive += convertToCNY(amount, currency);
+                    activeBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+                });
+                Object.entries(passiveIncomesByCurrency).forEach(([currency, amount]) => {
+                    totalPassive += convertToCNY(amount, currency);
+                    passiveBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+                });
+                Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
+                    totalExpense += convertToCNY(amount, currency);
+                    expenseBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+                });
+                
+                // 计算今日用时
+                let today = getLocalDateString();
+                let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
+                    let timeCost = log.timeCost || 0;
+                    if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
+                        timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
+                    }
+                    return sum + Math.max(0, timeCost);
+                }, 0);
+                
+                // 获取月支出数据
+                const monthlyTotal = getMonthlyExpenseTotalMerged();
+                const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
+                
+                // 预计月支出
+                const estimatedExpense = gameData.finance.estimatedMonthlyExpense || 0;
+                const estimatedCurrency = gameData.finance.estimatedExpenseCurrency || 'CNY';
+                const estimatedInCNY = convertToCNY(estimatedExpense, estimatedCurrency);
+                
+                return {
+                    totalActive,
+                    totalPassive,
+                    totalExpense,
+                    activeBreakdown,
+                    passiveBreakdown,
+                    expenseBreakdown,
+                    todayActiveMins,
+                    monthlyTotal,
+                    monthlyExpenseDetails,
+                    estimatedInCNY
+                };
+            }, 30000); // 30秒缓存
+            
+            const {
+                totalActive,
+                totalPassive,
+                totalExpense,
+                activeBreakdown,
+                passiveBreakdown,
+                expenseBreakdown,
+                todayActiveMins,
+                monthlyTotal,
+                monthlyExpenseDetails,
+                estimatedInCNY
+            } = statsData;
+            
+            // 构建HTML
+            let savings = gameData.finance.totalSavings;
+            let savingsCurrency = gameData.finance.savingsCurrency;
+            let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
+            let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
+            
+            // 计算支出差额
+            const difference = monthlyTotal - estimatedInCNY;
+            const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
+            const diffSymbol = difference > 0 ? '+' : '';
+            
+            // 构建支出明细
+            const allExpenseDetails = [];
+            if (expenseBreakdown.length) allExpenseDetails.push(...expenseBreakdown);
+            if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
+            
+            // 使用DocumentFragment优化DOM操作
+            const fragment = document.createDocumentFragment();
+            const tempDiv = document.createElement('div');
+            
+            tempDiv.innerHTML = `
+                <div class='resource-stats-section'>
+                    <div class='resource-label'>累计存款
+                        <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
+                    </div>
+                    <div class='resource-main-value'>${savingsStr}</div>
+                    <div class='resource-sub'>${savingsUpdate}</div>
+                </div>
+                <div class='resource-divider'></div>
+                <div class='resource-stats-section'>
+                    <div class='resource-label'>今天主动用时 
+                        <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
+                    </div>
+                    <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
+                </div>
+                <div class='resource-divider'></div>
+                <div class='resource-row'>
+                    <span class='resource-label'>主动收入</span>
+                    <span class='resource-main-value' style='font-size:1.2em;color:#2980b9;'>¥${Math.round(totalActive).toLocaleString()}</span>
+                </div>
+                ${activeBreakdown.length ? `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${activeBreakdown.join(' + ')})</div>` : ''}
+                <div class='resource-row'>
+                    <span class='resource-label'>被动收入</span>
+                    <span class='resource-main-value' style='font-size:1.2em;color:#16a085;'>¥${Math.round(totalPassive).toLocaleString()}</span>
+                </div>
+                ${passiveBreakdown.length ? `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${passiveBreakdown.join(' + ')})</div>` : ''}
+                <div class='resource-divider'></div>
+                <div class='resource-row'>
+                    <span class='resource-label'>预计月支出
+                        <button class='resource-btn-edit' onclick='window.editEstimatedExpense()'>✏️</button>
+                    </span>
+                    <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedInCNY).toLocaleString()}</span>
+                </div>
+                <div class='resource-row'>
+                    <span class='resource-label'>实际月支出</span>
+                    <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(monthlyTotal).toLocaleString()}</span>
+                </div>
+                ${estimatedInCNY > 0 ? `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
+                    差额：${diffSymbol}¥${Math.abs(Math.round(difference)).toLocaleString()} 
+                    (${difference > 0 ? '超支' : difference < 0 ? '节省' : '无差异'})
+                </div>` : ''}
+                ${allExpenseDetails.length ? `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>` : ''}
+            `;
+            
+            // 将内容移动到fragment
+            while (tempDiv.firstChild) {
+                fragment.appendChild(tempDiv.firstChild);
             }
-            if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
-                if (!passiveIncomesByCurrency[prod.passiveCurrency]) passiveIncomesByCurrency[prod.passiveCurrency] = 0;
-                passiveIncomesByCurrency[prod.passiveCurrency] += prod.passiveIncome;
-            }
-            if (prod.expense > 0) {
-                if (!expensesByCurrency[prod.expenseCurrency]) expensesByCurrency[prod.expenseCurrency] = 0;
-                expensesByCurrency[prod.expenseCurrency] += prod.expense;
-            }
-        });
-        Object.entries(activeIncomesByCurrency).forEach(([currency, amount]) => {
-            totalActive += convertToCNY(amount, currency);
-            activeBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-        });
-        Object.entries(passiveIncomesByCurrency).forEach(([currency, amount]) => {
-            totalPassive += convertToCNY(amount, currency);
-            passiveBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-        });
-        Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
-            totalExpense += convertToCNY(amount, currency);
-            expenseBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-        });
-        let savings = gameData.finance.totalSavings;
-        let savingsCurrency = gameData.finance.savingsCurrency;
-        let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
-        let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
-        let today = getLocalDateString(); // 修复：使用本地日期
-        let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
-            // 确保时间成本为正值，如果timeCost异常则重新计算
-            let timeCost = log.timeCost || 0;
-            if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
-                timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
-            }
-            return sum + Math.max(0, timeCost); // 确保不会是负数
-        }, 0);
-    let html = '';
-        html += `<div class='resource-stats-section'>
-            <div class='resource-label'>累计存款
-                <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
-            </div>
-            <div class='resource-main-value'>${savingsStr}</div>
-            <div class='resource-sub'>${savingsUpdate}</div>
-        </div>`;
-        html += `<div class='resource-divider'></div>`;
-        html += `<div class='resource-stats-section'>
-            <div class='resource-label'>今天主动用时 
-                <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
-            </div>
-            <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
-        </div>`;
-        html += `<div class='resource-divider'></div>`;
-        html += `<div class='resource-row'>
-            <span class='resource-label'>主动收入</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#2980b9;'>¥${Math.round(totalActive).toLocaleString()}</span>
-        </div>`;
-        if (activeBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${activeBreakdown.join(' + ')})</div>`;
-        
-        html += `<div class='resource-row'>
-            <span class='resource-label'>被动收入</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#16a085;'>¥${Math.round(totalPassive).toLocaleString()}</span>
-        </div>`;
-        if (passiveBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${passiveBreakdown.join(' + ')})</div>`;
-        
-        html += `<div class='resource-divider'></div>`;
-        // 使用合并的月支出统计（包括生产线支出和支出面板的支出）
-        const monthlyTotal = getMonthlyExpenseTotalMerged();
-        const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
-        
-    // 预计月支出
-    const estimatedExpense = gameData.finance.estimatedMonthlyExpense || 0;
-    const estimatedCurrency = gameData.finance.estimatedExpenseCurrency || 'CNY';
-    const estimatedInCNY = convertToCNY(estimatedExpense, estimatedCurrency);
-    
-        html += `<div class='resource-row'>
-        <span class='resource-label'>预计月支出
-            <button class='resource-btn-edit' onclick='window.editEstimatedExpense()'>✏️</button>
-        </span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedInCNY).toLocaleString()}</span>
-        </div>`;
-        
-        // 实际月支出与对比
-    const difference = monthlyTotal - estimatedInCNY;
-    const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
-    const diffSymbol = difference > 0 ? '+' : '';
-    
-        html += `<div class='resource-row'>
-            <span class='resource-label'>实际月支出</span>
-        <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(monthlyTotal).toLocaleString()}</span>
-        </div>`;
-        
-        if (estimatedInCNY > 0) {
-            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
-                差额：${diffSymbol}¥${Math.abs(Math.round(difference)).toLocaleString()} 
-                (${difference > 0 ? '超支' : difference < 0 ? '节省' : '无差异'})
-            </div>`;
-        }
-        
-        // 支出明细紧挨着实际月支出
-        const allExpenseDetails = [];
-        if (expenseBreakdown.length) allExpenseDetails.push(...expenseBreakdown);
-        if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
-        if (allExpenseDetails.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>`;
-        container.innerHTML = html;
+            
+            // 一次性更新DOM
+            container.innerHTML = '';
+            container.appendChild(fragment);
+            
+        }, 'renderResourceStats');
+    }, { type: 'render', function: 'renderResourceStats' }, (error) => {
+        console.error('渲染资源统计失败:', error);
+        return false;
+    });
 }
 
 // 清除用时记录
@@ -1904,60 +2141,120 @@ function syncResearchProductions() {
 
 // 记录生产线用时（修正版，索引与进度同步修复）
 window.logProductionTime = function(sortedIndex) {
-    // 添加错误检查
-    if (!sortedProductions || sortedProductions.length === 0) {
-        console.error('sortedProductions数组为空或未初始化');
-        return;
-    }
-    
-    if (sortedIndex < 0 || sortedIndex >= sortedProductions.length) {
-        console.error('无效的sortedIndex:', sortedIndex, '数组长度:', sortedProductions.length);
-        return;
-    }
-    
-    const prod = sortedProductions[sortedIndex];
-    if (!prod) {
-        console.error('在索引', sortedIndex, '处找不到生产线');
-        return;
-    }
-    
-    if (prod._realIndex === undefined || prod._realIndex < 0 || prod._realIndex >= gameData.productions.length) {
-        console.error('无效的_realIndex:', prod._realIndex, '生产线数组长度:', gameData.productions.length);
-        return;
-    }
-    
-    const realProd = gameData.productions[prod._realIndex];
-    if (!realProd) {
-        console.error('在真实索引', prod._realIndex, '处找不到生产线');
-        return;
-    }
-    
-    // 快速打卡，记录30分钟
-    const now = new Date();
-    const endH = now.getHours(), endM = now.getMinutes();
-    const start = new Date(now.getTime() - 30*60000);
-    const startH = start.getHours(), startM = start.getMinutes();
-    const today = now.toISOString().slice(0,10);
-    const weekDay = (now.getDay()+6)%7;
-    const timeLog = {
-        name: realProd.name,
-        type: realProd.type,
-        date: today,
-        weekDay: weekDay,
-        hour: startH,
-        minute: startM,
-        timeCost: 30,
-        endHour: endH,
-        endMinute: endM
-    };
-    gameData.timeLogs.push(timeLog);
-    realProd.lastCheckIn = now.toISOString();
-    saveToCloud();
-    renderProductions();
-    renderDevelopments();
-    renderWeekCalendar();
-    renderResourceStats();
-}
+    return window.ErrorUtils.safeExecute(() => {
+        // 添加错误检查
+        if (!sortedProductions || sortedProductions.length === 0) {
+            console.error('sortedProductions数组为空或未初始化');
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification('生产线数据未加载，请刷新页面', 'error', 3000);
+            }
+            return;
+        }
+        
+        if (sortedIndex < 0 || sortedIndex >= sortedProductions.length) {
+            console.error('无效的sortedIndex:', sortedIndex, '数组长度:', sortedProductions.length);
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification('生产线索引错误', 'error', 3000);
+            }
+            return;
+        }
+        
+        const prod = sortedProductions[sortedIndex];
+        if (!prod) {
+            console.error('在索引', sortedIndex, '处找不到生产线');
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification('找不到生产线数据', 'error', 3000);
+            }
+            return;
+        }
+        
+        if (prod._realIndex === undefined || prod._realIndex < 0 || prod._realIndex >= gameData.productions.length) {
+            console.error('无效的_realIndex:', prod._realIndex, '生产线数组长度:', gameData.productions.length);
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification('生产线数据索引错误', 'error', 3000);
+            }
+            return;
+        }
+        
+        const realProd = gameData.productions[prod._realIndex];
+        if (!realProd) {
+            console.error('在真实索引', prod._realIndex, '处找不到生产线');
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification('生产线数据不存在', 'error', 3000);
+            }
+            return;
+        }
+        
+        // 检查今日是否已打卡
+        const today = new Date().toISOString().slice(0, 10);
+        const todayLogs = (gameData.timeLogs || []).filter(log => 
+            log.name === realProd.name && log.date === today
+        );
+        
+        if (todayLogs.length > 0) {
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification('今日已打卡，无需重复操作', 'info', 2000);
+            }
+            return;
+        }
+        
+        // 快速打卡，记录30分钟
+        const now = new Date();
+        const endH = now.getHours(), endM = now.getMinutes();
+        const start = new Date(now.getTime() - 30*60000);
+        const startH = start.getHours(), startM = start.getMinutes();
+        const weekDay = (now.getDay()+6)%7;
+        const timeLog = {
+            name: realProd.name,
+            type: realProd.type,
+            date: today,
+            weekDay: weekDay,
+            hour: startH,
+            minute: startM,
+            timeCost: 30,
+            endHour: endH,
+            endMinute: endM
+        };
+        
+        gameData.timeLogs.push(timeLog);
+        realProd.lastCheckIn = now.toISOString();
+        
+        // 显示成功反馈
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showNotification(`${realProd.name} 打卡成功！`, 'success', 2000);
+            
+            // 添加成功动画到按钮
+            const button = event?.target;
+            if (button && button.classList.contains('check-btn')) {
+                window.ErrorUtils.addSuccessAnimation(button);
+            }
+        }
+        
+        // 使用增强的渲染函数
+        renderWithLoading(() => {
+            renderProductions();
+            renderDevelopments();
+            renderWeekCalendar();
+            renderResourceStats();
+        }, document.getElementById('productions-list'), 'render-after-check', '更新界面中...');
+        
+        // 保存到云端
+        window.ErrorUtils.safeExecuteAsync(
+            () => saveToCloud(),
+            { type: 'data-save', operation: 'logProductionTime' },
+            (error) => {
+                console.error('保存到云端失败:', error);
+                if (window.ErrorUtils) {
+                    window.ErrorUtils.showNotification('数据已保存到本地，但云端同步失败', 'warning', 3000);
+                }
+            }
+        );
+        
+    }, { type: 'production-check' });
+};
+
+// 添加checkProduction函数作为logProductionTime的别名
+window.checkProduction = window.logProductionTime;
 
 // 2. 修复数据关联
 function fixDataLinks() {
@@ -2095,12 +2392,28 @@ function saveToCloud() {
                 isCloudReady,
                 isCloudSaving
             });
+            
+            if (!familyCode) {
+                if (window.ErrorUtils) {
+                    window.ErrorUtils.showNotification('请先设置家庭码', 'warning', 3000);
+                }
+            } else if (!isCloudReady) {
+                if (window.ErrorUtils) {
+                    window.ErrorUtils.showNotification('云端连接未就绪', 'warning', 3000);
+                }
+            }
+            
             return false;
         }
         
         isCloudSaving = true;
         console.log('[云同步] 开始保存数据');
         updateSyncStatus('同步中');
+        
+        // 显示保存加载状态
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showLoading('cloud-save', '正在同步到云端...', false);
+        }
         
         // 防御性检查和初始化
         if (!Array.isArray(gameData.expenses)) {
@@ -2112,38 +2425,48 @@ function saveToCloud() {
             gameData.timeLogs = [];
         }
         
-        // 数据验证
-        let dataValid = true;
-        let validationErrors = [];
+        // 使用缓存进行数据验证，避免重复验证
+        const validationCacheKey = `validation_${JSON.stringify(gameData.expenses).length}_${JSON.stringify(gameData.timeLogs).length}`;
+        const validationResult = window.cache(validationCacheKey, () => {
+            let dataValid = true;
+            let validationErrors = [];
+            
+            // 验证支出数据
+            if (gameData.expenses) {
+                gameData.expenses.forEach((exp, idx) => {
+                    const result = window.validateData(exp, 'expense');
+                    if (!result.isValid) {
+                        console.error(`[云同步] 支出数据验证失败 [${idx}]:`, exp, result.errors);
+                        dataValid = false;
+                        validationErrors.push(`支出记录 #${idx+1}: ${result.errors.join(', ')}`);
+                    }
+                });
+            }
+            
+            // 验证时间记录
+            if (gameData.timeLogs) {
+                gameData.timeLogs.forEach((log, idx) => {
+                    const result = window.validateData(log, 'timeLog');
+                    if (!result.isValid) {
+                        console.error(`[云同步] 时间记录验证失败 [${idx}]:`, log, result.errors);
+                        dataValid = false;
+                        validationErrors.push(`时间记录 #${idx+1}: ${result.errors.join(', ')}`);
+                    }
+                });
+            }
+            
+            return { dataValid, validationErrors };
+        }, 5000); // 5秒缓存验证结果
         
-        // 验证支出数据
-        if (gameData.expenses) {
-            gameData.expenses.forEach((exp, idx) => {
-                const validationResult = window.validateData(exp, 'expense');
-                if (!validationResult.isValid) {
-                    console.error(`[云同步] 支出数据验证失败 [${idx}]:`, exp, validationResult.errors);
-                    dataValid = false;
-                    validationErrors.push(`支出记录 #${idx+1}: ${validationResult.errors.join(', ')}`);
-                }
-            });
-        }
-        
-        // 验证时间记录
-        if (gameData.timeLogs) {
-            gameData.timeLogs.forEach((log, idx) => {
-                const validationResult = window.validateData(log, 'timeLog');
-                if (!validationResult.isValid) {
-                    console.error(`[云同步] 时间记录验证失败 [${idx}]:`, log, validationResult.errors);
-                    dataValid = false;
-                    validationErrors.push(`时间记录 #${idx+1}: ${validationResult.errors.join(', ')}`);
-                }
-            });
-        }
-        
-        if (!dataValid) {
-            console.error('[云同步] 数据验证失败:', validationErrors);
-            window.showError('数据验证失败：\n' + validationErrors.join('\n'), 'warning');
+        if (!validationResult.dataValid) {
+            console.error('[云同步] 数据验证失败:', validationResult.validationErrors);
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification('数据验证失败，请检查数据格式', 'error', 5000);
+            }
             isCloudSaving = false;
+            if (window.ErrorUtils) {
+                window.ErrorUtils.hideLoading('cloud-save');
+            }
             return false;
         }
         
@@ -2158,17 +2481,31 @@ function saveToCloud() {
         isCloudSaving = false;
         updateSyncStatus('已同步', new Date().toLocaleTimeString());
         
-        // 保存成功后更新界面
-        renderExpenses();
-        renderResourceStats();
-        renderWeekCalendar();
+        // 隐藏加载状态
+        if (window.ErrorUtils) {
+            window.ErrorUtils.hideLoading('cloud-save');
+            window.ErrorUtils.showNotification('云端同步成功', 'success', 3000);
+        }
+        
+        // 使用批量渲染优化，避免频繁的单独渲染调用
+        window.batchRender(() => {
+            renderExpenses();
+            renderResourceStats();
+            renderWeekCalendar();
+        }, 'postSave');
         
         return true;
     }, { type: 'data-save', operation: 'saveToCloud' }, (error) => {
         console.error('[云同步] 保存失败:', error);
         isCloudSaving = false;
         updateSyncStatus('同步失败', new Date().toLocaleTimeString());
-        window.showError('保存失败，切换到本地保存', 'error');
+        
+        // 隐藏加载状态并显示错误通知
+        if (window.ErrorUtils) {
+            window.ErrorUtils.hideLoading('cloud-save');
+            window.ErrorUtils.showNotification('云端同步失败，已切换到本地保存', 'error', 5000);
+        }
+        
         saveToLocal();
         return false;
     });
@@ -3935,3 +4272,51 @@ window.closeModal = function(modalId) {
         modal.style.display = 'none';
     }
 }
+
+// 性能监控相关函数
+window.refreshPerformanceMetrics = () => {
+    if (!window.performanceOptimizer) {
+        console.warn('性能优化器未初始化');
+        return;
+    }
+    
+    const metrics = window.performanceOptimizer.getPerformanceMetrics();
+    
+    const renderCountEl = document.getElementById('render-count');
+    const avgRenderTimeEl = document.getElementById('avg-render-time');
+    const cacheHitRateEl = document.getElementById('cache-hit-rate');
+    const activeTimersEl = document.getElementById('active-timers');
+    const renderQueueEl = document.getElementById('render-queue');
+    
+    if (renderCountEl) renderCountEl.textContent = metrics.renderCount;
+    if (avgRenderTimeEl) avgRenderTimeEl.textContent = `${metrics.averageRenderTime.toFixed(2)}ms`;
+    if (cacheHitRateEl) cacheHitRateEl.textContent = `${(metrics.cacheHitRate * 100).toFixed(1)}%`;
+    if (activeTimersEl) activeTimersEl.textContent = `${metrics.activeDebounceTimers + metrics.activeThrottleTimers}`;
+    if (renderQueueEl) renderQueueEl.textContent = metrics.renderQueueSize;
+    
+    console.log('性能指标已更新:', metrics);
+};
+
+// 清理性能缓存
+window.clearPerformanceCache = () => {
+    if (window.performanceOptimizer) {
+        window.performanceOptimizer.dataCache.clear();
+        window.performanceOptimizer.cacheExpiry.clear();
+        console.log('性能缓存已清理');
+        window.refreshPerformanceMetrics();
+    }
+};
+
+// 修改showDataManagePanel函数，添加性能指标刷新
+const originalShowDataManagePanel = window.showDataManagePanel;
+window.showDataManagePanel = function() {
+    if (originalShowDataManagePanel) {
+        originalShowDataManagePanel();
+    } else {
+        document.getElementById('data-manage-modal').style.display = 'block';
+        updateDataStatus();
+    }
+    window.refreshPerformanceMetrics();
+};
+
+console.log('🚀 高级性能优化模块已加载');

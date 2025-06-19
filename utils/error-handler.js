@@ -1,124 +1,28 @@
 /**
- * 错误处理中心 - Life Factory Manager Tool
- * 提供统一的错误处理、用户反馈和错误上报功能
+ * 错误处理与用户体验优化模块 - Life Factory Manager Tool
+ * 提供统一的错误处理、通知系统、加载状态管理等功能
  */
 
 // 调试模式开关
 window.DEBUG_MODE = false; // 设置为true可以看到更多调试信息
 
-// 先创建ErrorUtils，避免循环依赖
-window.ErrorUtils = {
-    /**
-     * 安全执行函数，自动捕获错误
-     * @param {Function} fn - 要执行的函数
-     * @param {Object} context - 错误上下文
-     * @param {Function} fallback - 错误时的回调函数
-     */
-    safeExecute: (fn, context = {}, fallback = null) => {
-        try {
-            return fn();
-        } catch (error) {
-            if (window.errorHandler) {
-                window.errorHandler.handle(error, context);
-            } else {
-                console.error('Error occurred before error handler was initialized:', error);
-            }
-            if (fallback && typeof fallback === 'function') {
-                return fallback(error);
-            }
-            return null;
-        }
-    },
-
-    /**
-     * 异步安全执行函数
-     * @param {Function} asyncFn - 异步函数
-     * @param {Object} context - 错误上下文
-     * @param {Function} fallback - 错误时的回调函数
-     */
-    safeExecuteAsync: async (asyncFn, context = {}, fallback = null) => {
-        try {
-            return await asyncFn();
-        } catch (error) {
-            if (window.errorHandler) {
-                window.errorHandler.handle(error, context);
-            } else {
-                console.error('Error occurred before error handler was initialized:', error);
-            }
-            if (fallback && typeof fallback === 'function') {
-                return fallback(error);
-            }
-            return null;
-        }
-    },
-
-    /**
-     * 验证数据格式
-     * @param {*} data - 要验证的数据
-     * @param {Object} schema - 验证模式
-     */
-    validateData: (data, schema) => {
-        const errors = [];
-        
-        for (const [key, rules] of Object.entries(schema)) {
-            if (rules.required && (data[key] === undefined || data[key] === null || data[key] === '')) {
-                errors.push(`${key} 是必填项`);
-            }
-            
-            if (data[key] !== undefined && data[key] !== null) {
-                if (rules.type && typeof data[key] !== rules.type) {
-                    errors.push(`${key} 类型错误，期望 ${rules.type}`);
-                }
-                
-                if (rules.min && data[key] < rules.min) {
-                    errors.push(`${key} 不能小于 ${rules.min}`);
-                }
-                
-                if (rules.max && data[key] > rules.max) {
-                    errors.push(`${key} 不能大于 ${rules.max}`);
-                }
-                
-                if (rules.pattern && !rules.pattern.test(data[key])) {
-                    errors.push(`${key} 格式不正确`);
-                }
-            }
-        }
-        
-        if (errors.length > 0) {
-            const error = new Error(errors.join(', '));
-            if (window.errorHandler) {
-                window.errorHandler.handle(error, { type: 'validation', errors });
-            }
-            return false;
-        }
-        
-        return true;
-    }
-};
-
-class ErrorHandler {
+class ErrorUtils {
     constructor() {
         this.errorCount = 0;
-        this.maxErrorsPerSession = 10;
-        this.errorLog = [];
-        this.isInitialized = false;
+        this.maxErrors = 5;
+        this.errorTimeout = 30000; // 30秒重置错误计数
+        this.notifications = [];
+        this.loadingStates = new Map();
         this.init();
     }
 
     /**
-     * 初始化错误处理器
+     * 初始化错误处理系统
      */
     init() {
-        if (this.isInitialized) return;
-        
-        // 捕获全局错误
+        // 全局错误捕获
         window.addEventListener('error', (event) => {
-            // 过滤掉脚本错误和跨域错误
-            if (event.message === 'Script error.' || event.filename === '') {
-                return;
-            }
-            
-            this.handle(event.error || new Error(event.message), {
+            this.handleError(event.error || new Error(event.message), {
                 type: 'global',
                 filename: event.filename,
                 lineno: event.lineno,
@@ -126,304 +30,442 @@ class ErrorHandler {
             });
         });
 
-        // 捕获未处理的Promise拒绝
+        // Promise错误捕获
         window.addEventListener('unhandledrejection', (event) => {
-            this.handle(new Error(event.reason), {
+            this.handleError(event.reason, {
                 type: 'promise',
                 promise: event.promise
             });
         });
 
-        // 延迟设置Firebase错误处理，等待Firebase初始化
-        setTimeout(() => {
-            if (window.firebase) {
-                this.setupFirebaseErrorHandling();
-            }
-        }, 2000);
+        // 定期重置错误计数
+        setInterval(() => {
+            this.errorCount = 0;
+        }, this.errorTimeout);
 
-        this.isInitialized = true;
-        console.log('✅ 错误处理中心已初始化');
+        console.log('✅ 错误处理与用户体验优化模块已初始化');
     }
 
     /**
-     * 设置Firebase错误处理
-     */
-    setupFirebaseErrorHandling() {
-        // 等待Firebase初始化完成
-        if (window.firebase && firebase.apps && firebase.apps.length > 0) {
-            // Firebase Auth 错误处理
-            if (firebase.auth) {
-                firebase.auth().onAuthStateChanged((user) => {
-                    // 正常流程，不需要错误处理
-                }, (error) => {
-                    this.handle(error, { type: 'firebase-auth' });
-                });
-            }
-
-            // Firestore 错误处理
-            if (firebase.firestore) {
-                // 监听Firestore错误
-                const originalOnSnapshot = firebase.firestore().collection('test').onSnapshot;
-                // 这里可以添加Firestore错误拦截逻辑
-            }
-        } else {
-            // Firebase还未初始化，稍后重试
-            setTimeout(() => {
-                this.setupFirebaseErrorHandling();
-            }, 1000);
-        }
-    }
-
-    /**
-     * 统一错误处理方法
+     * 统一错误处理
      * @param {Error} error - 错误对象
      * @param {Object} context - 错误上下文
+     * @param {Function} fallback - 错误恢复函数
      */
-    handle(error, context = {}) {
+    handleError(error, context = {}, fallback = null) {
         this.errorCount++;
         
-        // 记录错误
-        const errorInfo = {
-            id: Date.now() + Math.random(),
-            timestamp: new Date().toISOString(),
+        // 过滤掉一些常见的无害错误
+        if (this.shouldIgnoreError(error, context)) {
+            return;
+        }
+
+        console.error('🚨 错误详情:', {
             message: error.message,
             stack: error.stack,
             context: context,
-            userAgent: navigator.userAgent,
-            url: window.location.href
-        };
-
-        this.errorLog.push(errorInfo);
-        
-        // 控制台输出（仅在调试模式下或重要错误时）
-        if (window.DEBUG_MODE || context.type === 'data-save' || context.type === 'data-load') {
-            console.error(`[${context.type || 'unknown'}] Error:`, error);
-            console.error('Error Context:', context);
-        }
-        
-        // 检查错误频率
-        if (this.errorCount > this.maxErrorsPerSession) {
-            if (window.DEBUG_MODE) {
-                console.warn('错误频率过高，已停止显示用户提示');
-            }
-            return;
-        }
-
-        // 只对重要错误显示用户友好的错误信息
-        if (context.type === 'data-save' || context.type === 'data-load' || 
-            context.type === 'validation' || context.type === 'firebase-auth') {
-            this.showUserFriendlyError(error, context);
-        }
-        
-        // 错误上报（可选）
-        this.reportError(errorInfo);
-    }
-
-    /**
-     * 显示用户友好的错误信息
-     * @param {Error} error - 错误对象
-     * @param {Object} context - 错误上下文
-     */
-    showUserFriendlyError(error, context) {
-        let userMessage = '操作失败，请稍后重试';
-        let errorType = 'error';
-
-        // 根据错误类型提供不同的用户提示
-        if (context.type === 'firebase-auth') {
-            userMessage = '登录状态异常，请重新登录';
-            errorType = 'warning';
-        } else if (context.type === 'data-save') {
-            userMessage = '数据保存失败，请检查网络连接';
-            errorType = 'error';
-        } else if (context.type === 'data-load') {
-            userMessage = '数据加载失败，请刷新页面重试';
-            errorType = 'error';
-        } else if (context.type === 'validation') {
-            userMessage = error.message || '输入数据格式不正确';
-            errorType = 'warning';
-        } else if (context.type === 'network') {
-            userMessage = '网络连接异常，请检查网络设置';
-            errorType = 'error';
-        }
-
-        // 创建错误提示元素
-        this.createErrorNotification(userMessage, errorType);
-    }
-
-    /**
-     * 创建错误通知
-     * @param {string} message - 错误消息
-     * @param {string} type - 错误类型 (error, warning, info)
-     */
-    createErrorNotification(message, type = 'error') {
-        // 检查document.body是否存在
-        if (!document.body) {
-            console.warn('Document body not ready, cannot show error notification');
-            return;
-        }
-
-        // 移除现有的错误通知
-        const existingNotifications = document.querySelectorAll('.error-notification');
-        existingNotifications.forEach(notification => {
-            notification.remove();
+            count: this.errorCount
         });
 
+        // 显示用户友好的错误信息
+        this.showNotification(
+            this.getUserFriendlyMessage(error, context),
+            'error',
+            5000
+        );
+
+        // 如果错误过多，显示调试模式提示
+        if (this.errorCount >= this.maxErrors) {
+            this.showNotification(
+                '检测到多个错误，建议刷新页面或检查网络连接',
+                'warning',
+                8000
+            );
+        }
+
+        // 执行错误恢复函数
+        if (typeof fallback === 'function') {
+            try {
+                fallback();
+            } catch (fallbackError) {
+                console.error('错误恢复函数执行失败:', fallbackError);
+            }
+        }
+    }
+
+    /**
+     * 判断是否应该忽略错误
+     * @param {Error} error - 错误对象
+     * @param {Object} context - 错误上下文
+     * @returns {boolean} 是否忽略
+     */
+    shouldIgnoreError(error, context) {
+        const ignorePatterns = [
+            /Script error/,
+            /ResizeObserver loop limit exceeded/,
+            /Network request failed/,
+            /Failed to fetch/,
+            /Chrome extension/,
+            /DevTools/,
+            /Extension context/,
+            /moz-extension/,
+            /chrome-extension/
+        ];
+
+        return ignorePatterns.some(pattern => 
+            pattern.test(error.message) || 
+            (context.filename && pattern.test(context.filename))
+        );
+    }
+
+    /**
+     * 获取用户友好的错误信息
+     * @param {Error} error - 错误对象
+     * @param {Object} context - 错误上下文
+     * @returns {string} 用户友好的消息
+     */
+    getUserFriendlyMessage(error, context) {
+        const messages = {
+            'NetworkError': '网络连接失败，请检查网络设置',
+            'TypeError': '数据格式错误，请刷新页面重试',
+            'ReferenceError': '页面加载异常，请刷新页面',
+            'SyntaxError': '代码执行错误，请刷新页面',
+            'render': '界面渲染失败，请刷新页面',
+            'data-save': '数据保存失败，请重试',
+            'data-load': '数据加载失败，请检查网络连接'
+        };
+
+        if (context.type && messages[context.type]) {
+            return messages[context.type];
+        }
+
+        if (error.name && messages[error.name]) {
+            return messages[error.name];
+        }
+
+        return '操作失败，请重试';
+    }
+
+    /**
+     * 显示通知
+     * @param {string} message - 通知消息
+     * @param {string} type - 通知类型 (success, error, warning, info)
+     * @param {number} duration - 显示时长（毫秒）
+     */
+    showNotification(message, type = 'info', duration = 4000) {
+        const notification = this.createNotification(message, type);
+        document.body.appendChild(notification);
+
+        // 显示动画
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+
+        // 自动隐藏
+        if (duration > 0) {
+            setTimeout(() => {
+                this.hideNotification(notification);
+            }, duration);
+        }
+
+        // 存储通知引用
+        this.notifications.push(notification);
+
+        // 限制通知数量
+        if (this.notifications.length > 5) {
+            const oldNotification = this.notifications.shift();
+            if (oldNotification && oldNotification.parentNode) {
+                oldNotification.parentNode.removeChild(oldNotification);
+            }
+        }
+    }
+
+    /**
+     * 创建通知元素
+     * @param {string} message - 通知消息
+     * @param {string} type - 通知类型
+     * @returns {HTMLElement} 通知元素
+     */
+    createNotification(message, type) {
         const notification = document.createElement('div');
-        notification.className = `error-notification error-notification-${type}`;
+        notification.className = `notification ${type}`;
+        
+        const icons = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+
         notification.innerHTML = `
-            <div class="error-notification-content">
-                <span class="error-notification-icon">
-                    ${type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}
-                </span>
-                <span class="error-notification-message">${message}</span>
-                <button class="error-notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            <div class="notification-content">
+                <div class="notification-icon">${icons[type] || icons.info}</div>
+                <div class="notification-text">${message}</div>
+                <button class="notification-close" onclick="window.ErrorUtils.hideNotification(this.parentElement.parentElement)">×</button>
             </div>
         `;
 
-        // 添加样式
-        this.addNotificationStyles();
+        return notification;
+    }
 
-        // 插入到页面
-        document.body.appendChild(notification);
-
-        // 自动移除
+    /**
+     * 隐藏通知
+     * @param {HTMLElement} notification - 通知元素
+     */
+    hideNotification(notification) {
+        if (!notification) return;
+        
+        notification.classList.remove('show');
         setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
             }
-        }, 5000);
+            // 从数组中移除
+            const index = this.notifications.indexOf(notification);
+            if (index > -1) {
+                this.notifications.splice(index, 1);
+            }
+        }, 300);
     }
 
     /**
-     * 添加通知样式
+     * 显示加载状态
+     * @param {string} key - 加载状态标识
+     * @param {string} message - 加载消息
+     * @param {boolean} fullscreen - 是否全屏加载
      */
-    addNotificationStyles() {
-        if (document.getElementById('error-notification-styles')) return;
+    showLoading(key, message = '加载中...', fullscreen = false) {
+        if (this.loadingStates.has(key)) {
+            return; // 已存在加载状态
+        }
 
-        const style = document.createElement('style');
-        style.id = 'error-notification-styles';
-        style.textContent = `
-            .error-notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 10000;
-                max-width: 400px;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                animation: slideInRight 0.3s ease-out;
-            }
+        const loadingElement = this.createLoadingElement(message, fullscreen);
+        document.body.appendChild(loadingElement);
 
-            .error-notification-error {
-                background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
-                color: white;
-            }
+        this.loadingStates.set(key, loadingElement);
 
-            .error-notification-warning {
-                background: linear-gradient(135deg, #f7b731, #f79d00);
-                color: white;
-            }
-
-            .error-notification-info {
-                background: linear-gradient(135deg, #4ecdc4, #44a08d);
-                color: white;
-            }
-
-            .error-notification-content {
-                display: flex;
-                align-items: center;
-                padding: 12px 16px;
-                gap: 8px;
-            }
-
-            .error-notification-icon {
-                font-size: 16px;
-                flex-shrink: 0;
-            }
-
-            .error-notification-message {
-                flex: 1;
-                font-size: 14px;
-                line-height: 1.4;
-            }
-
-            .error-notification-close {
-                background: none;
-                border: none;
-                color: inherit;
-                font-size: 18px;
-                cursor: pointer;
-                padding: 0;
-                width: 20px;
-                height: 20px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
-                transition: background-color 0.2s;
-            }
-
-            .error-notification-close:hover {
-                background-color: rgba(255,255,255,0.2);
-            }
-
-            @keyframes slideInRight {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-        `;
-
-        document.head.appendChild(style);
+        // 显示动画
+        setTimeout(() => {
+            loadingElement.style.opacity = '1';
+        }, 100);
     }
 
     /**
-     * 错误上报（可选功能）
-     * @param {Object} errorInfo - 错误信息
+     * 创建加载元素
+     * @param {string} message - 加载消息
+     * @param {boolean} fullscreen - 是否全屏
+     * @returns {HTMLElement} 加载元素
      */
-    reportError(errorInfo) {
-        // 这里可以集成错误上报服务，如Sentry、Bugsnag等
-        // 目前只是记录到控制台
-        if (window.DEBUG_MODE) {
-            console.log('Error Report:', errorInfo);
+    createLoadingElement(message, fullscreen) {
+        const loading = document.createElement('div');
+        loading.className = fullscreen ? 'loading-overlay' : 'loading-inline';
+        loading.style.opacity = '0';
+        loading.style.transition = 'opacity 0.3s ease';
+
+        if (fullscreen) {
+            loading.innerHTML = `
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">${message}</div>
+                </div>
+            `;
+        } else {
+            loading.innerHTML = `
+                <div class="loading-spinner"></div>
+                <span style="margin-left: 8px;">${message}</span>
+            `;
+        }
+
+        return loading;
+    }
+
+    /**
+     * 隐藏加载状态
+     * @param {string} key - 加载状态标识
+     */
+    hideLoading(key) {
+        const loadingElement = this.loadingStates.get(key);
+        if (!loadingElement) return;
+
+        loadingElement.style.opacity = '0';
+        setTimeout(() => {
+            if (loadingElement.parentNode) {
+                loadingElement.parentNode.removeChild(loadingElement);
+            }
+            this.loadingStates.delete(key);
+        }, 300);
+    }
+
+    /**
+     * 显示骨架屏
+     * @param {HTMLElement} container - 容器元素
+     * @param {number} itemCount - 骨架项数量
+     */
+    showSkeleton(container, itemCount = 3) {
+        if (!container) return;
+
+        const skeletonHTML = Array(itemCount).fill(`
+            <div class="skeleton-item" style="padding: 12px; margin-bottom: 8px;">
+                <div class="skeleton skeleton-text"></div>
+                <div class="skeleton skeleton-text"></div>
+                <div class="skeleton skeleton-text" style="width: 60%;"></div>
+            </div>
+        `).join('');
+
+        container.innerHTML = skeletonHTML;
+    }
+
+    /**
+     * 隐藏骨架屏
+     * @param {HTMLElement} container - 容器元素
+     */
+    hideSkeleton(container) {
+        if (!container) return;
+        
+        // 添加淡入动画
+        container.style.opacity = '0';
+        container.style.transition = 'opacity 0.3s ease';
+        
+        setTimeout(() => {
+            container.style.opacity = '1';
+        }, 100);
+    }
+
+    /**
+     * 安全执行函数
+     * @param {Function} func - 要执行的函数
+     * @param {Object} context - 执行上下文
+     * @param {Function} fallback - 错误恢复函数
+     * @returns {*} 函数执行结果
+     */
+    safeExecute(func, context = {}, fallback = null) {
+        try {
+            return func();
+        } catch (error) {
+            this.handleError(error, context, fallback);
+            return null;
         }
     }
 
     /**
-     * 获取错误统计
+     * 安全执行异步函数
+     * @param {Function} asyncFunc - 要执行的异步函数
+     * @param {Object} context - 执行上下文
+     * @param {Function} fallback - 错误恢复函数
+     * @returns {Promise} 异步执行结果
      */
-    getErrorStats() {
-        return {
-            totalErrors: this.errorCount,
-            errorLog: this.errorLog,
-            isHealthy: this.errorCount < this.maxErrorsPerSession
-        };
+    async safeExecuteAsync(asyncFunc, context = {}, fallback = null) {
+        try {
+            return await asyncFunc();
+        } catch (error) {
+            this.handleError(error, context, fallback);
+            return null;
+        }
     }
 
     /**
-     * 清除错误日志
+     * 添加按钮点击反馈
+     * @param {HTMLElement} button - 按钮元素
      */
-    clearErrorLog() {
-        this.errorLog = [];
-        this.errorCount = 0;
+    addButtonFeedback(button) {
+        if (!button) return;
+
+        button.addEventListener('click', () => {
+            button.classList.add('btn-click-feedback');
+            setTimeout(() => {
+                button.classList.remove('btn-click-feedback');
+            }, 200);
+        });
+    }
+
+    /**
+     * 添加成功动画
+     * @param {HTMLElement} element - 目标元素
+     */
+    addSuccessAnimation(element) {
+        if (!element) return;
+
+        element.classList.add('success-animation');
+        setTimeout(() => {
+            element.classList.remove('success-animation');
+        }, 600);
+    }
+
+    /**
+     * 添加错误动画
+     * @param {HTMLElement} element - 目标元素
+     */
+    addErrorAnimation(element) {
+        if (!element) return;
+
+        element.classList.add('error-animation');
+        setTimeout(() => {
+            element.classList.remove('error-animation');
+        }, 600);
+    }
+
+    /**
+     * 显示空状态
+     * @param {HTMLElement} container - 容器元素
+     * @param {string} icon - 图标
+     * @param {string} text - 主文本
+     * @param {string} subtext - 副文本
+     */
+    showEmptyState(container, icon = '📭', text = '暂无数据', subtext = '') {
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">${icon}</div>
+                <div class="empty-state-text">${text}</div>
+                ${subtext ? `<div class="empty-state-subtext">${subtext}</div>` : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * 清理所有通知
+     */
+    clearAllNotifications() {
+        this.notifications.forEach(notification => {
+            this.hideNotification(notification);
+        });
+        this.notifications = [];
+    }
+
+    /**
+     * 清理所有加载状态
+     */
+    clearAllLoading() {
+        this.loadingStates.forEach((element, key) => {
+            this.hideLoading(key);
+        });
+        this.loadingStates.clear();
     }
 }
 
-// 创建全局错误处理器实例
-window.errorHandler = new ErrorHandler();
+// 创建全局错误处理实例
+window.ErrorUtils = new ErrorUtils();
 
-// 导出错误处理函数供其他模块使用
-window.handleError = (error, context) => {
-    window.errorHandler.handle(error, context);
+// 导出便捷函数
+window.showNotification = (message, type, duration) => {
+    window.ErrorUtils.showNotification(message, type, duration);
 };
 
-window.showError = (message, type = 'error') => {
-    window.errorHandler.createErrorNotification(message, type);
+window.showLoading = (key, message, fullscreen) => {
+    window.ErrorUtils.showLoading(key, message, fullscreen);
 };
 
-console.log('✅ 错误处理模块已加载'); 
+window.hideLoading = (key) => {
+    window.ErrorUtils.hideLoading(key);
+};
+
+window.showSkeleton = (container, itemCount) => {
+    window.ErrorUtils.showSkeleton(container, itemCount);
+};
+
+window.hideSkeleton = (container) => {
+    window.ErrorUtils.hideSkeleton(container);
+};
+
+console.log('🎨 用户体验优化模块已加载'); 

@@ -1,6 +1,6 @@
 /**
  * 性能优化模块 - Life Factory Manager Tool
- * 提供防抖、节流、渲染优化等功能
+ * 提供防抖、节流、渲染优化、虚拟滚动、数据缓存等功能
  */
 
 class PerformanceOptimizer {
@@ -9,10 +9,19 @@ class PerformanceOptimizer {
         this.throttleTimers = new Map();
         this.renderQueue = new Set();
         this.isRendering = false;
+        this.dataCache = new Map();
+        this.cacheExpiry = new Map();
         this.performanceMetrics = {
             renderCount: 0,
             renderTime: 0,
-            lastRenderTime: 0
+            lastRenderTime: 0,
+            cacheHits: 0,
+            cacheMisses: 0
+        };
+        this.virtualScrollConfig = {
+            itemHeight: 60,
+            containerHeight: 400,
+            overscan: 5
         };
         this.init();
     }
@@ -34,6 +43,18 @@ class PerformanceOptimizer {
         window.addEventListener('resize', this.debounce(() => {
             this.handleResize();
         }, 250));
+
+        // 定期清理过期缓存
+        setInterval(() => {
+            this.cleanupExpiredCache();
+        }, 60000); // 每分钟清理一次
+
+        // 监听内存使用情况
+        if ('memory' in performance) {
+            setInterval(() => {
+                this.monitorMemoryUsage();
+            }, 30000); // 每30秒监控一次
+        }
 
         console.log('✅ 性能优化模块已初始化');
     }
@@ -148,15 +169,173 @@ class PerformanceOptimizer {
     }
 
     /**
+     * 数据缓存系统
+     * @param {string} key - 缓存键
+     * @param {Function} getter - 获取数据的函数
+     * @param {number} ttl - 缓存时间（毫秒）
+     * @returns {*} 缓存的数据
+     */
+    cache(key, getter, ttl = 300000) { // 默认5分钟
+        const now = Date.now();
+        const expiry = this.cacheExpiry.get(key);
+        
+        // 检查缓存是否有效
+        if (this.dataCache.has(key) && expiry && now < expiry) {
+            this.performanceMetrics.cacheHits++;
+            return this.dataCache.get(key);
+        }
+        
+        // 缓存未命中，执行getter函数
+        this.performanceMetrics.cacheMisses++;
+        const data = getter();
+        
+        // 存储数据和过期时间
+        this.dataCache.set(key, data);
+        this.cacheExpiry.set(key, now + ttl);
+        
+        return data;
+    }
+
+    /**
+     * 清理过期缓存
+     */
+    cleanupExpiredCache() {
+        const now = Date.now();
+        const expiredKeys = [];
+        
+        this.cacheExpiry.forEach((expiry, key) => {
+            if (now >= expiry) {
+                expiredKeys.push(key);
+            }
+        });
+        
+        expiredKeys.forEach(key => {
+            this.dataCache.delete(key);
+            this.cacheExpiry.delete(key);
+        });
+        
+        if (expiredKeys.length > 0) {
+            console.log(`清理了 ${expiredKeys.length} 个过期缓存`);
+        }
+    }
+
+    /**
+     * 虚拟滚动优化
+     * @param {Array} items - 数据项数组
+     * @param {number} scrollTop - 滚动位置
+     * @param {number} containerHeight - 容器高度
+     * @param {number} itemHeight - 每项高度
+     * @returns {Object} 虚拟滚动信息
+     */
+    virtualScroll(items, scrollTop, containerHeight, itemHeight = this.virtualScrollConfig.itemHeight) {
+        const startIndex = Math.floor(scrollTop / itemHeight);
+        const endIndex = Math.min(
+            startIndex + Math.ceil(containerHeight / itemHeight) + this.virtualScrollConfig.overscan,
+            items.length
+        );
+        
+        const visibleItems = items.slice(startIndex, endIndex);
+        const totalHeight = items.length * itemHeight;
+        const offsetY = startIndex * itemHeight;
+        
+        return {
+            items: visibleItems,
+            startIndex,
+            endIndex,
+            totalHeight,
+            offsetY
+        };
+    }
+
+    /**
+     * DOM操作优化 - 批量更新
+     * @param {Element} container - 容器元素
+     * @param {Array} updates - 更新操作数组
+     */
+    batchDOMUpdates(container, updates) {
+        // 使用 DocumentFragment 减少重排
+        const fragment = document.createDocumentFragment();
+        
+        updates.forEach(update => {
+            if (typeof update === 'function') {
+                update(fragment);
+            }
+        });
+        
+        // 一次性更新DOM
+        container.appendChild(fragment);
+    }
+
+    /**
      * 处理窗口大小变化
      */
     handleResize() {
+        // 清除相关缓存
+        this.clearCacheByPattern('layout');
+        
         // 重新计算布局相关的渲染
         this.batchRender(() => {
             if (typeof updateBottomRowLayout === 'function') {
                 updateBottomRowLayout();
             }
         }, 'layout');
+    }
+
+    /**
+     * 按模式清除缓存
+     * @param {string} pattern - 缓存键模式
+     */
+    clearCacheByPattern(pattern) {
+        const keysToDelete = [];
+        this.dataCache.forEach((value, key) => {
+            if (key.includes(pattern)) {
+                keysToDelete.push(key);
+            }
+        });
+        
+        keysToDelete.forEach(key => {
+            this.dataCache.delete(key);
+            this.cacheExpiry.delete(key);
+        });
+    }
+
+    /**
+     * 监控内存使用情况
+     */
+    monitorMemoryUsage() {
+        if ('memory' in performance) {
+            const memory = performance.memory;
+            const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024);
+            const totalMB = Math.round(memory.totalJSHeapSize / 1024 / 1024);
+            const limitMB = Math.round(memory.jsHeapSizeLimit / 1024 / 1024);
+            
+            // 如果内存使用超过80%，进行清理
+            if (usedMB / limitMB > 0.8) {
+                console.warn(`内存使用率过高: ${usedMB}MB/${limitMB}MB (${(usedMB/limitMB*100).toFixed(1)}%)`);
+                this.emergencyCleanup();
+            }
+        }
+    }
+
+    /**
+     * 紧急清理
+     */
+    emergencyCleanup() {
+        console.log('执行紧急内存清理...');
+        
+        // 清理所有缓存
+        this.dataCache.clear();
+        this.cacheExpiry.clear();
+        
+        // 清理定时器
+        this.pauseOptimizations();
+        
+        // 强制垃圾回收（如果支持）
+        if (window.gc) {
+            window.gc();
+        }
+        
+        console.log('紧急清理完成');
     }
 
     /**
@@ -208,9 +387,13 @@ class PerformanceOptimizer {
             averageRenderTime: this.performanceMetrics.renderCount > 0 
                 ? this.performanceMetrics.renderTime / this.performanceMetrics.renderCount 
                 : 0,
+            cacheHitRate: (this.performanceMetrics.cacheHits + this.performanceMetrics.cacheMisses) > 0
+                ? this.performanceMetrics.cacheHits / (this.performanceMetrics.cacheHits + this.performanceMetrics.cacheMisses)
+                : 0,
             activeDebounceTimers: this.debounceTimers.size,
             activeThrottleTimers: this.throttleTimers.size,
-            renderQueueSize: this.renderQueue.size
+            renderQueueSize: this.renderQueue.size,
+            cacheSize: this.dataCache.size
         };
     }
 
@@ -221,6 +404,8 @@ class PerformanceOptimizer {
         this.pauseOptimizations();
         this.renderQueue.clear();
         this.isRendering = false;
+        this.dataCache.clear();
+        this.cacheExpiry.clear();
     }
 }
 
@@ -244,6 +429,10 @@ window.measurePerformance = (func, name) => {
     return window.performanceOptimizer.measurePerformance(func, name);
 };
 
+window.cache = (key, getter, ttl) => {
+    return window.performanceOptimizer.cache(key, getter, ttl);
+};
+
 // 创建常用的防抖函数
 window.debouncedSave = window.debounce(() => {
     if (typeof saveToCloud === 'function') {
@@ -251,18 +440,15 @@ window.debouncedSave = window.debounce(() => {
     }
 }, 1000, 'saveToCloud');
 
-window.debouncedRender = window.debounce(() => {
-    if (typeof renderProductions === 'function') {
-        renderProductions();
+window.debouncedRender = window.debounce((renderFunc) => {
+    if (typeof renderFunc === 'function') {
+        renderFunc();
     }
-    if (typeof renderResourceStats === 'function') {
-        renderResourceStats();
-    }
-}, 300, 'render');
+}, 100, 'render');
 
-// 页面卸载时清理资源
-window.addEventListener('beforeunload', () => {
-    window.performanceOptimizer.cleanup();
-});
+// 导出性能监控函数
+window.getPerformanceMetrics = () => {
+    return window.performanceOptimizer.getPerformanceMetrics();
+};
 
-console.log('✅ 性能优化模块已加载'); 
+console.log('🚀 高级性能优化模块已加载'); 
