@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Life Factorio - 人生工厂</title>
-    <link rel="stylesheet" href="LF_tool.css">
-    <!-- Firebase compat CDN依赖，必须在LF_tool.js之前 -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase compat CDN依赖，必须在app.js之前 -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <!-- 错误处理和数据验证模块 -->
-    <script src="error-handler.js"></script>
-    <script src="data-validator.js"></script>
+    <script src="utils/error-handler.js"></script>
+    <script src="utils/data-validator.js"></script>
     <!-- 性能优化模块 -->
-    <script src="performance-optimizer.js"></script>
+    <script src="utils/performance-optimizer.js"></script>
     <!-- 主应用脚本 -->
-    <script src="LF_tool.js"></script>
+    <script src="app.js"></script>
 </head>
 <body style="--font-family: 'Helvetica Neue', Arial, sans-serif;">
     <div class="container">
@@ -615,7 +615,7 @@
             </div>
         </div>
     </div>
-    <script src="tech_tree_renderer.js"></script>
+    <script src="utils/tech-tree-renderer.js"></script>
     <script>
         // DOM加载完成后执行
         // 当页面完全加载后，立即预加载科技树数据
