@@ -383,6 +383,37 @@ window.init = async function() {
         askFamilyCode();
     } else {
         console.log(`🔑 使用家庭码: ${familyCode}，开始云端同步`);
+        
+        // 移动端连接诊断
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            console.log('[移动端] 检测到移动设备，执行连接诊断...');
+            
+            try {
+                const diagnosis = await diagnoseMobileConnection();
+                console.log('[移动端诊断结果]:', diagnosis);
+                
+                if (!diagnosis.canConnect) {
+                    console.warn('[移动端] 连接诊断失败:', diagnosis.reason);
+                    if (window.ErrorUtils) {
+                        window.ErrorUtils.showNotification(
+                            `移动端连接受限: ${diagnosis.reason}，使用本地模式`, 
+                            'warning', 
+                            8000
+                        );
+                    }
+                    updateSyncStatus('本地模式', new Date().toLocaleTimeString());
+                    
+                    // 显示移动端连接提示
+                    showMobileConnectionTip(diagnosis.reason);
+                    return;
+                }
+            } catch (error) {
+                console.error('[移动端诊断] 诊断过程出错:', error);
+                // 诊断失败时继续尝试连接
+            }
+        }
+        
         firebaseLoginAndSync();
     }
     
@@ -2354,6 +2385,13 @@ function firebaseLoginAndSync() {
             window.ErrorUtils.showNotification('云端连接超时，使用本地模式', 'warning', 5000);
         }
         updateSyncStatus('离线', new Date().toLocaleTimeString());
+        
+        // 移动端特殊处理
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            console.log('[移动端] 登录超时，显示连接提示');
+            showMobileConnectionTip('连接超时');
+        }
     }, loginTimeoutMs);
     
     auth.signInAnonymously()
@@ -2368,16 +2406,30 @@ function firebaseLoginAndSync() {
             
             // 根据错误类型提供不同的处理
             let errorMessage = '云端连接失败，切换到本地模式';
+            let shouldShowMobileTip = false;
+            
             if (error.code === 'auth/network-request-failed') {
                 errorMessage = '网络连接失败，请检查网络设置';
+                shouldShowMobileTip = true;
             } else if (error.code === 'auth/too-many-requests') {
                 errorMessage = '请求过于频繁，请稍后重试';
+            } else if (error.code === 'auth/operation-not-allowed') {
+                errorMessage = '匿名登录功能未启用';
+            } else if (error.code === 'auth/invalid-api-key') {
+                errorMessage = 'API密钥无效';
             }
             
             if (window.ErrorUtils) {
                 window.ErrorUtils.showNotification(errorMessage, 'error', 5000);
             }
             updateSyncStatus('连接失败', new Date().toLocaleTimeString());
+            
+            // 移动端特殊处理
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile && shouldShowMobileTip) {
+                console.log('[移动端] 登录失败，显示连接提示');
+                showMobileConnectionTip('网络连接失败');
+            }
         });
 }
 
@@ -2702,16 +2754,116 @@ function askFamilyCode() {
 let lastSyncTime = null;
 let syncStatus = '同步中';
 function updateSyncStatus(status, time) {
-    syncStatus = status;
-    lastSyncTime = time || lastSyncTime;
-    const el = document.getElementById('sync-status');
-    if (!el) return;
-    let text = '';
-    if (status === '同步中') text = '☁️ 正在同步...';
-    else if (status === '已同步') text = `✅ 已同步${lastSyncTime ? '（' + lastSyncTime + '）' : ''}`;
-    else if (status === '离线') text = '⚠️ 离线，数据仅本地保存';
-    else text = status;
-    el.textContent = text;
+    const syncElement = document.getElementById('sync-status');
+    if (!syncElement) return;
+    
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const networkInfo = navigator.connection ? {
+        type: navigator.connection.effectiveType,
+        downlink: navigator.connection.downlink,
+        rtt: navigator.connection.rtt
+    } : null;
+    
+    let statusText = status;
+    let statusClass = '';
+    
+    // 根据状态设置样式
+    switch (status) {
+        case '已同步':
+            statusClass = 'status-online';
+            break;
+        case '同步中':
+            statusClass = 'status-syncing';
+            break;
+        case '本地模式':
+            statusClass = 'status-offline';
+            statusText = '📱 本地模式';
+            break;
+        case '连接失败':
+        case '监听失败':
+        case '保存失败':
+            statusClass = 'status-offline';
+            statusText = '❌ ' + status;
+            break;
+        case '离线':
+            statusClass = 'status-offline';
+            statusText = '📴 离线';
+            break;
+        default:
+            statusClass = 'status-offline';
+    }
+    
+    // 移动端显示网络信息
+    if (isMobile && networkInfo) {
+        statusText += ` (${networkInfo.type})`;
+    }
+    
+    // 添加时间戳
+    if (time) {
+        statusText += ` ${time}`;
+    }
+    
+    syncElement.textContent = statusText;
+    syncElement.className = `sync-status ${statusClass}`;
+    
+    // 添加点击事件，显示详细状态
+    syncElement.onclick = () => {
+        showConnectionStatusDetails(status, networkInfo, isMobile);
+    };
+    syncElement.style.cursor = 'pointer';
+    syncElement.title = '点击查看详细连接信息';
+}
+
+// 显示连接状态详情
+function showConnectionStatusDetails(status, networkInfo, isMobile) {
+    const details = {
+        title: '连接状态详情',
+        content: `
+            <div style="margin: 20px 0;">
+                <div style="margin-bottom: 15px;">
+                    <strong>当前状态:</strong> ${status}
+                </div>
+                ${isMobile ? `
+                <div style="margin-bottom: 15px;">
+                    <strong>设备类型:</strong> 移动设备
+                </div>
+                ` : ''}
+                ${networkInfo ? `
+                <div style="margin-bottom: 15px;">
+                    <strong>网络信息:</strong><br>
+                    • 网络类型: ${networkInfo.type}<br>
+                    • 下载速度: ${networkInfo.downlink} Mbps<br>
+                    • 延迟: ${networkInfo.rtt} ms
+                </div>
+                ` : ''}
+                <div style="margin-bottom: 15px;">
+                    <strong>云端状态:</strong><br>
+                    • 连接就绪: ${isCloudReady ? '是' : '否'}<br>
+                    • 正在保存: ${isCloudSaving ? '是' : '否'}<br>
+                    • 正在加载: ${isCloudLoading ? '是' : '否'}<br>
+                    • 家庭码: ${familyCode || '未设置'}
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                    <strong>💡 操作建议:</strong><br>
+                    • 点击"重试连接"重新连接云端<br>
+                    • 点击"使用本地模式"切换到本地存储<br>
+                    • 检查网络设置和防火墙配置
+                </div>
+            </div>
+        `
+    };
+    
+    showCustomModal({
+        title: details.title,
+        content: details.content,
+        onConfirm: () => {
+            // 关闭模态框
+        },
+        onCancel: () => {
+            // 关闭模态框
+        },
+        confirmText: '关闭'
+    });
 }
 
 
@@ -4554,5 +4706,194 @@ function detectMobileAndNetwork() {
     return { isMobile, isOnline };
 }
 
+// 移动端连接诊断
+async function diagnoseMobileConnection() {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (!isMobile) {
+        return { canConnect: true, reason: '非移动设备' };
+    }
+    
+    console.log('[移动端诊断] 开始连接诊断...');
+    
+    // 检查基本网络连接
+    if (!navigator.onLine) {
+        return { canConnect: false, reason: '设备离线' };
+    }
+    
+    // 检查Firebase CDN连接
+    try {
+        const firebaseTest = await fetch('https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js', {
+            method: 'HEAD',
+            mode: 'no-cors'
+        });
+        console.log('[移动端诊断] Firebase CDN连接正常');
+    } catch (error) {
+        console.warn('[移动端诊断] Firebase CDN连接失败:', error);
+        return { canConnect: false, reason: 'Firebase CDN无法访问' };
+    }
+    
+    // 检查网络类型
+    if (navigator.connection) {
+        const connection = navigator.connection;
+        console.log('[移动端诊断] 网络信息:', {
+            effectiveType: connection.effectiveType,
+            downlink: connection.downlink,
+            rtt: connection.rtt
+        });
+        
+        if (connection.effectiveType === 'slow-2g') {
+            return { canConnect: false, reason: '网络速度过慢(2G)' };
+        }
+    }
+    
+    return { canConnect: true, reason: '连接正常' };
+}
+
 // 初始化网络检测
 const networkInfo = detectMobileAndNetwork();
+
+// 显示移动端连接提示
+function showMobileConnectionTip(reason) {
+    const tips = {
+        '设备离线': {
+            title: '网络连接问题',
+            content: '您的设备当前处于离线状态。请检查：<br>• WiFi或移动网络是否开启<br>• 网络连接是否正常<br>• 尝试切换网络后刷新页面'
+        },
+        'Firebase CDN无法访问': {
+            title: '服务访问受限',
+            content: '无法访问云端服务，可能原因：<br>• 网络防火墙阻止了连接<br>• 运营商网络限制<br>• 建议尝试：<br>• 切换到其他网络<br>• 使用VPN连接<br>• 稍后重试'
+        },
+        '网络速度过慢(2G)': {
+            title: '网络速度过慢',
+            content: '当前网络速度较慢，可能影响云端同步：<br>• 建议切换到更快的网络<br>• 或使用本地模式继续使用<br>• 数据仍会保存在本地'
+        }
+    };
+    
+    const tip = tips[reason] || {
+        title: '连接问题',
+        content: `遇到连接问题: ${reason}<br>建议检查网络设置或稍后重试`
+    };
+    
+    // 创建提示模态框
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <h3 class="modal-title">📱 ${tip.title}</h3>
+            <div style="margin: 20px 0; line-height: 1.6; color: #666;">
+                ${tip.content}
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <strong>💡 解决方案：</strong><br>
+                • 刷新页面重试<br>
+                • 切换到WiFi网络<br>
+                • 检查网络设置<br>
+                • 使用本地模式继续
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="retryMobileConnection()">重试连接</button>
+                <button type="button" class="btn btn-secondary" onclick="switchToLocalMode(); this.closest('.modal').remove()">使用本地模式</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 5秒后自动关闭
+    setTimeout(() => {
+        if (modal.parentNode) {
+            modal.remove();
+        }
+    }, 30000);
+}
+
+// 重试移动端连接
+async function retryMobileConnection() {
+    console.log('[移动端] 用户请求重试连接...');
+    
+    // 移除提示模态框
+    const modal = document.querySelector('.modal');
+    if (modal) {
+        modal.remove();
+    }
+    
+    // 重新诊断连接
+    try {
+        const diagnosis = await diagnoseMobileConnection();
+        console.log('[移动端重试诊断结果]:', diagnosis);
+        
+        if (diagnosis.canConnect) {
+            console.log('[移动端] 重试诊断成功，开始连接...');
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification('连接诊断成功，正在连接云端...', 'success', 3000);
+            }
+            firebaseLoginAndSync();
+        } else {
+            console.warn('[移动端] 重试诊断仍然失败:', diagnosis.reason);
+            if (window.ErrorUtils) {
+                window.ErrorUtils.showNotification(`连接仍然失败: ${diagnosis.reason}`, 'error', 5000);
+            }
+            updateSyncStatus('连接失败', new Date().toLocaleTimeString());
+        }
+    } catch (error) {
+        console.error('[移动端重试] 诊断过程出错:', error);
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showNotification('重试连接时出错，请稍后重试', 'error', 5000);
+        }
+    }
+}
+
+// 将重试函数添加到全局作用域
+window.retryMobileConnection = retryMobileConnection;
+
+// 切换到本地模式
+function switchToLocalMode() {
+    console.log('[本地模式] 用户主动切换到本地模式');
+    
+    // 停止云端监听
+    if (firebaseUnsubscribe) {
+        firebaseUnsubscribe();
+        firebaseUnsubscribe = null;
+    }
+    
+    // 更新状态
+    isCloudReady = false;
+    isCloudSaving = false;
+    isCloudLoading = false;
+    cloudInitDone = true; // 防止重新尝试连接
+    
+    updateSyncStatus('本地模式', new Date().toLocaleTimeString());
+    
+    if (window.ErrorUtils) {
+        window.ErrorUtils.showNotification('已切换到本地模式，数据将保存在本地', 'success', 3000);
+    }
+    
+    // 保存当前数据到本地
+    saveToLocal();
+}
+
+// 保存到本地存储
+function saveToLocal() {
+    try {
+        const saveData = {
+            gameData: gameData,
+            lastDailyReset: lastDailyReset,
+            saveTime: new Date().toISOString()
+        };
+        localStorage.setItem('lifeFactorio', JSON.stringify(saveData));
+        console.log('[本地保存] 数据已保存到本地存储');
+        return true;
+    } catch (error) {
+        console.error('[本地保存] 保存失败:', error);
+        if (window.ErrorUtils) {
+            window.ErrorUtils.showNotification('本地保存失败', 'error', 3000);
+        }
+        return false;
+    }
+}
+
+// 将函数添加到全局作用域
+window.switchToLocalMode = switchToLocalMode;
