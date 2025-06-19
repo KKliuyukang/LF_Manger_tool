@@ -1983,51 +1983,164 @@ function firebaseLoginAndSync() {
 function listenCloudData() {
     if (!familyCode) return;
     if (firebaseUnsubscribe) firebaseUnsubscribe();
-        isCloudLoading = true;
+    isCloudLoading = true;
+    console.log('[云同步] 开始监听云端数据变化');
+    
     firebaseUnsubscribe = db.collection('groups').doc(familyCode)
         .onSnapshot(doc => {
-                isCloudLoading = false;
-                if (doc.exists && doc.data().gameData) {
-                    gameData = migrateData(doc.data().gameData);
-                    lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
-                // 云端数据加载后重新检查每日重置
-                    checkDailyReset();
-                    fixDataLinks();
-                    renderProductions();
-                    renderDevelopments();
-                    renderMilestones();
-                    renderDevLibrary();
-                    renderResourceStats();
-                    renderWeekCalendar();
-                renderExpenses(); // 新增：云端同步后渲染支出栏
-                    cloudInitDone = true;
-                updateSyncStatus('已同步', new Date().toLocaleTimeString());
-                } else if (!cloudInitDone) {
-                    saveToCloud();
-                    cloudInitDone = true;
+            isCloudLoading = false;
+            if (doc.exists && doc.data().gameData) {
+                console.log('[云同步] 收到云端数据更新');
+                
+                // 保存旧数据用于比较
+                const oldExpenses = gameData.expenses ? [...gameData.expenses] : [];
+                const oldTimeLogs = gameData.timeLogs ? [...gameData.timeLogs] : [];
+                
+                // 更新数据
+                gameData = migrateData(doc.data().gameData);
+                lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
+                
+                // 防御性初始化
+                if (!Array.isArray(gameData.expenses)) {
+                    console.log('[云同步] 初始化expenses数组');
+                    gameData.expenses = [];
                 }
-                isCloudReady = true;
-            });
+                if (!Array.isArray(gameData.timeLogs)) {
+                    console.log('[云同步] 初始化timeLogs数组');
+                    gameData.timeLogs = [];
+                }
+                
+                // 检查数据是否有变化
+                const expensesChanged = JSON.stringify(oldExpenses) !== JSON.stringify(gameData.expenses);
+                const timeLogsChanged = JSON.stringify(oldTimeLogs) !== JSON.stringify(gameData.timeLogs);
+                
+                // 云端数据加载后重新检查每日重置
+                checkDailyReset();
+                fixDataLinks();
+                
+                // 更新界面
+                renderProductions();
+                renderDevelopments();
+                renderMilestones();
+                renderDevLibrary();
+                renderResourceStats();
+                renderWeekCalendar();
+                
+                // 如果支出数据有变化，重新渲染支出面板
+                if (expensesChanged) {
+                    console.log('[云同步] 支出数据已更新，重新渲染支出面板');
+                    renderExpenses();
+                }
+                
+                cloudInitDone = true;
+                updateSyncStatus('已同步', new Date().toLocaleTimeString());
+                console.log('[云同步] 数据更新完成');
+                
+            } else if (!cloudInitDone) {
+                console.log('[云同步] 未找到云端数据，执行首次保存');
+                saveToCloud();
+                cloudInitDone = true;
+            }
+            isCloudReady = true;
+        }, error => {
+            console.error('[云同步] 监听错误:', error);
+            isCloudLoading = false;
+            updateSyncStatus('监听失败', new Date().toLocaleTimeString());
+            alert('云端数据监听失败，切换到本地模式');
+        });
 }
 
 // 保存到云端
 function saveToCloud() {
-    if (!familyCode || isCloudLoading) return;
-        isCloudSaving = true;
+    if (!familyCode || !isCloudReady || isCloudSaving) {
+        console.warn('[云同步] 无法保存：', {
+            hasFamilyCode: !!familyCode,
+            isCloudReady,
+            isCloudSaving
+        });
+        return;
+    }
+    
+    isCloudSaving = true;
+    console.log('[云同步] 开始保存数据');
     updateSyncStatus('同步中');
-    db.collection('groups').doc(familyCode).set({
-                gameData: gameData,
-                lastDailyReset: lastDailyReset,
-                saveTime: new Date().toISOString()
-    }).then(() => {
+    
+    try {
+        // 防御性检查和初始化
+        if (!Array.isArray(gameData.expenses)) {
+            console.log('[云同步] 初始化expenses数组');
+            gameData.expenses = [];
+        }
+        if (!Array.isArray(gameData.timeLogs)) {
+            console.log('[云同步] 初始化timeLogs数组');
+            gameData.timeLogs = [];
+        }
+        
+        // 数据验证
+        let dataValid = true;
+        let validationErrors = [];
+        
+        // 验证支出数据
+        if (gameData.expenses) {
+            gameData.expenses.forEach((exp, idx) => {
+                if (!exp.name || !exp.amount || !exp.date) {
+                    console.error(`[云同步] 支出数据验证失败 [${idx}]:`, exp);
+                    dataValid = false;
+                    validationErrors.push(`支出记录 #${idx+1} 数据不完整`);
+                }
+            });
+        }
+        
+        // 验证时间记录
+        if (gameData.timeLogs) {
+            gameData.timeLogs.forEach((log, idx) => {
+                if (!log.name || !log.date || 
+                    typeof log.hour !== 'number' || 
+                    typeof log.minute !== 'number' ||
+                    typeof log.endHour !== 'number' || 
+                    typeof log.endMinute !== 'number') {
+                    console.error(`[云同步] 时间记录验证失败 [${idx}]:`, log);
+                    dataValid = false;
+                    validationErrors.push(`时间记录 #${idx+1} 数据不完整`);
+                }
+            });
+        }
+        
+        if (!dataValid) {
+            console.error('[云同步] 数据验证失败:', validationErrors);
+            alert('数据验证失败：\n' + validationErrors.join('\n'));
+            isCloudSaving = false;
+            return;
+        }
+        
+        // 保存数据
+        db.collection('groups').doc(familyCode).set({
+            gameData: gameData,
+            lastDailyReset: lastDailyReset,
+            saveTime: new Date().toISOString()
+        }).then(() => {
+            console.log('[云同步] 数据保存成功');
+            isCloudSaving = false;
+            updateSyncStatus('已同步', new Date().toLocaleTimeString());
+            
+            // 保存成功后更新界面
+            renderExpenses();
+            renderResourceStats();
+            renderWeekCalendar();
+        }).catch((error) => {
+            console.error('[云同步] 保存失败:', error);
+            isCloudSaving = false;
+            updateSyncStatus('同步失败', new Date().toLocaleTimeString());
+            alert('保存失败，切换到本地保存');
+            saveToLocal();
+        });
+    } catch (error) {
+        console.error('[云同步] 错误:', error);
         isCloudSaving = false;
-        updateSyncStatus('已同步', new Date().toLocaleTimeString());
-    }).catch((error) => {
-        console.warn('云端同步失败，切换到本地保存:', error.message);
-        isCloudSaving = false;
-        updateSyncStatus('离线');
+        updateSyncStatus('同步错误', new Date().toLocaleTimeString());
+        alert('保存数据时发生错误，切换到本地保存');
         saveToLocal();
-    });
+    }
 }
 
 let familyCode = localStorage.getItem('lifeFactoryFamilyCode') || null;
@@ -2282,51 +2395,91 @@ function setupExpenseFormHandlers() {
     if (expenseForm) {
         expenseForm.onsubmit = function(e) {
             e.preventDefault();
-            if (!Array.isArray(gameData.expenses)) gameData.expenses = [];
-            // 取值并健壮处理
-            let raw = document.getElementById('expense-amount').value;
-            if (typeof raw !== 'string') raw = String(raw);
-            // 全角转半角
-            raw = raw.replace(/[\uFF10-\uFF19]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 48));
-            // 去除所有空格和非数字小数点
-            raw = raw.replace(/[^\d.]/g, '').replace(/^\./, ''); // 去除首位小数点
-            if (!raw) {
-                alert('请输入有效的金额');
-                return;
-            }
-            let amount = parseFloat(raw);
-            if (isNaN(amount) || amount <= 0) {
-                alert('请输入有效的金额');
-                return;
-            }
-            // 直接读取货币值，像生产线那样简单处理
-            let currency = document.getElementById('expense-currency').value;
-
+            console.log('[支出表单] 开始处理表单提交');
             
-            const exp = {
-                name: document.getElementById('expense-name').value,
-                amount: amount,
-                currency: currency,
-                date: document.getElementById('expense-date').value,
-                type: document.getElementById('expense-type').value,
-                frequency: document.getElementById('expense-type').value==='recurring'?document.getElementById('expense-frequency').value:null
-            };
-
-            if (window.currentEditExpense !== undefined) {
-
-                gameData.expenses[window.currentEditExpense] = exp;
-            } else {
-
-                gameData.expenses.push(exp);
+            try {
+                // 确保expenses数组存在
+                if (!Array.isArray(gameData.expenses)) {
+                    console.log('[支出表单] 初始化expenses数组');
+                    gameData.expenses = [];
+                }
+                
+                // 获取并验证表单数据
+                const name = document.getElementById('expense-name').value.trim();
+                if (!name) {
+                    alert('请输入支出名称');
+                    return;
+                }
+                
+                // 金额处理
+                let raw = document.getElementById('expense-amount').value;
+                if (typeof raw !== 'string') raw = String(raw);
+                // 全角转半角
+                raw = raw.replace(/[\uFF10-\uFF19]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 48));
+                // 去除所有空格和非数字小数点
+                raw = raw.replace(/[^\d.]/g, '').replace(/^\./, '');
+                if (!raw) {
+                    alert('请输入有效的金额');
+                    return;
+                }
+                let amount = parseFloat(raw);
+                if (isNaN(amount) || amount <= 0) {
+                    alert('请输入有效的金额');
+                    return;
+                }
+                
+                // 获取其他字段
+                const currency = document.getElementById('expense-currency').value;
+                const date = document.getElementById('expense-date').value;
+                if (!date) {
+                    alert('请选择支出日期');
+                    return;
+                }
+                
+                const type = document.getElementById('expense-type').value;
+                const frequency = type === 'recurring' ? document.getElementById('expense-frequency').value : null;
+                const remark = document.getElementById('expense-remark').value.trim();
+                
+                // 构建支出对象
+                const exp = {
+                    name: name,
+                    amount: amount,
+                    currency: currency,
+                    date: date,
+                    type: type,
+                    frequency: frequency,
+                    remark: remark
+                };
+                
+                console.log('[支出表单] 构建的支出对象:', exp);
+                
+                // 保存数据
+                if (window.currentEditExpense >= 0) {
+                    console.log('[支出表单] 编辑模式，替换第', window.currentEditExpense, '项');
+                    gameData.expenses[window.currentEditExpense] = exp;
+                } else {
+                    console.log('[支出表单] 新增模式，添加到expenses');
+                    gameData.expenses.push(exp);
+                }
+                
+                // 更新界面
+                renderExpenses();
+                renderResourceStats();
+                
+                // 保存到云端
+                console.log('[支出表单] 开始保存到云端');
+                saveToCloud();
+                
+                // 关闭模态框
+                closeModal('expense-modal');
+                
+                console.log('[支出表单] 处理完成');
+                
+            } catch (error) {
+                console.error('[支出表单] 错误:', error);
+                alert('保存支出时发生错误，请重试');
             }
-            renderExpenses();
-            renderResourceStats();
-            saveToCloud();
-            closeModal('expense-modal');
-            window.currentEditExpense = -1;
         };
-    } else {
-
     }
 }
 
