@@ -35,7 +35,7 @@ function initializeButtonFeedback() {
 function initializeTooltips() {
     // 为带有data-tooltip属性的元素添加工具提示
     document.addEventListener('mouseenter', (e) => {
-        if (e.target.hasAttribute('data-tooltip')) {
+        if (e.target && e.target.nodeType === Node.ELEMENT_NODE && e.target.hasAttribute('data-tooltip')) {
             e.target.classList.add('tooltip');
         }
     }, true);
@@ -120,8 +120,14 @@ function loadWithSkeleton(loadFunction, container, itemCount = 3) {
 // 空状态检查函数
 function checkEmptyState(container, data, icon, text, subtext) {
     if (!data || data.length === 0) {
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showEmptyState(container, icon, text, subtext);
+        if (container) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">${icon}</div>
+                    <div class="empty-state-text">${text}</div>
+                    ${subtext ? `<div class="empty-state-subtext">${subtext}</div>` : ''}
+                </div>
+            `;
         }
         return true;
     }
@@ -535,10 +541,19 @@ function renderProductions() {
     return window.ErrorUtils.safeExecute(() => {
         return window.measurePerformance(() => {
             const container = document.getElementById('productions-list');
-            if (!container) return;
+            if (!container) {
+                console.error('❌ 找不到productions-list容器');
+                return;
+            }
+            
+            console.log('🔍 开始渲染生产线，当前数据:', {
+                productionsCount: gameData.productions?.length || 0,
+                productions: gameData.productions
+            });
             
             // 检查空状态
             if (checkEmptyState(container, gameData.productions, '🏭', '暂无生产线', '点击下方按钮添加新的生产线')) {
+                console.log('📭 显示空状态');
                 return;
             }
             
@@ -562,6 +577,12 @@ function renderProductions() {
             }, 60000); // 1分钟缓存
             
             const { productions, today, timeLogs } = renderData;
+            
+            console.log('📊 渲染数据:', {
+                productionsCount: productions.length,
+                today: today,
+                timeLogsCount: timeLogs.length
+            });
             
             const typeMap = {
                 production: {text: '产线', desc: '需要投入时间换收入'},
@@ -647,14 +668,27 @@ function renderProductions() {
                 };
             });
             
+            console.log('🔨 准备批量更新DOM，更新项数量:', updates.length);
+            
             // 批量更新DOM
-            window.batchDOMUpdate(container, updates);
+            if (window.batchDOMUpdate) {
+                window.batchDOMUpdate(container, updates);
+            } else {
+                // 降级到普通渲染
+                console.warn('⚠️ batchDOMUpdate未找到，使用普通渲染');
+                container.innerHTML = '';
+                const fragment = document.createDocumentFragment();
+                updates.forEach(update => update(fragment));
+                container.appendChild(fragment);
+            }
             
             // 添加淡入动画
             container.classList.add('fade-in');
             setTimeout(() => {
                 container.classList.remove('fade-in');
             }, 300);
+            
+            console.log('✅ 生产线渲染完成');
             
         }, 'renderProductions');
     }, { type: 'render' });
