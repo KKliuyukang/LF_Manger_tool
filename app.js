@@ -1,138 +1,7 @@
 // Life Factorio - 人生工厂 脚本分离文件
 
-// 用户体验优化初始化
-document.addEventListener('DOMContentLoaded', () => {
-    // 添加页面加载动画
-    document.body.classList.add('page-transition');
-    
-    // 初始化按钮反馈
-    initializeButtonFeedback();
-    
-    // 添加工具提示
-    initializeTooltips();
-    
-    // 显示欢迎通知
-    setTimeout(() => {
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showNotification('欢迎使用人生工厂管理工具！', 'success', 3000);
-        }
-    }, 1000);
-});
 
-// 初始化按钮反馈
-function initializeButtonFeedback() {
-    // 为所有按钮添加点击反馈
-    document.addEventListener('click', (e) => {
-        if (e.target.matches('.btn, .check-btn, .btn-add, .btn-small')) {
-            if (window.ErrorUtils) {
-                window.ErrorUtils.addButtonFeedback(e.target);
-            }
-        }
-    });
-}
 
-// 初始化工具提示
-function initializeTooltips() {
-    // 为带有data-tooltip属性的元素添加工具提示
-    document.addEventListener('mouseenter', (e) => {
-        if (e.target && e.target.nodeType === Node.ELEMENT_NODE && e.target.hasAttribute('data-tooltip')) {
-            e.target.classList.add('tooltip');
-        }
-    }, true);
-}
-
-// 增强的渲染函数，包含加载状态
-function renderWithLoading(renderFunction, container, loadingKey, message = '加载中...') {
-    if (window.ErrorUtils) {
-        window.ErrorUtils.showLoading(loadingKey, message);
-    }
-    
-    try {
-        renderFunction();
-        
-        // 添加数据更新动画
-        if (container) {
-            container.classList.add('data-update');
-            setTimeout(() => {
-                container.classList.remove('data-update');
-            }, 500);
-        }
-    } catch (error) {
-        if (window.ErrorUtils) {
-            window.ErrorUtils.handleError(error, { type: 'render' });
-        }
-    } finally {
-        if (window.ErrorUtils) {
-            window.ErrorUtils.hideLoading(loadingKey);
-        }
-    }
-}
-
-// 增强的保存函数，包含成功反馈
-function saveWithFeedback(saveFunction, successMessage = '保存成功') {
-    if (window.ErrorUtils) {
-        window.ErrorUtils.showLoading('save', '保存中...');
-    }
-    
-    try {
-        const result = saveFunction();
-        
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showNotification(successMessage, 'success', 3000);
-            window.ErrorUtils.addSuccessAnimation(document.querySelector('.panel'));
-        }
-        
-        return result;
-    } catch (error) {
-        if (window.ErrorUtils) {
-            window.ErrorUtils.handleError(error, { type: 'data-save' });
-        }
-        return null;
-    } finally {
-        if (window.ErrorUtils) {
-            window.ErrorUtils.hideLoading('save');
-        }
-    }
-}
-
-// 增强的加载函数，包含骨架屏
-function loadWithSkeleton(loadFunction, container, itemCount = 3) {
-    if (window.ErrorUtils && container) {
-        window.ErrorUtils.showSkeleton(container, itemCount);
-    }
-    
-    try {
-        const result = loadFunction();
-        
-        if (window.ErrorUtils && container) {
-            window.ErrorUtils.hideSkeleton(container);
-        }
-        
-        return result;
-    } catch (error) {
-        if (window.ErrorUtils) {
-            window.ErrorUtils.handleError(error, { type: 'data-load' });
-        }
-        return null;
-    }
-}
-
-// 空状态检查函数
-function checkEmptyState(container, data, icon, text, subtext) {
-    if (!data || data.length === 0) {
-        if (container) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">${icon}</div>
-                    <div class="empty-state-text">${text}</div>
-                    ${subtext ? `<div class="empty-state-subtext">${subtext}</div>` : ''}
-                </div>
-            `;
-        }
-        return true;
-    }
-    return false;
-}
 
 let saveTimeout = null;
 let fileHandle = null;
@@ -383,37 +252,6 @@ window.init = async function() {
         askFamilyCode();
     } else {
         console.log(`🔑 使用家庭码: ${familyCode}，开始云端同步`);
-        
-        // 移动端连接诊断
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            console.log('[移动端] 检测到移动设备，执行连接诊断...');
-            
-            try {
-                const diagnosis = await diagnoseMobileConnection();
-                console.log('[移动端诊断结果]:', diagnosis);
-                
-                if (!diagnosis.canConnect) {
-                    console.warn('[移动端] 连接诊断失败:', diagnosis.reason);
-                    if (window.ErrorUtils) {
-                        window.ErrorUtils.showNotification(
-                            `移动端连接受限: ${diagnosis.reason}，使用本地模式`, 
-                            'warning', 
-                            8000
-                        );
-                    }
-                    updateSyncStatus('本地模式', new Date().toLocaleTimeString());
-                    
-                    // 显示移动端连接提示
-                    showMobileConnectionTip(diagnosis.reason);
-                    return;
-                }
-            } catch (error) {
-                console.error('[移动端诊断] 诊断过程出错:', error);
-                // 诊断失败时继续尝试连接
-            }
-        }
-        
         firebaseLoginAndSync();
     }
     
@@ -566,54 +404,20 @@ function getSortedProductions() {
     const typeOrder = {production: 1, work: 1, automation: 2, habit: 2, investment: 3, lifestyle: 4};
     return [...gameData.productions].map((p, i) => ({...p, _realIndex: i})).sort((a, b) => (typeOrder[a.type]||99) - (typeOrder[b.type]||99));
 }
-
-// 渲染生产线
 function renderProductions() {
     return window.ErrorUtils.safeExecute(() => {
         return window.measurePerformance(() => {
             const container = document.getElementById('productions-list');
-            if (!container) {
-                console.error('❌ 找不到productions-list容器');
-                return;
-            }
+            if (!container) return;
             
-            console.log('🔍 开始渲染生产线，当前数据:', {
-                productionsCount: gameData.productions?.length || 0,
-                productions: gameData.productions
-            });
+            // 更新全局的sortedProductions变量
+            sortedProductions = getSortedProductions();
             
-            // 检查空状态
-            if (checkEmptyState(container, gameData.productions, '🏭', '暂无生产线', '点击下方按钮添加新的生产线')) {
-                console.log('📭 显示空状态');
-                return;
-            }
+            // 加载隐藏的生产线列表
+            const hiddenProductions = JSON.parse(localStorage.getItem('hiddenProductions') || '[]');
             
-            // 使用缓存获取排序后的生产线数据
-            const cacheKey = `productions_${gameData.productions.length}_${Date.now() - (Date.now() % 60000)}`; // 按分钟缓存
-            const renderData = window.cache(cacheKey, () => {
-                // 更新全局的sortedProductions变量
-                sortedProductions = getSortedProductions();
-                
-                // 加载隐藏的生产线列表
-                const hiddenProductions = JSON.parse(localStorage.getItem('hiddenProductions') || '[]');
-                
-                // 过滤掉隐藏的生产线
-                const filteredProds = sortedProductions.filter(p => !hiddenProductions.includes(p.name));
-                
-                return {
-                    productions: filteredProds,
-                    today: getLocalDateString(),
-                    timeLogs: gameData.timeLogs || []
-                };
-            }, 60000); // 1分钟缓存
-            
-            const { productions, today, timeLogs } = renderData;
-            
-            console.log('📊 渲染数据:', {
-                productionsCount: productions.length,
-                today: today,
-                timeLogsCount: timeLogs.length
-            });
+            // 过滤掉隐藏的生产线
+            const filteredProds = sortedProductions.filter(p => !hiddenProductions.includes(p.name));
             
             const typeMap = {
                 production: {text: '产线', desc: '需要投入时间换收入'},
@@ -624,105 +428,83 @@ function renderProductions() {
                 habit: {text: '习惯', desc: '日常习惯（已迁移为自动化）'} // 兼容旧数据
             };
             
-            // 使用批量DOM更新优化渲染
-            const updates = productions.map((prod, index) => {
-                return (fragment) => {
-                    const prodElement = document.createElement('div');
-                    prodElement.className = 'production-item';
-                    prodElement.setAttribute('data-sorted-index', index);
-                    prodElement.oncontextmenu = (e) => window.showContextMenu(e, index, 'production');
-                    
-                    // 构建标签
-                    let tags = [];
-                    if (prod.hasActiveIncome) {
-                        if (prod.activeIncome > 0) {
-                            tags.push({ text: `主动收入: ${currencySymbols[prod.activeCurrency]}${prod.activeIncome}`, class: 'tag-active' });
-                        } else {
-                            tags.push({ text: '主动收入', class: 'tag-active' });
-                        }
+            container.innerHTML = filteredProds
+                .map((prod, index) => {
+                let tags = [];
+                if (prod.hasActiveIncome) {
+                    if (prod.activeIncome > 0) {
+                        tags.push({ text: `主动收入: ${currencySymbols[prod.activeCurrency]}${prod.activeIncome}`, class: 'tag-active' });
+                    } else {
+                        tags.push({ text: '主动收入', class: 'tag-active' });
                     }
-                    if (prod.hasPassiveIncome) {
-                        if (prod.passiveIncome > 0) {
-                            tags.push({ text: `被动收入: ${currencySymbols[prod.passiveCurrency]}${prod.passiveIncome}`, class: 'tag-passive' });
-                        } else {
-                            tags.push({ text: '被动收入', class: 'tag-passive' });
-                        }
+                }
+                if (prod.hasPassiveIncome) {
+                    if (prod.passiveIncome > 0) {
+                        tags.push({ text: `被动收入: ${currencySymbols[prod.passiveCurrency]}${prod.passiveIncome}`, class: 'tag-passive' });
+                    } else {
+                        tags.push({ text: '被动收入', class: 'tag-passive' });
                     }
-                    if (prod.expense > 0) {
-                        tags.push({ text: `支出: ${currencySymbols[prod.expenseCurrency]}${prod.expense}`, class: 'tag-expense' });
-                    }
-                    if (typeMap[prod.type]) {
-                        let tagClass = `tag-${prod.type}`;
-                        if (prod.type === 'habit') tagClass = 'tag-automation';
-                        if (prod.type === 'work') tagClass = 'tag-production';
-                        tags.push({ text: typeMap[prod.type].text, class: tagClass });
-                    }
-                    
-                    // 投资信息
-                    let investInfo = '';
-                    if (prod.type==='investment' && prod.investAmount>0 && prod.investCurrent>0 && prod.investDate) {
-                        let start = new Date(prod.investDate);
-                        let now = new Date();
-                        let days = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-                        let profit = prod.investCurrent - prod.investAmount;
-                        let profitPercent = (profit / prod.investAmount * 100).toFixed(2);
-                        let profitColor = profit >= 0 ? '#27ae60' : '#e74c3c';
-                        investInfo = `<div style="font-size: 0.85em; color: ${profitColor}; margin-top: 4px;">
-                            投资${days}天 | 收益: ${profitPercent}% (${profit >= 0 ? '+' : ''}${currencySymbols[prod.investCurrency]}${profit.toFixed(2)})
-                        </div>`;
-                    }
-                    
-                    // 检查今日是否已打卡
-                    const todayLogs = timeLogs.filter(log => 
-                        log.name === prod.name && log.date === today
-                    );
-                    const isCheckedToday = todayLogs.length > 0;
-                    
-                    // 构建HTML
-                    prodElement.innerHTML = `
+                }
+                if (prod.expense > 0) {
+                    tags.push({ text: `支出: ${currencySymbols[prod.expenseCurrency]}${prod.expense}`, class: 'tag-expense' });
+                }
+                if (typeMap[prod.type]) {
+                    let tagClass = `tag-${prod.type}`;
+                    if (prod.type === 'habit') tagClass = 'tag-automation';
+                    if (prod.type === 'work') tagClass = 'tag-production'; // work类型使用production样式
+                    tags.push({ text: typeMap[prod.type].text, class: tagClass });
+                }
+                
+                let investInfo = '';
+                if (prod.type==='investment' && prod.investAmount>0 && prod.investCurrent>0 && prod.investDate) {
+                    let start = new Date(prod.investDate);
+                    let now = new Date();
+                    let days = (now-start)/(1000*60*60*24);
+                    let years = days/365.25;
+                    let rate = (prod.investCurrent-prod.investAmount)/prod.investAmount/years*100;
+                    investInfo = `<div style='color:#bbb;font-size:0.85em;margin-top:4px;'>当前价值：${currencySymbols[prod.investCurrentCurrency]||''}${prod.investCurrent}，年化回报率：${rate.toFixed(2)}%</div>`;
+                }
+                let today = getLocalDateString(); // 修复：使用本地日期而不是UTC日期
+                let todayLogs = (gameData.timeLogs||[]).filter(log=>log.name===prod.name && log.date===today);
+                let totalMins = todayLogs.reduce((sum,log)=>sum+(log.timeCost||0),0);
+                let totalHour = totalMins/60;
+                let timeLabel = '';
+                if (totalMins > 0) {
+                    let hourStr = (Math.round(totalHour*10)/10).toString();
+                    timeLabel = `<span class="tag tag-time" style="background:#e8f5e9;color:#27ae60;">今日累计：${hourStr}小时</span>`;
+                }
+                let canCheckIn = true;
+                if((prod.type==='automation' || prod.type==='habit') && prod.lastCheckIn && new Date().toDateString() === new Date(prod.lastCheckIn).toDateString()) {
+                    canCheckIn = false;
+                }
+                // 恢复原有结构和class，修复按钮HTML
+                return `
+                    <div class="production-item" data-sorted-index="${index}" oncontextmenu="window.showContextMenu(event, ${index}, 'production')">
                         <div class="production-header">
                             <div class="production-name">${prod.name}</div>
+                            <div>
+                                ${(prod.type==='automation' || prod.type==='habit') ? (canCheckIn ? `<button class='check-btn' onclick='window.logProductionTime(${index})'>打卡</button>` : `<span style='color: #27ae60; font-size: 0.85em;'>✓ 已完成</span>`) : ''}
+                            </div>
+                        </div>
+                        ${tags.length > 0 ? `
                             <div class="production-tags">
                                 ${tags.map(tag => `<span class="tag ${tag.class}">${tag.text}</span>`).join('')}
                             </div>
-                        </div>
+                        ` : ''}
+                        ${timeLabel}
                         ${investInfo}
-                        <button class="check-btn ${isCheckedToday ? 'checked' : ''}" 
-                                onclick="checkProduction(${prod._realIndex})"
-                                data-tooltip="${isCheckedToday ? '今日已打卡' : '点击打卡'}"
-                                ${isCheckedToday ? 'disabled' : ''}>
-                            ${isCheckedToday ? '✓' : '打卡'}
-                        </button>
-                    `;
-                    
-                    fragment.appendChild(prodElement);
-                };
-            });
-            
-            console.log('🔨 准备批量更新DOM，更新项数量:', updates.length);
-            
-            // 批量更新DOM
-            if (window.batchDOMUpdate) {
-                window.batchDOMUpdate(container, updates);
-            } else {
-                // 降级到普通渲染
-                console.warn('⚠️ batchDOMUpdate未找到，使用普通渲染');
-                container.innerHTML = '';
-                const fragment = document.createDocumentFragment();
-                updates.forEach(update => update(fragment));
-                container.appendChild(fragment);
-            }
-            
-            // 添加淡入动画
-            container.classList.add('fade-in');
-            setTimeout(() => {
-                container.classList.remove('fade-in');
-            }, 300);
-            
-            console.log('✅ 生产线渲染完成');
-            
+                        ${(() => {
+                            const dev = gameData.developments.find(d => d.researchName === prod.linkedDev);
+                            return dev ? `<div style='font-size:0.85em;color:#bbb;margin-top:4px;'>${dev.action}</div>` : '';
+                        })()}
+                    </div>
+                `;
+            }).join('');
         }, 'renderProductions');
-    }, { type: 'render' });
+    }, { type: 'render', function: 'renderProductions' }, (error) => {
+        console.error('渲染生产线失败:', error);
+        return false;
+    });
 }
 
 // 渲染研发项目
@@ -737,80 +519,60 @@ function renderDevelopments() {
                 return;
             }
             
-            // 使用缓存获取研发项目数据
-            const cacheKey = `developments_${gameData.developments.length}_${Date.now() - (Date.now() % 30000)}`; // 按30秒缓存
-            const developmentsData = window.cache(cacheKey, () => {
-                return gameData.developments.map(dev => {
-                    const progress = calculateProgress(dev);
-                    const percent = Math.min(1, progress.count / progress.total);
-                    const startDate = dev.startDate ? new Date(dev.startDate).toLocaleDateString() : '未开始';
-                    
-                    return {
-                        ...dev,
-                        progress,
-                        percent,
-                        startDate,
-                        tip: [
-                            `研究项目：${dev.researchName}`,
-                            `开始时间：${startDate}`,
-                            `操作定义：${dev.action}`,
-                            `频率：${dev.freq}`,
-                            `周期：${dev.cycle}天`,
-                            `目标：${dev.target}次`,
-                            `当前进度：${progress.count}/${progress.total}`
-                        ].join('\n')
-                    };
-                });
-            }, 30000); // 30秒缓存
-            
-            // 使用批量DOM更新
-            const updates = developmentsData.map((dev, idx) => {
-                return (fragment) => {
-                    const devElement = document.createElement('div');
-                    devElement.className = `dev-item ${dev.active ? 'active' : 'paused'}`;
-                    devElement.title = dev.tip;
-                    
-                    devElement.innerHTML = `
-                        <div class="dev-header">
-                            <div class="dev-name">
+            let html = '';
+            gameData.developments.forEach((dev, idx) => {
+                // 计算进度
+                const progress = calculateProgress(dev);
+                const percent = Math.min(1, progress.count / progress.total);
+                
+                // 格式化tooltip
+                const startDate = dev.startDate ? new Date(dev.startDate).toLocaleDateString() : '未开始';
+                const tip = [
+                    `研究项目：${dev.researchName}`,
+                    `开始时间：${startDate}`,
+                    `操作定义：${dev.action}`,
+                    `频率：${dev.freq}`,
+                    `周期：${dev.cycle}天`,
+                    `目标：${dev.target}次`,
+                    `当前进度：${progress.count}/${progress.total}`
+                ].join('\n');
+                
+                html += `
+                    <div class=\"dev-item ${dev.active ? 'active' : 'paused'}\" title=\"${tip}\">
+                        <div class=\"dev-header\">
+                            <div class=\"dev-name\">
                                 <span>${dev.icon}</span>
                                 <span>${dev.researchName}</span>
                             </div>
-                            <div class="dev-controls">
+                            <div class=\"dev-controls\">
                                 ${dev.active ? 
-                                    `<button class="btn btn-secondary btn-small" onclick="window.pauseDev(${idx})">暂停</button>` : 
-                                    `<button class="btn btn-primary btn-small" onclick="window.resumeDev(${idx})">继续</button>`
+                                    `<button class=\"btn btn-secondary btn-small\" onclick=\"window.pauseDev(${idx})\">暂停</button>` : 
+                                    `<button class=\"btn btn-primary btn-small\" onclick=\"window.resumeDev(${idx})\">继续</button>`
                                 }
-                                <button class="btn btn-danger btn-small" onclick="window.removeDev(${idx})">移除</button>
+                                <button class=\"btn btn-danger btn-small\" onclick=\"window.removeDev(${idx})\">移除</button>
                             </div>
                         </div>
-                        <div class="progress-container">
-                            <div class="progress-info">
+                        <div class=\"progress-container\">
+                            <div class=\"progress-info\">
                                 <span>进度</span>
-                                <span>${dev.progress.count}/${dev.progress.total}次</span>
+                                <span>${progress.count}/${progress.total}次</span>
                             </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${(dev.percent*100).toFixed(1)}%"></div>
+                            <div class=\"progress-bar\">
+                                <div class=\"progress-fill\" style=\"width: ${(percent*100).toFixed(1)}%\"></div>
                             </div>
-                            <div style="margin-top: 8px; font-size: 0.85em; color: #666;">${dev.action}</div>
+                            <div style=\"margin-top: 8px; font-size: 0.85em; color: #666;\">${dev.action}</div>
                         </div>
-                        <div style="margin-top: 8px; font-size: 0.85em; color: #888;">
+                        <div style=\"margin-top: 8px; font-size: 0.85em; color: #888;\">
                             频率：${dev.freq}
                         </div>
                         ${dev.startDate ? 
-                            `<div style="margin-top: 4px; font-size: 0.85em; color: #666;">开始于：${dev.startDate}</div>` : 
+                            `<div style=\"margin-top: 4px; font-size: 0.85em; color: #666;\">开始于：${new Date(dev.startDate).toLocaleDateString()}</div>` : 
                             ''
                         }
-                    `;
-                    
-                    fragment.appendChild(devElement);
-                };
+                    </div>
+                `;
             });
-            
-            // 清空容器并使用批量更新
-            container.innerHTML = '';
-            window.performanceOptimizer.batchDOMUpdates(container, updates);
-            
+            container.innerHTML = html;
         }, 'renderDevelopments');
     }, { type: 'render', function: 'renderDevelopments' }, (error) => {
         console.error('渲染研发项目失败:', error);
@@ -1194,41 +956,8 @@ window.editSavings = function() {
 }
 
 window.editEstimatedExpense = function() {
-    const currentExpense = gameData.finance.estimatedMonthlyExpense || 0;
-    const currentCurrency = gameData.finance.estimatedExpenseCurrency || 'CNY';
-    
-    showCustomModal({
-        title: '设置预计月支出',
-        content: `
-            <div class='form-group'>
-                <label class='form-label'>预计月支出金额</label>
-                <input type='number' id='estimated-expense-amount' class='form-input' value='${currentExpense}' placeholder='0'>
-            </div>
-            <div class='form-group'>
-                <label class='form-label'>货币</label>
-                <select id='estimated-expense-currency' class='form-select'>
-                    <option value='CNY' ${currentCurrency === 'CNY' ? 'selected' : ''}>人民币 ¥</option>
-                    <option value='AUD' ${currentCurrency === 'AUD' ? 'selected' : ''}>澳元 A$</option>
-                    <option value='USD' ${currentCurrency === 'USD' ? 'selected' : ''}>美元 $</option>
-                    <option value='EUR' ${currentCurrency === 'EUR' ? 'selected' : ''}>欧元 €</option>
-                </select>
-            </div>
-            <div style='font-size:0.9em;color:#666;margin-top:10px;'>
-                用于与实际月支出进行对比，帮助你了解预算执行情况
-            </div>
-        `,
-        onConfirm: () => {
-            const amount = parseFloat(document.getElementById('estimated-expense-amount').value) || 0;
-            const currency = document.getElementById('estimated-expense-currency').value;
-            
-            gameData.finance.estimatedMonthlyExpense = amount;
-            gameData.finance.estimatedExpenseCurrency = currency;
-            
-            renderResourceStats();
-            saveToCloud();
-            return true;
-        }
-    });
+    // 此函数已删除，预计月支出现在自动计算
+    console.log('预计月支出现在自动计算，无需手动设置');
 }
 
 window.showTodayTimeDetails = function() {
@@ -1542,16 +1271,9 @@ function updateResearchStatus() {
 }
 
 function saveProduction() {
-    return saveWithFeedback(() => {
-        const productionName = document.getElementById('prod-name').value.trim();
+    return window.ErrorUtils.safeExecute(() => {
         const type = document.getElementById('prod-type').value;
-        
-        if (!productionName) {
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification('请输入生产线名称', 'warning', 3000);
-            }
-            return false;
-        }
+        const productionName = document.getElementById('prod-name').value.trim();
         
         // 构建生产数据对象
         const productionData = {
@@ -1621,15 +1343,11 @@ function saveProduction() {
         }
 
         closeModal('production-modal');
-        
-        // 使用增强的渲染函数
-        renderWithLoading(() => {
-            renderProductions();
-            renderResourceStats();
-            renderDevelopments();
-            renderDevLibrary();
-            renderWeekCalendar();
-        }, document.getElementById('productions-list'), 'render-after-save', '更新界面中...');
+        renderProductions();
+        renderResourceStats();
+        renderDevelopments();
+        renderDevLibrary();
+        renderWeekCalendar();
         
         // 安全保存到云端
         window.ErrorUtils.safeExecuteAsync(
@@ -1637,14 +1355,15 @@ function saveProduction() {
             { type: 'data-save', operation: 'saveProduction' },
             (error) => {
                 console.error('保存到云端失败:', error);
-                if (window.ErrorUtils) {
-                    window.ErrorUtils.showNotification('数据已保存到本地，但云端同步失败', 'warning', 5000);
-                }
+                window.showError('数据已保存到本地，但云端同步失败', 'warning');
             }
         );
 
         return true;
-    }, currentEditIndex >= 0 ? '生产线更新成功' : '生产线添加成功');
+    }, { type: 'production-save' }, (error) => {
+        window.showError('保存生产线失败，请重试', 'error');
+        return false;
+    });
 }
 
 window.saveToFile = function() {
@@ -1891,172 +1610,120 @@ window.addEventListener('DOMContentLoaded',function(){
 
 // 新增：渲染资源数据统计面板
 function renderResourceStats() {
-    return window.ErrorUtils.safeExecute(() => {
-        return window.measurePerformance(() => {
-            const container = document.getElementById('resource-stats');
-            if (!container) return;
-            
-            // 使用缓存获取资源统计数据
-            const cacheKey = `resourceStats_${gameData.productions.length}_${gameData.timeLogs.length}_${Date.now() - (Date.now() % 30000)}`; // 按30秒缓存
-            const statsData = window.cache(cacheKey, () => {
-                let totalActive = 0, totalPassive = 0, totalExpense = 0;
-                let activeBreakdown = [], passiveBreakdown = [], expenseBreakdown = [];
-                let activeIncomesByCurrency = {}, passiveIncomesByCurrency = {}, expensesByCurrency = {};
-                
-                // 批量处理生产线数据
-                (gameData.productions || []).forEach(prod => {
-                    if (prod.hasActiveIncome && prod.activeIncome > 0) {
-                        if (!activeIncomesByCurrency[prod.activeCurrency]) activeIncomesByCurrency[prod.activeCurrency] = 0;
-                        activeIncomesByCurrency[prod.activeCurrency] += prod.activeIncome;
-                    }
-                    if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
-                        if (!passiveIncomesByCurrency[prod.passiveCurrency]) passiveIncomesByCurrency[prod.passiveCurrency] = 0;
-                        passiveIncomesByCurrency[prod.passiveCurrency] += prod.passiveIncome;
-                    }
-                    if (prod.expense > 0) {
-                        if (!expensesByCurrency[prod.expenseCurrency]) expensesByCurrency[prod.expenseCurrency] = 0;
-                        expensesByCurrency[prod.expenseCurrency] += prod.expense;
-                    }
-                });
-                
-                // 计算各币种总额
-                Object.entries(activeIncomesByCurrency).forEach(([currency, amount]) => {
-                    totalActive += convertToCNY(amount, currency);
-                    activeBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-                });
-                Object.entries(passiveIncomesByCurrency).forEach(([currency, amount]) => {
-                    totalPassive += convertToCNY(amount, currency);
-                    passiveBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-                });
-                Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
-                    totalExpense += convertToCNY(amount, currency);
-                    expenseBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-                });
-                
-                // 计算今日用时
-                let today = getLocalDateString();
-                let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
-                    let timeCost = log.timeCost || 0;
-                    if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
-                        timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
-                    }
-                    return sum + Math.max(0, timeCost);
-                }, 0);
-                
-                // 获取月支出数据
-                const monthlyTotal = getMonthlyExpenseTotalMerged();
-                const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
-                
-                // 预计月支出
-                const estimatedExpense = gameData.finance.estimatedMonthlyExpense || 0;
-                const estimatedCurrency = gameData.finance.estimatedExpenseCurrency || 'CNY';
-                const estimatedInCNY = convertToCNY(estimatedExpense, estimatedCurrency);
-                
-                return {
-                    totalActive,
-                    totalPassive,
-                    totalExpense,
-                    activeBreakdown,
-                    passiveBreakdown,
-                    expenseBreakdown,
-                    todayActiveMins,
-                    monthlyTotal,
-                    monthlyExpenseDetails,
-                    estimatedInCNY
-                };
-            }, 30000); // 30秒缓存
-            
-            const {
-                totalActive,
-                totalPassive,
-                totalExpense,
-                activeBreakdown,
-                passiveBreakdown,
-                expenseBreakdown,
-                todayActiveMins,
-                monthlyTotal,
-                monthlyExpenseDetails,
-                estimatedInCNY
-            } = statsData;
-            
-            // 构建HTML
-            let savings = gameData.finance.totalSavings;
-            let savingsCurrency = gameData.finance.savingsCurrency;
-            let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
-            let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
-            
-            // 计算支出差额
-            const difference = monthlyTotal - estimatedInCNY;
-            const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
-            const diffSymbol = difference > 0 ? '+' : '';
-            
-            // 构建支出明细
-            const allExpenseDetails = [];
-            if (expenseBreakdown.length) allExpenseDetails.push(...expenseBreakdown);
-            if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
-            
-            // 使用DocumentFragment优化DOM操作
-            const fragment = document.createDocumentFragment();
-            const tempDiv = document.createElement('div');
-            
-            tempDiv.innerHTML = `
-                <div class='resource-stats-section'>
-                    <div class='resource-label'>累计存款
-                        <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
-                    </div>
-                    <div class='resource-main-value'>${savingsStr}</div>
-                    <div class='resource-sub'>${savingsUpdate}</div>
-                </div>
-                <div class='resource-divider'></div>
-                <div class='resource-stats-section'>
-                    <div class='resource-label'>今天主动用时 
-                        <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
-                    </div>
-                    <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
-                </div>
-                <div class='resource-divider'></div>
-                <div class='resource-row'>
-                    <span class='resource-label'>主动收入</span>
-                    <span class='resource-main-value' style='font-size:1.2em;color:#2980b9;'>¥${Math.round(totalActive).toLocaleString()}</span>
-                </div>
-                ${activeBreakdown.length ? `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${activeBreakdown.join(' + ')})</div>` : ''}
-                <div class='resource-row'>
-                    <span class='resource-label'>被动收入</span>
-                    <span class='resource-main-value' style='font-size:1.2em;color:#16a085;'>¥${Math.round(totalPassive).toLocaleString()}</span>
-                </div>
-                ${passiveBreakdown.length ? `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${passiveBreakdown.join(' + ')})</div>` : ''}
-                <div class='resource-divider'></div>
-                <div class='resource-row'>
-                    <span class='resource-label'>预计月支出
-                        <button class='resource-btn-edit' onclick='window.editEstimatedExpense()'>✏️</button>
-                    </span>
-                    <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedInCNY).toLocaleString()}</span>
-                </div>
-                <div class='resource-row'>
-                    <span class='resource-label'>实际月支出</span>
-                    <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(monthlyTotal).toLocaleString()}</span>
-                </div>
-                ${estimatedInCNY > 0 ? `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
-                    差额：${diffSymbol}¥${Math.abs(Math.round(difference)).toLocaleString()} 
-                    (${difference > 0 ? '超支' : difference < 0 ? '节省' : '无差异'})
-                </div>` : ''}
-                ${allExpenseDetails.length ? `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>` : ''}
-            `;
-            
-            // 将内容移动到fragment
-            while (tempDiv.firstChild) {
-                fragment.appendChild(tempDiv.firstChild);
+        const container = document.getElementById('resource-stats');
+        if (!container) return;
+        let totalActive = 0, totalPassive = 0, totalExpense = 0;
+        let activeBreakdown = [], passiveBreakdown = [], expenseBreakdown = [];
+        let activeIncomesByCurrency = {}, passiveIncomesByCurrency = {}, expensesByCurrency = {};
+        (gameData.productions || []).forEach(prod => {
+            if (prod.hasActiveIncome && prod.activeIncome > 0) {
+                if (!activeIncomesByCurrency[prod.activeCurrency]) activeIncomesByCurrency[prod.activeCurrency] = 0;
+                activeIncomesByCurrency[prod.activeCurrency] += prod.activeIncome;
             }
-            
-            // 一次性更新DOM
-            container.innerHTML = '';
-            container.appendChild(fragment);
-            
-        }, 'renderResourceStats');
-    }, { type: 'render', function: 'renderResourceStats' }, (error) => {
-        console.error('渲染资源统计失败:', error);
-        return false;
-    });
+            if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
+                if (!passiveIncomesByCurrency[prod.passiveCurrency]) passiveIncomesByCurrency[prod.passiveCurrency] = 0;
+                passiveIncomesByCurrency[prod.passiveCurrency] += prod.passiveIncome;
+            }
+            if (prod.expense > 0) {
+                if (!expensesByCurrency[prod.expenseCurrency]) expensesByCurrency[prod.expenseCurrency] = 0;
+                expensesByCurrency[prod.expenseCurrency] += prod.expense;
+            }
+        });
+        Object.entries(activeIncomesByCurrency).forEach(([currency, amount]) => {
+            totalActive += convertToCNY(amount, currency);
+            activeBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+        });
+        Object.entries(passiveIncomesByCurrency).forEach(([currency, amount]) => {
+            totalPassive += convertToCNY(amount, currency);
+            passiveBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+        });
+        Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
+            totalExpense += convertToCNY(amount, currency);
+            expenseBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+        });
+        let savings = gameData.finance.totalSavings;
+        let savingsCurrency = gameData.finance.savingsCurrency;
+        let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
+        let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
+        let today = getLocalDateString(); // 修复：使用本地日期
+        let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
+            // 确保时间成本为正值，如果timeCost异常则重新计算
+            let timeCost = log.timeCost || 0;
+            if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
+                timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
+            }
+            return sum + Math.max(0, timeCost); // 确保不会是负数
+        }, 0);
+    let html = '';
+        html += `<div class='resource-stats-section'>
+            <div class='resource-label'>累计存款
+                <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
+            </div>
+            <div class='resource-main-value'>${savingsStr}</div>
+            <div class='resource-sub'>${savingsUpdate}</div>
+        </div>`;
+        html += `<div class='resource-divider'></div>`;
+        html += `<div class='resource-stats-section'>
+            <div class='resource-label'>今天主动用时 
+                <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
+            </div>
+            <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
+        </div>`;
+        html += `<div class='resource-divider'></div>`;
+        html += `<div class='resource-row'>
+            <span class='resource-label'>主动收入</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#2980b9;'>¥${Math.round(totalActive).toLocaleString()}</span>
+        </div>`;
+        if (activeBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${activeBreakdown.join(' + ')})</div>`;
+        
+        html += `<div class='resource-row'>
+            <span class='resource-label'>被动收入</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#16a085;'>¥${Math.round(totalPassive).toLocaleString()}</span>
+        </div>`;
+        if (passiveBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${passiveBreakdown.join(' + ')})</div>`;
+        
+        html += `<div class='resource-divider'></div>`;
+        // 使用合并的月支出统计（包括生产线支出和支出面板的支出）
+        const monthlyTotal = getMonthlyExpenseTotalMerged();
+        const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
+        
+        // 预计月支出（自动计算，基于支出管理面板数据）
+        const estimatedExpense = getEstimatedMonthlyExpense();
+        const estimatedExpenseDetails = getEstimatedExpenseBreakdown();
+        
+        html += `<div class='resource-row'>
+            <span class='resource-label'>预计月支出</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedExpense).toLocaleString()}</span>
+        </div>`;
+        
+        // 显示预计支出明细
+        if (estimatedExpenseDetails.length) {
+            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:#95a5a6;'>(${estimatedExpenseDetails.join(' + ')})</div>`;
+        }
+        
+        // 实际月支出与对比
+        const difference = monthlyTotal - estimatedExpense;
+        const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
+        const diffSymbol = difference > 0 ? '+' : '';
+        
+        html += `<div class='resource-row'>
+            <span class='resource-label'>实际月支出</span>
+            <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(monthlyTotal).toLocaleString()}</span>
+        </div>`;
+        
+        if (estimatedExpense > 0) {
+            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
+                差额：${diffSymbol}¥${Math.abs(Math.round(difference)).toLocaleString()} 
+                (${difference > 0 ? '超支' : difference < 0 ? '节省' : '无差异'})
+            </div>`;
+        }
+        
+        // 支出明细紧挨着实际月支出
+        const allExpenseDetails = [];
+        if (expenseBreakdown.length) allExpenseDetails.push(...expenseBreakdown);
+        if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
+        if (allExpenseDetails.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>`;
+        container.innerHTML = html;
 }
 
 // 清除用时记录
@@ -2206,120 +1873,60 @@ function syncResearchProductions() {
 
 // 记录生产线用时（修正版，索引与进度同步修复）
 window.logProductionTime = function(sortedIndex) {
-    return window.ErrorUtils.safeExecute(() => {
-        // 添加错误检查
-        if (!sortedProductions || sortedProductions.length === 0) {
-            console.error('sortedProductions数组为空或未初始化');
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification('生产线数据未加载，请刷新页面', 'error', 3000);
-            }
-            return;
-        }
-        
-        if (sortedIndex < 0 || sortedIndex >= sortedProductions.length) {
-            console.error('无效的sortedIndex:', sortedIndex, '数组长度:', sortedProductions.length);
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification('生产线索引错误', 'error', 3000);
-            }
-            return;
-        }
-        
-        const prod = sortedProductions[sortedIndex];
-        if (!prod) {
-            console.error('在索引', sortedIndex, '处找不到生产线');
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification('找不到生产线数据', 'error', 3000);
-            }
-            return;
-        }
-        
-        if (prod._realIndex === undefined || prod._realIndex < 0 || prod._realIndex >= gameData.productions.length) {
-            console.error('无效的_realIndex:', prod._realIndex, '生产线数组长度:', gameData.productions.length);
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification('生产线数据索引错误', 'error', 3000);
-            }
-            return;
-        }
-        
-        const realProd = gameData.productions[prod._realIndex];
-        if (!realProd) {
-            console.error('在真实索引', prod._realIndex, '处找不到生产线');
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification('生产线数据不存在', 'error', 3000);
-            }
-            return;
-        }
-        
-        // 检查今日是否已打卡
-        const today = new Date().toISOString().slice(0, 10);
-        const todayLogs = (gameData.timeLogs || []).filter(log => 
-            log.name === realProd.name && log.date === today
-        );
-        
-        if (todayLogs.length > 0) {
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification('今日已打卡，无需重复操作', 'info', 2000);
-            }
-            return;
-        }
-        
-        // 快速打卡，记录30分钟
-        const now = new Date();
-        const endH = now.getHours(), endM = now.getMinutes();
-        const start = new Date(now.getTime() - 30*60000);
-        const startH = start.getHours(), startM = start.getMinutes();
-        const weekDay = (now.getDay()+6)%7;
-        const timeLog = {
-            name: realProd.name,
-            type: realProd.type,
-            date: today,
-            weekDay: weekDay,
-            hour: startH,
-            minute: startM,
-            timeCost: 30,
-            endHour: endH,
-            endMinute: endM
-        };
-        
-        gameData.timeLogs.push(timeLog);
-        realProd.lastCheckIn = now.toISOString();
-        
-        // 显示成功反馈
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showNotification(`${realProd.name} 打卡成功！`, 'success', 2000);
-            
-            // 添加成功动画到按钮
-            const button = event?.target;
-            if (button && button.classList.contains('check-btn')) {
-                window.ErrorUtils.addSuccessAnimation(button);
-            }
-        }
-        
-        // 使用增强的渲染函数
-        renderWithLoading(() => {
-            renderProductions();
-            renderDevelopments();
-            renderWeekCalendar();
-            renderResourceStats();
-        }, document.getElementById('productions-list'), 'render-after-check', '更新界面中...');
-        
-        // 保存到云端
-        window.ErrorUtils.safeExecuteAsync(
-            () => saveToCloud(),
-            { type: 'data-save', operation: 'logProductionTime' },
-            (error) => {
-                console.error('保存到云端失败:', error);
-                if (window.ErrorUtils) {
-                    window.ErrorUtils.showNotification('数据已保存到本地，但云端同步失败', 'warning', 3000);
-                }
-            }
-        );
-        
-    }, { type: 'production-check' });
-};
-
-// 添加checkProduction函数作为logProductionTime的别名
-window.checkProduction = window.logProductionTime;
+    // 添加错误检查
+    if (!sortedProductions || sortedProductions.length === 0) {
+        console.error('sortedProductions数组为空或未初始化');
+        return;
+    }
+    
+    if (sortedIndex < 0 || sortedIndex >= sortedProductions.length) {
+        console.error('无效的sortedIndex:', sortedIndex, '数组长度:', sortedProductions.length);
+        return;
+    }
+    
+    const prod = sortedProductions[sortedIndex];
+    if (!prod) {
+        console.error('在索引', sortedIndex, '处找不到生产线');
+        return;
+    }
+    
+    if (prod._realIndex === undefined || prod._realIndex < 0 || prod._realIndex >= gameData.productions.length) {
+        console.error('无效的_realIndex:', prod._realIndex, '生产线数组长度:', gameData.productions.length);
+        return;
+    }
+    
+    const realProd = gameData.productions[prod._realIndex];
+    if (!realProd) {
+        console.error('在真实索引', prod._realIndex, '处找不到生产线');
+        return;
+    }
+    
+    // 快速打卡，记录30分钟
+    const now = new Date();
+    const endH = now.getHours(), endM = now.getMinutes();
+    const start = new Date(now.getTime() - 30*60000);
+    const startH = start.getHours(), startM = start.getMinutes();
+    const today = now.toISOString().slice(0,10);
+    const weekDay = (now.getDay()+6)%7;
+    const timeLog = {
+        name: realProd.name,
+        type: realProd.type,
+        date: today,
+        weekDay: weekDay,
+        hour: startH,
+        minute: startM,
+        timeCost: 30,
+        endHour: endH,
+        endMinute: endM
+    };
+    gameData.timeLogs.push(timeLog);
+    realProd.lastCheckIn = now.toISOString();
+    saveToCloud();
+    renderProductions();
+    renderDevelopments();
+    renderWeekCalendar();
+    renderResourceStats();
+}
 
 // 2. 修复数据关联
 function fixDataLinks() {
@@ -2372,230 +1979,97 @@ async function saveToBoundFile() {
 
 // 云端登录并监听
 function firebaseLoginAndSync() {
-    console.log('[云同步] 开始Firebase登录...');
-    
-    // 根据移动端网络状况调整超时时间
-    const timeoutMultiplier = window.MOBILE_TIMEOUT_MULTIPLIER || 1;
-    const loginTimeoutMs = 10000 * timeoutMultiplier;
-    
-    // 添加超时处理
-    const loginTimeout = setTimeout(() => {
-        console.warn('[云同步] Firebase登录超时，切换到本地模式');
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showNotification('云端连接超时，使用本地模式', 'warning', 5000);
-        }
-        updateSyncStatus('离线', new Date().toLocaleTimeString());
-        
-        // 移动端特殊处理
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            console.log('[移动端] 登录超时，显示连接提示');
-            showMobileConnectionTip('连接超时');
-        }
-    }, loginTimeoutMs);
-    
-    auth.signInAnonymously()
-        .then(() => {
-            clearTimeout(loginTimeout);
-            console.log('[云同步] Firebase匿名登录成功');
-            listenCloudData();
-        })
-        .catch(error => {
-            clearTimeout(loginTimeout);
-            console.error('[云同步] Firebase登录失败:', error);
-            
-            // 根据错误类型提供不同的处理
-            let errorMessage = '云端连接失败，切换到本地模式';
-            let shouldShowMobileTip = false;
-            
-            if (error.code === 'auth/network-request-failed') {
-                errorMessage = '网络连接失败，请检查网络设置';
-                shouldShowMobileTip = true;
-            } else if (error.code === 'auth/too-many-requests') {
-                errorMessage = '请求过于频繁，请稍后重试';
-            } else if (error.code === 'auth/operation-not-allowed') {
-                errorMessage = '匿名登录功能未启用';
-            } else if (error.code === 'auth/invalid-api-key') {
-                errorMessage = 'API密钥无效';
-            }
-            
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification(errorMessage, 'error', 5000);
-            }
-            updateSyncStatus('连接失败', new Date().toLocaleTimeString());
-            
-            // 移动端特殊处理
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            if (isMobile && shouldShowMobileTip) {
-                console.log('[移动端] 登录失败，显示连接提示');
-                showMobileConnectionTip('网络连接失败');
-            }
-        });
+    auth.signInAnonymously().then(() => {
+        listenCloudData();
+    });
 }
 
 // 监听云端数据变化
 function listenCloudData() {
-    if (!familyCode) {
-        console.warn('[云同步] 未设置家庭码，无法监听云端数据');
-        return;
-    }
-    
-    if (firebaseUnsubscribe) {
-        firebaseUnsubscribe();
-    }
-    
+    if (!familyCode) return;
+    if (firebaseUnsubscribe) firebaseUnsubscribe();
     isCloudLoading = true;
-    console.log('[云同步] 开始监听云端数据变化，家庭码:', familyCode);
-    
-    // 根据移动端网络状况调整超时时间
-    const timeoutMultiplier = window.MOBILE_TIMEOUT_MULTIPLIER || 1;
-    const listenTimeoutMs = 15000 * timeoutMultiplier;
-    
-    // 添加监听超时处理
-    const listenTimeout = setTimeout(() => {
-        console.warn('[云同步] 监听超时，尝试重新连接');
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showNotification('云端监听超时，尝试重新连接', 'warning', 3000);
-        }
-        // 重试监听
-        setTimeout(() => {
-            if (isCloudLoading) {
-                listenCloudData();
-            }
-        }, 2000 * timeoutMultiplier);
-    }, listenTimeoutMs);
+    console.log('[云同步] 开始监听云端数据变化');
     
     firebaseUnsubscribe = db.collection('groups').doc(familyCode)
-        .onSnapshot(
-            doc => {
-                clearTimeout(listenTimeout);
-                isCloudLoading = false;
+        .onSnapshot(doc => {
+            isCloudLoading = false;
+            if (doc.exists && doc.data().gameData) {
+                console.log('[云同步] 收到云端数据更新');
                 
-                if (doc.exists && doc.data().gameData) {
-                    console.log('[云同步] 收到云端数据更新');
-                    
-                    // 保存旧数据用于比较
-                    const oldExpenses = gameData.expenses ? [...gameData.expenses] : [];
-                    const oldTimeLogs = gameData.timeLogs ? [...gameData.timeLogs] : [];
-                    
-                    // 更新数据
-                    gameData = migrateData(doc.data().gameData);
-                    lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
-                    
-                    // 防御性初始化
-                    if (!Array.isArray(gameData.expenses)) {
-                        console.log('[云同步] 初始化expenses数组');
-                        gameData.expenses = [];
-                    }
-                    if (!Array.isArray(gameData.timeLogs)) {
-                        console.log('[云同步] 初始化timeLogs数组');
-                        gameData.timeLogs = [];
-                    }
-                    
-                    // 检查数据是否有变化
-                    const expensesChanged = JSON.stringify(oldExpenses) !== JSON.stringify(gameData.expenses);
-                    const timeLogsChanged = JSON.stringify(oldTimeLogs) !== JSON.stringify(gameData.timeLogs);
-                    
-                    // 云端数据加载后重新检查每日重置
-                    checkDailyReset();
-                    fixDataLinks();
-                    
-                    // 更新界面
-                    renderProductions();
-                    renderDevelopments();
-                    renderMilestones();
-                    renderDevLibrary();
-                    renderResourceStats();
-                    renderWeekCalendar();
-                    
-                    // 如果支出数据有变化，重新渲染支出面板
-                    if (expensesChanged) {
-                        console.log('[云同步] 支出数据已更新，重新渲染支出面板');
-                        renderExpenses();
-                    }
-                    
-                    cloudInitDone = true;
-                    updateSyncStatus('已同步', new Date().toLocaleTimeString());
-                    console.log('[云同步] 数据更新完成');
-                    
-                } else if (!cloudInitDone) {
-                    console.log('[云同步] 未找到云端数据，执行首次保存');
-                    saveToCloud();
-                    cloudInitDone = true;
+                // 保存旧数据用于比较
+                const oldExpenses = gameData.expenses ? [...gameData.expenses] : [];
+                const oldTimeLogs = gameData.timeLogs ? [...gameData.timeLogs] : [];
+                
+                // 更新数据
+                gameData = migrateData(doc.data().gameData);
+                lastDailyReset = doc.data().lastDailyReset || lastDailyReset;
+                
+                // 防御性初始化
+                if (!Array.isArray(gameData.expenses)) {
+                    console.log('[云同步] 初始化expenses数组');
+                    gameData.expenses = [];
                 }
-                isCloudReady = true;
-            },
-            error => {
-                clearTimeout(listenTimeout);
-                console.error('[云同步] 监听错误:', error);
-                isCloudLoading = false;
-                
-                // 根据错误类型提供不同的处理
-                let errorMessage = '云端数据监听失败，切换到本地模式';
-                let shouldRetry = false;
-                
-                if (error.code === 'permission-denied') {
-                    errorMessage = '权限不足，请检查家庭码是否正确';
-                } else if (error.code === 'unavailable') {
-                    errorMessage = '云端服务暂时不可用，请稍后重试';
-                    shouldRetry = true;
-                } else if (error.code === 'network-request-failed') {
-                    errorMessage = '网络连接失败，请检查网络设置';
-                    shouldRetry = true;
+                if (!Array.isArray(gameData.timeLogs)) {
+                    console.log('[云同步] 初始化timeLogs数组');
+                    gameData.timeLogs = [];
                 }
                 
-                updateSyncStatus('监听失败', new Date().toLocaleTimeString());
+                // 检查数据是否有变化
+                const expensesChanged = JSON.stringify(oldExpenses) !== JSON.stringify(gameData.expenses);
+                const timeLogsChanged = JSON.stringify(oldTimeLogs) !== JSON.stringify(gameData.timeLogs);
                 
-                if (window.ErrorUtils) {
-                    window.ErrorUtils.showNotification(errorMessage, 'error', 5000);
+                // 云端数据加载后重新检查每日重置
+                checkDailyReset();
+                fixDataLinks();
+                
+                // 更新界面
+                renderProductions();
+                renderDevelopments();
+                renderMilestones();
+                renderDevLibrary();
+                renderResourceStats();
+                renderWeekCalendar();
+                
+                // 如果支出数据有变化，重新渲染支出面板
+                if (expensesChanged) {
+                    console.log('[云同步] 支出数据已更新，重新渲染支出面板');
+                    renderExpenses();
                 }
                 
-                // 如果是网络相关错误，尝试重试
-                if (shouldRetry) {
-                    const retryDelay = 5000 * (window.MOBILE_TIMEOUT_MULTIPLIER || 1);
-                    console.log('[云同步] 准备重试监听...');
-                    setTimeout(() => {
-                        if (!isCloudReady) {
-                            listenCloudData();
-                        }
-                    }, retryDelay);
-                }
+                cloudInitDone = true;
+                updateSyncStatus('已同步', new Date().toLocaleTimeString());
+                console.log('[云同步] 数据更新完成');
+                
+            } else if (!cloudInitDone) {
+                console.log('[云同步] 未找到云端数据，执行首次保存');
+                saveToCloud();
+                cloudInitDone = true;
             }
-        );
+            isCloudReady = true;
+        }, error => {
+            console.error('[云同步] 监听错误:', error);
+            isCloudLoading = false;
+            updateSyncStatus('监听失败', new Date().toLocaleTimeString());
+            alert('云端数据监听失败，切换到本地模式');
+        });
 }
 
 // 保存到云端
-function saveToCloud(retryCount = 0) {
+function saveToCloud() {
     return window.ErrorUtils.safeExecuteAsync(async () => {
         if (!familyCode || !isCloudReady || isCloudSaving) {
             console.warn('[云同步] 无法保存：', {
                 hasFamilyCode: !!familyCode,
                 isCloudReady,
-                isCloudSaving,
-                retryCount
+                isCloudSaving
             });
-            
-            if (!familyCode) {
-                if (window.ErrorUtils) {
-                    window.ErrorUtils.showNotification('请先设置家庭码', 'warning', 3000);
-                }
-            } else if (!isCloudReady) {
-                if (window.ErrorUtils) {
-                    window.ErrorUtils.showNotification('云端连接未就绪', 'warning', 3000);
-                }
-            }
-            
             return false;
         }
         
         isCloudSaving = true;
-        console.log('[云同步] 开始保存数据，重试次数:', retryCount);
+        console.log('[云同步] 开始保存数据');
         updateSyncStatus('同步中');
-        
-        // 显示保存加载状态
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showLoading('cloud-save', '正在同步到云端...', false);
-        }
         
         // 防御性检查和初始化
         if (!Array.isArray(gameData.expenses)) {
@@ -2607,129 +2081,65 @@ function saveToCloud(retryCount = 0) {
             gameData.timeLogs = [];
         }
         
-        // 使用缓存进行数据验证，避免重复验证
-        const validationCacheKey = `validation_${JSON.stringify(gameData.expenses).length}_${JSON.stringify(gameData.timeLogs).length}`;
-        const validationResult = window.cache(validationCacheKey, () => {
-            let dataValid = true;
-            let validationErrors = [];
-            
-            // 验证支出数据
-            if (gameData.expenses) {
-                gameData.expenses.forEach((exp, idx) => {
-                    const result = window.validateData(exp, 'expense');
-                    if (!result.isValid) {
-                        console.error(`[云同步] 支出数据验证失败 [${idx}]:`, exp, result.errors);
-                        dataValid = false;
-                        validationErrors.push(`支出记录 #${idx+1}: ${result.errors.join(', ')}`);
-                    }
-                });
-            }
-            
-            // 验证时间记录
-            if (gameData.timeLogs) {
-                gameData.timeLogs.forEach((log, idx) => {
-                    const result = window.validateData(log, 'timeLog');
-                    if (!result.isValid) {
-                        console.error(`[云同步] 时间记录验证失败 [${idx}]:`, log, result.errors);
-                        dataValid = false;
-                        validationErrors.push(`时间记录 #${idx+1}: ${result.errors.join(', ')}`);
-                    }
-                });
-            }
-            
-            return { dataValid, validationErrors };
-        }, 5000); // 5秒缓存验证结果
+        // 数据验证
+        let dataValid = true;
+        let validationErrors = [];
         
-        if (!validationResult.dataValid) {
-            console.error('[云同步] 数据验证失败:', validationResult.validationErrors);
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification('数据验证失败，请检查数据格式', 'error', 5000);
-            }
+        // 验证支出数据
+        if (gameData.expenses) {
+            gameData.expenses.forEach((exp, idx) => {
+                const validationResult = window.validateData(exp, 'expense');
+                if (!validationResult.isValid) {
+                    console.error(`[云同步] 支出数据验证失败 [${idx}]:`, exp, validationResult.errors);
+                    dataValid = false;
+                    validationErrors.push(`支出记录 #${idx+1}: ${validationResult.errors.join(', ')}`);
+                }
+            });
+        }
+        
+        // 验证时间记录
+        if (gameData.timeLogs) {
+            gameData.timeLogs.forEach((log, idx) => {
+                const validationResult = window.validateData(log, 'timeLog');
+                if (!validationResult.isValid) {
+                    console.error(`[云同步] 时间记录验证失败 [${idx}]:`, log, validationResult.errors);
+                    dataValid = false;
+                    validationErrors.push(`时间记录 #${idx+1}: ${validationResult.errors.join(', ')}`);
+                }
+            });
+        }
+        
+        if (!dataValid) {
+            console.error('[云同步] 数据验证失败:', validationErrors);
+            window.showError('数据验证失败：\n' + validationErrors.join('\n'), 'warning');
             isCloudSaving = false;
-            if (window.ErrorUtils) {
-                window.ErrorUtils.hideLoading('cloud-save');
-            }
             return false;
         }
         
-        try {
-            // 根据移动端网络状况调整超时时间
-            const timeoutMultiplier = window.MOBILE_TIMEOUT_MULTIPLIER || 1;
-            const saveTimeoutMs = 30000 * timeoutMultiplier;
-            
-            // 添加保存超时处理
-            const saveTimeout = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('保存超时')), saveTimeoutMs);
-            });
-            
-            // 保存数据
-            const savePromise = db.collection('groups').doc(familyCode).set({
-                gameData: gameData,
-                lastDailyReset: lastDailyReset,
-                saveTime: new Date().toISOString()
-            });
-            
-            await Promise.race([savePromise, saveTimeout]);
-            
-            console.log('[云同步] 数据保存成功');
-            isCloudSaving = false;
-            updateSyncStatus('已同步', new Date().toLocaleTimeString());
-            
-            // 隐藏加载状态
-            if (window.ErrorUtils) {
-                window.ErrorUtils.hideLoading('cloud-save');
-                window.ErrorUtils.showNotification('云端同步成功', 'success', 3000);
-            }
-            
-            return true;
-            
-        } catch (error) {
-            console.error('[云同步] 保存失败:', error);
-            isCloudSaving = false;
-            
-            // 隐藏加载状态
-            if (window.ErrorUtils) {
-                window.ErrorUtils.hideLoading('cloud-save');
-            }
-            
-            // 根据错误类型决定是否重试
-            let errorMessage = '云端保存失败';
-            let shouldRetry = false;
-            let retryDelay = 2000;
-            
-            if (error.message === '保存超时') {
-                errorMessage = '保存超时，请检查网络连接';
-                shouldRetry = retryCount < 2; // 最多重试2次
-                retryDelay = 3000 * (window.MOBILE_TIMEOUT_MULTIPLIER || 1);
-            } else if (error.code === 'permission-denied') {
-                errorMessage = '权限不足，请检查家庭码';
-                shouldRetry = false;
-            } else if (error.code === 'unavailable' || error.code === 'network-request-failed') {
-                errorMessage = '网络连接失败，正在重试...';
-                shouldRetry = retryCount < 3; // 网络错误最多重试3次
-                retryDelay = 5000 * (window.MOBILE_TIMEOUT_MULTIPLIER || 1);
-            } else if (error.code === 'resource-exhausted') {
-                errorMessage = '云端资源不足，请稍后重试';
-                shouldRetry = retryCount < 1; // 资源不足只重试1次
-                retryDelay = 10000 * (window.MOBILE_TIMEOUT_MULTIPLIER || 1);
-            }
-            
-            updateSyncStatus('保存失败', new Date().toLocaleTimeString());
-            
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification(errorMessage, 'error', 5000);
-            }
-            
-            // 如果需要重试
-            if (shouldRetry) {
-                console.log(`[云同步] ${retryDelay}ms后重试保存，第${retryCount + 1}次重试`);
-                setTimeout(() => {
-                    saveToCloud(retryCount + 1);
-                }, retryDelay);
-            }
-            
-            return false;
-        }
+        // 保存数据
+        await db.collection('groups').doc(familyCode).set({
+            gameData: gameData,
+            lastDailyReset: lastDailyReset,
+            saveTime: new Date().toISOString()
+        });
+        
+        console.log('[云同步] 数据保存成功');
+        isCloudSaving = false;
+        updateSyncStatus('已同步', new Date().toLocaleTimeString());
+        
+        // 保存成功后更新界面
+        renderExpenses();
+        renderResourceStats();
+        renderWeekCalendar();
+        
+        return true;
+    }, { type: 'data-save', operation: 'saveToCloud' }, (error) => {
+        console.error('[云同步] 保存失败:', error);
+        isCloudSaving = false;
+        updateSyncStatus('同步失败', new Date().toLocaleTimeString());
+        window.showError('保存失败，切换到本地保存', 'error');
+        saveToLocal();
+        return false;
     });
 }
 
@@ -2754,116 +2164,16 @@ function askFamilyCode() {
 let lastSyncTime = null;
 let syncStatus = '同步中';
 function updateSyncStatus(status, time) {
-    const syncElement = document.getElementById('sync-status');
-    if (!syncElement) return;
-    
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const networkInfo = navigator.connection ? {
-        type: navigator.connection.effectiveType,
-        downlink: navigator.connection.downlink,
-        rtt: navigator.connection.rtt
-    } : null;
-    
-    let statusText = status;
-    let statusClass = '';
-    
-    // 根据状态设置样式
-    switch (status) {
-        case '已同步':
-            statusClass = 'status-online';
-            break;
-        case '同步中':
-            statusClass = 'status-syncing';
-            break;
-        case '本地模式':
-            statusClass = 'status-offline';
-            statusText = '📱 本地模式';
-            break;
-        case '连接失败':
-        case '监听失败':
-        case '保存失败':
-            statusClass = 'status-offline';
-            statusText = '❌ ' + status;
-            break;
-        case '离线':
-            statusClass = 'status-offline';
-            statusText = '📴 离线';
-            break;
-        default:
-            statusClass = 'status-offline';
-    }
-    
-    // 移动端显示网络信息
-    if (isMobile && networkInfo) {
-        statusText += ` (${networkInfo.type})`;
-    }
-    
-    // 添加时间戳
-    if (time) {
-        statusText += ` ${time}`;
-    }
-    
-    syncElement.textContent = statusText;
-    syncElement.className = `sync-status ${statusClass}`;
-    
-    // 添加点击事件，显示详细状态
-    syncElement.onclick = () => {
-        showConnectionStatusDetails(status, networkInfo, isMobile);
-    };
-    syncElement.style.cursor = 'pointer';
-    syncElement.title = '点击查看详细连接信息';
-}
-
-// 显示连接状态详情
-function showConnectionStatusDetails(status, networkInfo, isMobile) {
-    const details = {
-        title: '连接状态详情',
-        content: `
-            <div style="margin: 20px 0;">
-                <div style="margin-bottom: 15px;">
-                    <strong>当前状态:</strong> ${status}
-                </div>
-                ${isMobile ? `
-                <div style="margin-bottom: 15px;">
-                    <strong>设备类型:</strong> 移动设备
-                </div>
-                ` : ''}
-                ${networkInfo ? `
-                <div style="margin-bottom: 15px;">
-                    <strong>网络信息:</strong><br>
-                    • 网络类型: ${networkInfo.type}<br>
-                    • 下载速度: ${networkInfo.downlink} Mbps<br>
-                    • 延迟: ${networkInfo.rtt} ms
-                </div>
-                ` : ''}
-                <div style="margin-bottom: 15px;">
-                    <strong>云端状态:</strong><br>
-                    • 连接就绪: ${isCloudReady ? '是' : '否'}<br>
-                    • 正在保存: ${isCloudSaving ? '是' : '否'}<br>
-                    • 正在加载: ${isCloudLoading ? '是' : '否'}<br>
-                    • 家庭码: ${familyCode || '未设置'}
-                </div>
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                    <strong>💡 操作建议:</strong><br>
-                    • 点击"重试连接"重新连接云端<br>
-                    • 点击"使用本地模式"切换到本地存储<br>
-                    • 检查网络设置和防火墙配置
-                </div>
-            </div>
-        `
-    };
-    
-    showCustomModal({
-        title: details.title,
-        content: details.content,
-        onConfirm: () => {
-            // 关闭模态框
-        },
-        onCancel: () => {
-            // 关闭模态框
-        },
-        confirmText: '关闭'
-    });
+    syncStatus = status;
+    lastSyncTime = time || lastSyncTime;
+    const el = document.getElementById('sync-status');
+    if (!el) return;
+    let text = '';
+    if (status === '同步中') text = '☁️ 正在同步...';
+    else if (status === '已同步') text = `✅ 已同步${lastSyncTime ? '（' + lastSyncTime + '）' : ''}`;
+    else if (status === '离线') text = '⚠️ 离线，数据仅本地保存';
+    else text = status;
+    el.textContent = text;
 }
 
 
@@ -3188,33 +2498,32 @@ function getMonthlyExpenseTotalMerged() {
             total += convertToCNY(prod.expense, prod.expenseCurrency);
         }
     });
-    // 2. 支出面板所有支出
+    // 2. 支出面板已发生的支出（当前日期之前的）
     (gameData.expenses||[]).forEach(exp => {
         if (!exp || !exp.amount || !exp.currency) return;
         if (exp.type === 'single') {
-            // 单次支出：本月发生的
+            // 单次支出：本月已发生的（当前日期之前的）
             const d = new Date(exp.date);
-            if (d.getFullYear() === year && d.getMonth() === month) {
+            if (d.getFullYear() === year && d.getMonth() === month && d < now) {
                 total += convertToCNY(exp.amount, exp.currency);
             }
         } else if (exp.type === 'recurring') {
-            // 固定支出：本月应发生几次
+            // 固定支出：本月已发生的次数
             const start = new Date(exp.date);
             if (start > now) return; // 未来开始的不算
             if (exp.frequency === 'monthly') {
-                // 每月一次，只要起始日期<=本月
+                // 每月一次，只要起始日期<=本月且已经过了本月
                 if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
                     total += convertToCNY(exp.amount, exp.currency);
                 }
             } else if (exp.frequency === 'biweekly') {
-                // 每2周，计算本月内有几次
+                // 每2周，计算本月内已发生的次数
                 let firstDay = new Date(year, month, 1);
-                let lastDay = new Date(year, month + 1, 0);
                 let cycleStart = new Date(start);
                 while (cycleStart < firstDay) {
                     cycleStart.setDate(cycleStart.getDate() + 14);
                 }
-                while (cycleStart <= lastDay) {
+                while (cycleStart < now) {
                     total += convertToCNY(exp.amount, exp.currency);
                     cycleStart.setDate(cycleStart.getDate() + 14);
                 }
@@ -3234,31 +2543,30 @@ function getMonthlyExpenseBreakdown() {
     (gameData.expenses||[]).forEach(exp => {
         if (!exp || !exp.amount || !exp.currency) return;
         if (exp.type === 'single') {
-            // 单次支出：本月发生的
+            // 单次支出：本月已发生的（当前日期之前的）
             const d = new Date(exp.date);
-            if (d.getFullYear() === year && d.getMonth() === month) {
+            if (d.getFullYear() === year && d.getMonth() === month && d < now) {
                 if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
                 expensesByCurrency[exp.currency] += exp.amount;
             }
         } else if (exp.type === 'recurring') {
-            // 固定支出：本月应发生几次
+            // 固定支出：本月已发生的次数
             const start = new Date(exp.date);
             if (start > now) return; // 未来开始的不算
             if (exp.frequency === 'monthly') {
-                // 每月一次，只要起始日期<=本月
+                // 每月一次，只要起始日期<=本月且已经过了本月
                 if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
                     if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
                     expensesByCurrency[exp.currency] += exp.amount;
                 }
             } else if (exp.frequency === 'biweekly') {
-                // 每2周，计算本月内有几次
+                // 每2周，计算本月内已发生的次数
                 let firstDay = new Date(year, month, 1);
-                let lastDay = new Date(year, month + 1, 0);
                 let cycleStart = new Date(start);
                 while (cycleStart < firstDay) {
                     cycleStart.setDate(cycleStart.getDate() + 14);
                 }
-                while (cycleStart <= lastDay) {
+                while (cycleStart < now) {
                     if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
                     expensesByCurrency[exp.currency] += exp.amount;
                     cycleStart.setDate(cycleStart.getDate() + 14);
@@ -4595,305 +3903,127 @@ window.closeModal = function(modalId) {
     }
 }
 
-// 性能监控相关函数
-window.refreshPerformanceMetrics = () => {
-    if (!window.performanceOptimizer) {
-        console.warn('性能优化器未初始化');
-        return;
-    }
+// 获取预计月支出（基于支出管理面板数据总和）
+function getEstimatedMonthlyExpense() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    let total = 0;
+    let expensesByCurrency = {};
     
-    const metrics = window.performanceOptimizer.getPerformanceMetrics();
-    
-    const renderCountEl = document.getElementById('render-count');
-    const avgRenderTimeEl = document.getElementById('avg-render-time');
-    const cacheHitRateEl = document.getElementById('cache-hit-rate');
-    const activeTimersEl = document.getElementById('active-timers');
-    const renderQueueEl = document.getElementById('render-queue');
-    
-    if (renderCountEl) renderCountEl.textContent = metrics.renderCount;
-    if (avgRenderTimeEl) avgRenderTimeEl.textContent = `${metrics.averageRenderTime.toFixed(2)}ms`;
-    if (cacheHitRateEl) cacheHitRateEl.textContent = `${(metrics.cacheHitRate * 100).toFixed(1)}%`;
-    if (activeTimersEl) activeTimersEl.textContent = `${metrics.activeDebounceTimers + metrics.activeThrottleTimers}`;
-    if (renderQueueEl) renderQueueEl.textContent = metrics.renderQueueSize;
-    
-    console.log('性能指标已更新:', metrics);
-};
-
-// 清理性能缓存
-window.clearPerformanceCache = () => {
-    if (window.performanceOptimizer) {
-        window.performanceOptimizer.dataCache.clear();
-        window.performanceOptimizer.cacheExpiry.clear();
-        console.log('性能缓存已清理');
-        window.refreshPerformanceMetrics();
-    }
-};
-
-// 修改showDataManagePanel函数，添加性能指标刷新
-const originalShowDataManagePanel = window.showDataManagePanel;
-window.showDataManagePanel = function() {
-    if (originalShowDataManagePanel) {
-        originalShowDataManagePanel();
-    } else {
-        document.getElementById('data-manage-modal').style.display = 'block';
-        updateDataStatus();
-    }
-    window.refreshPerformanceMetrics();
-};
-
-console.log('🚀 高级性能优化模块已加载');
-
-// 移动端网络检测和优化
-function detectMobileAndNetwork() {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isOnline = navigator.onLine;
-    
-    console.log('[网络检测] 设备信息:', {
-        isMobile,
-        isOnline,
-        userAgent: navigator.userAgent.substring(0, 100) + '...',
-        connection: navigator.connection ? {
-            effectiveType: navigator.connection.effectiveType,
-            downlink: navigator.connection.downlink,
-            rtt: navigator.connection.rtt
-        } : '不支持'
-    });
-    
-    // 监听网络状态变化
-    window.addEventListener('online', () => {
-        console.log('[网络检测] 网络已连接');
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showNotification('网络已连接，尝试重新同步', 'success', 3000);
-        }
-        // 如果之前连接失败，尝试重新连接
-        if (!isCloudReady && familyCode) {
-            setTimeout(() => {
-                firebaseLoginAndSync();
-            }, 2000);
+    // 计算支出管理面板中所有支出项的总和
+    (gameData.expenses||[]).forEach(exp => {
+        if (!exp || !exp.amount || !exp.currency) return;
+        
+        if (exp.type === 'single') {
+            // 单次支出：如果还没发生，算入预计支出
+            const d = new Date(exp.date);
+            if (d.getFullYear() === year && d.getMonth() === month && d >= now) {
+                if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
+                expensesByCurrency[exp.currency] += exp.amount;
+            }
+        } else if (exp.type === 'recurring') {
+            // 固定支出：计算本月预计发生几次
+            const start = new Date(exp.date);
+            if (start > now) return; // 未来开始的不算
+            
+            if (exp.frequency === 'monthly') {
+                // 每月一次，只要起始日期<=本月
+                if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
+                    if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
+                    expensesByCurrency[exp.currency] += exp.amount;
+                }
+            } else if (exp.frequency === 'biweekly') {
+                // 每2周，计算本月内预计发生几次
+                let firstDay = new Date(year, month, 1);
+                let lastDay = new Date(year, month + 1, 0);
+                let cycleStart = new Date(start);
+                
+                // 找到本月第一次发生的日期
+                while (cycleStart < firstDay) {
+                    cycleStart.setDate(cycleStart.getDate() + 14);
+                }
+                
+                // 计算本月内发生的次数
+                let count = 0;
+                while (cycleStart <= lastDay) {
+                    count++;
+                    cycleStart.setDate(cycleStart.getDate() + 14);
+                }
+                
+                if (count > 0) {
+                    if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
+                    expensesByCurrency[exp.currency] += exp.amount * count;
+                }
+            }
         }
     });
     
-    window.addEventListener('offline', () => {
-        console.log('[网络检测] 网络已断开');
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showNotification('网络已断开，切换到本地模式', 'warning', 5000);
-        }
-        updateSyncStatus('离线', new Date().toLocaleTimeString());
+    // 转换为人民币总和
+    Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
+        total += convertToCNY(amount, currency);
     });
     
-    // 移动端特殊优化
-    if (isMobile) {
-        console.log('[移动端] 检测到移动设备，应用移动端优化');
+    return total;
+}
+
+// 获取预计月支出明细
+function getEstimatedExpenseBreakdown() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    let expensesByCurrency = {};
+    
+    (gameData.expenses||[]).forEach(exp => {
+        if (!exp || !exp.amount || !exp.currency) return;
         
-        // 移动端网络连接较慢，增加超时时间
-        if (navigator.connection) {
-            const connection = navigator.connection;
-            if (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g') {
-                console.log('[移动端] 检测到慢速网络，调整超时设置');
-                // 慢速网络增加超时时间
-                window.MOBILE_TIMEOUT_MULTIPLIER = 2;
-            } else if (connection.effectiveType === '3g') {
-                window.MOBILE_TIMEOUT_MULTIPLIER = 1.5;
-            } else {
-                window.MOBILE_TIMEOUT_MULTIPLIER = 1;
+        if (exp.type === 'single') {
+            // 单次支出：如果还没发生，算入预计支出
+            const d = new Date(exp.date);
+            if (d.getFullYear() === year && d.getMonth() === month && d >= now) {
+                if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
+                expensesByCurrency[exp.currency] += exp.amount;
+            }
+        } else if (exp.type === 'recurring') {
+            // 固定支出：计算本月预计发生几次
+            const start = new Date(exp.date);
+            if (start > now) return; // 未来开始的不算
+            
+            if (exp.frequency === 'monthly') {
+                // 每月一次，只要起始日期<=本月
+                if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
+                    if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
+                    expensesByCurrency[exp.currency] += exp.amount;
+                }
+            } else if (exp.frequency === 'biweekly') {
+                // 每2周，计算本月内预计发生几次
+                let firstDay = new Date(year, month, 1);
+                let lastDay = new Date(year, month + 1, 0);
+                let cycleStart = new Date(start);
+                
+                // 找到本月第一次发生的日期
+                while (cycleStart < firstDay) {
+                    cycleStart.setDate(cycleStart.getDate() + 14);
+                }
+                
+                // 计算本月内发生的次数
+                let count = 0;
+                while (cycleStart <= lastDay) {
+                    count++;
+                    cycleStart.setDate(cycleStart.getDate() + 14);
+                }
+                
+                if (count > 0) {
+                    if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
+                    expensesByCurrency[exp.currency] += exp.amount * count;
+                }
             }
         }
-        
-        // 移动端触摸优化
-        document.body.classList.add('mobile-device');
-    }
+    });
     
-    return { isMobile, isOnline };
+    let breakdown = [];
+    Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
+        breakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
+    });
+    return breakdown;
 }
-
-// 移动端连接诊断
-async function diagnoseMobileConnection() {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    if (!isMobile) {
-        return { canConnect: true, reason: '非移动设备' };
-    }
-    
-    console.log('[移动端诊断] 开始连接诊断...');
-    
-    // 检查基本网络连接
-    if (!navigator.onLine) {
-        return { canConnect: false, reason: '设备离线' };
-    }
-    
-    // 检查Firebase CDN连接
-    try {
-        const firebaseTest = await fetch('https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js', {
-            method: 'HEAD',
-            mode: 'no-cors'
-        });
-        console.log('[移动端诊断] Firebase CDN连接正常');
-    } catch (error) {
-        console.warn('[移动端诊断] Firebase CDN连接失败:', error);
-        return { canConnect: false, reason: 'Firebase CDN无法访问' };
-    }
-    
-    // 检查网络类型
-    if (navigator.connection) {
-        const connection = navigator.connection;
-        console.log('[移动端诊断] 网络信息:', {
-            effectiveType: connection.effectiveType,
-            downlink: connection.downlink,
-            rtt: connection.rtt
-        });
-        
-        if (connection.effectiveType === 'slow-2g') {
-            return { canConnect: false, reason: '网络速度过慢(2G)' };
-        }
-    }
-    
-    return { canConnect: true, reason: '连接正常' };
-}
-
-// 初始化网络检测
-const networkInfo = detectMobileAndNetwork();
-
-// 显示移动端连接提示
-function showMobileConnectionTip(reason) {
-    const tips = {
-        '设备离线': {
-            title: '网络连接问题',
-            content: '您的设备当前处于离线状态。请检查：<br>• WiFi或移动网络是否开启<br>• 网络连接是否正常<br>• 尝试切换网络后刷新页面'
-        },
-        'Firebase CDN无法访问': {
-            title: '服务访问受限',
-            content: '无法访问云端服务，可能原因：<br>• 网络防火墙阻止了连接<br>• 运营商网络限制<br>• 建议尝试：<br>• 切换到其他网络<br>• 使用VPN连接<br>• 稍后重试'
-        },
-        '网络速度过慢(2G)': {
-            title: '网络速度过慢',
-            content: '当前网络速度较慢，可能影响云端同步：<br>• 建议切换到更快的网络<br>• 或使用本地模式继续使用<br>• 数据仍会保存在本地'
-        }
-    };
-    
-    const tip = tips[reason] || {
-        title: '连接问题',
-        content: `遇到连接问题: ${reason}<br>建议检查网络设置或稍后重试`
-    };
-    
-    // 创建提示模态框
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'flex';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <h3 class="modal-title">📱 ${tip.title}</h3>
-            <div style="margin: 20px 0; line-height: 1.6; color: #666;">
-                ${tip.content}
-            </div>
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                <strong>💡 解决方案：</strong><br>
-                • 刷新页面重试<br>
-                • 切换到WiFi网络<br>
-                • 检查网络设置<br>
-                • 使用本地模式继续
-            </div>
-            <div class="modal-buttons">
-                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">关闭</button>
-                <button type="button" class="btn btn-primary" onclick="retryMobileConnection()">重试连接</button>
-                <button type="button" class="btn btn-secondary" onclick="switchToLocalMode(); this.closest('.modal').remove()">使用本地模式</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // 5秒后自动关闭
-    setTimeout(() => {
-        if (modal.parentNode) {
-            modal.remove();
-        }
-    }, 30000);
-}
-
-// 重试移动端连接
-async function retryMobileConnection() {
-    console.log('[移动端] 用户请求重试连接...');
-    
-    // 移除提示模态框
-    const modal = document.querySelector('.modal');
-    if (modal) {
-        modal.remove();
-    }
-    
-    // 重新诊断连接
-    try {
-        const diagnosis = await diagnoseMobileConnection();
-        console.log('[移动端重试诊断结果]:', diagnosis);
-        
-        if (diagnosis.canConnect) {
-            console.log('[移动端] 重试诊断成功，开始连接...');
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification('连接诊断成功，正在连接云端...', 'success', 3000);
-            }
-            firebaseLoginAndSync();
-        } else {
-            console.warn('[移动端] 重试诊断仍然失败:', diagnosis.reason);
-            if (window.ErrorUtils) {
-                window.ErrorUtils.showNotification(`连接仍然失败: ${diagnosis.reason}`, 'error', 5000);
-            }
-            updateSyncStatus('连接失败', new Date().toLocaleTimeString());
-        }
-    } catch (error) {
-        console.error('[移动端重试] 诊断过程出错:', error);
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showNotification('重试连接时出错，请稍后重试', 'error', 5000);
-        }
-    }
-}
-
-// 将重试函数添加到全局作用域
-window.retryMobileConnection = retryMobileConnection;
-
-// 切换到本地模式
-function switchToLocalMode() {
-    console.log('[本地模式] 用户主动切换到本地模式');
-    
-    // 停止云端监听
-    if (firebaseUnsubscribe) {
-        firebaseUnsubscribe();
-        firebaseUnsubscribe = null;
-    }
-    
-    // 更新状态
-    isCloudReady = false;
-    isCloudSaving = false;
-    isCloudLoading = false;
-    cloudInitDone = true; // 防止重新尝试连接
-    
-    updateSyncStatus('本地模式', new Date().toLocaleTimeString());
-    
-    if (window.ErrorUtils) {
-        window.ErrorUtils.showNotification('已切换到本地模式，数据将保存在本地', 'success', 3000);
-    }
-    
-    // 保存当前数据到本地
-    saveToLocal();
-}
-
-// 保存到本地存储
-function saveToLocal() {
-    try {
-        const saveData = {
-            gameData: gameData,
-            lastDailyReset: lastDailyReset,
-            saveTime: new Date().toISOString()
-        };
-        localStorage.setItem('lifeFactorio', JSON.stringify(saveData));
-        console.log('[本地保存] 数据已保存到本地存储');
-        return true;
-    } catch (error) {
-        console.error('[本地保存] 保存失败:', error);
-        if (window.ErrorUtils) {
-            window.ErrorUtils.showNotification('本地保存失败', 'error', 3000);
-        }
-        return false;
-    }
-}
-
-// 将函数添加到全局作用域
-window.switchToLocalMode = switchToLocalMode;
