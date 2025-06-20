@@ -69,7 +69,8 @@ window.gameData = {
         "探索体验": [],
         "财务管理": [],
         "创作表达": []
-    }
+    },
+    blueprints: []
 };
 
 let currentEditIndex = -1;
@@ -81,6 +82,8 @@ let timeResource = 24*60; // 单位：分钟
 let weekCalendar = Array(7).fill(0).map(()=>Array(24).fill(null)); // 7天*24小时
 let todayIdx = (new Date().getDay()+6)%7; // 0=周一
 let isSelecting = false; // 用于检测是否在拖选文字
+
+let currentDateOffset = 0; // 0 for today, -7 for last week, 7 for next week
 
 // === 统一字段名：devLibrary、developments、productions ===
 // devLibrary字段：icon, category, researchName, prodName, freq, cycle, target, action, science
@@ -138,6 +141,9 @@ function migrateData(data) {
             freq: dev.freq || (techFromJSON ? techFromJSON.freq : (libItem ? libItem.freq : '每天'))
         };
     });
+    if (!data.blueprints) {
+        data.blueprints = [];
+    }
     return data;
 }
 
@@ -389,6 +395,34 @@ function setupEventListeners() {
     
     // 设置支出表单处理器
     setupExpenseFormHandlers();
+
+    document.getElementById('add-blueprint-btn').addEventListener('click', () => showBlueprintModal());
+    document.getElementById('blueprint-form').addEventListener('submit', saveBlueprint);
+
+    // Calendar navigation - with null checks
+    const prevWeekBtn = document.getElementById('prev-week-btn');
+    if (prevWeekBtn) {
+        prevWeekBtn.addEventListener('click', () => {
+            currentDateOffset -= 7;
+            renderWeekCalendar();
+        });
+    }
+    
+    const nextWeekBtn = document.getElementById('next-week-btn');
+    if (nextWeekBtn) {
+        nextWeekBtn.addEventListener('click', () => {
+            currentDateOffset += 7;
+            renderWeekCalendar();
+        });
+    }
+    
+    const todayBtn = document.getElementById('today-btn');
+    if (todayBtn) {
+        todayBtn.addEventListener('click', () => {
+            currentDateOffset = 0;
+            renderWeekCalendar();
+        });
+    }
 }
 
 // 转换为人民币
@@ -646,9 +680,12 @@ window.showContextMenu = function(event, sortedIndex, type) {
 
 function hideContextMenu(e) {
     const menu = document.getElementById('context-menu');
-    if (menu && !menu.contains(e.target)) {
-        menu.style.display = 'none';
-        document.removeEventListener('mousedown', hideContextMenu);
+    if (menu) {
+        // 如果没有事件对象，或者点击的不是菜单内部，则隐藏菜单
+        if (!e || !menu.contains(e.target)) {
+            menu.style.display = 'none';
+            document.removeEventListener('mousedown', hideContextMenu);
+        }
     }
 }
 
@@ -1145,6 +1182,118 @@ window.selectLifestyleTag = function(name) {
     document.getElementById('prod-name').value = name;
 }
 
+// 新增：渲染蓝图历史标签
+function renderBlueprintHistoryTags() {
+    const container = document.getElementById('blueprint-history-tags');
+    if (!container) return;
+    
+    // 确保蓝图历史数据结构存在
+    if (!gameData.blueprintHistory) {
+        gameData.blueprintHistory = [];
+    }
+    
+    // 统计每个项目名称的使用频率
+    const nameFrequency = {};
+    const uniqueNames = new Set();
+    
+    gameData.blueprintHistory.forEach(historyItem => {
+        uniqueNames.add(historyItem.name);
+        nameFrequency[historyItem.name] = (nameFrequency[historyItem.name] || 0) + 1;
+    });
+    
+    // 按使用频率排序（频率高的在前）
+    const sortedNames = Array.from(uniqueNames).sort((a, b) => {
+        const freqDiff = (nameFrequency[b] || 0) - (nameFrequency[a] || 0);
+        if (freqDiff !== 0) return freqDiff;
+        return a.localeCompare(b); // 频率相同则按字母顺序
+    });
+    
+    if (sortedNames.length === 0) {
+        container.innerHTML = '<div style="color:#888;font-size:0.9em;">暂无蓝图历史记录</div>';
+        return;
+    }
+    
+    container.innerHTML = sortedNames.map(name => {
+        const frequency = nameFrequency[name] || 0;
+        const latestHistory = gameData.blueprintHistory
+            .filter(h => h.name === name)
+            .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))[0];
+        
+        const statusText = latestHistory.reason === 'completed' ? '已完成' : '已过期';
+        const title = `${name} (${statusText} ${frequency} 次)`;
+        
+        return `<button type="button" class="blueprint-history-tag" onclick="window.selectBlueprintTag('${name}')" title="${title}">${name}</button>`;
+    }).join('');
+}
+
+// 新增：选择蓝图历史标签
+window.selectBlueprintTag = function(name) {
+    document.getElementById('blueprint-name').value = name;
+}
+
+// 新增：添加蓝图到历史记录
+function addToBlueprintHistory(blueprint, reason) {
+    if (!gameData.blueprintHistory) {
+        gameData.blueprintHistory = [];
+    }
+    
+    const historyItem = {
+        name: blueprint.name,
+        category: blueprint.category,
+        duration: blueprint.duration,
+        priority: blueprint.priority,
+        originalScheduledDate: blueprint.scheduledDate,
+        completedAt: new Date().toISOString(),
+        reason: reason // 'completed' 或 'expired'
+    };
+    
+    gameData.blueprintHistory.push(historyItem);
+    
+    // 可选：限制历史记录数量，避免数据过多
+    if (gameData.blueprintHistory.length > 1000) {
+        gameData.blueprintHistory = gameData.blueprintHistory.slice(-500); // 保留最新的500条
+    }
+}
+
+// 新增：检查过期蓝图
+function checkExpiredBlueprints() {
+    if (!gameData.blueprints) return;
+    
+    const now = new Date();
+    const expiredBlueprints = [];
+    
+    gameData.blueprints.forEach((blueprint, index) => {
+        const scheduledDate = new Date(blueprint.scheduledDate);
+        const endTime = new Date(scheduledDate.getTime() + blueprint.duration * 60000);
+        
+        // 如果蓝图的结束时间已经过了，认为是过期的
+        if (endTime < now) {
+            expiredBlueprints.push({blueprint, index});
+        }
+    });
+    
+    // 处理过期的蓝图
+    if (expiredBlueprints.length > 0) {
+        // 从后往前删除，避免索引问题
+        expiredBlueprints.reverse().forEach(({blueprint, index}) => {
+            // 添加到历史记录（排除自动化类型）
+            if (blueprint.category !== 'automation') {
+                addToBlueprintHistory(blueprint, 'expired');
+            }
+            
+            // 从蓝图列表中移除
+            gameData.blueprints.splice(index, 1);
+        });
+        
+        // 保存数据并重新渲染
+        if (expiredBlueprints.length > 0) {
+            saveToCloud();
+            renderWeekCalendar();
+            console.log(`🕐 自动处理了 ${expiredBlueprints.length} 个过期蓝图`);
+        }
+    }
+}
+
 // 更新时间记录中的生产线名称（保持数据一致性）
 function updateTimeLogsProductionName(oldName, newName) {
     if (!oldName || !newName || oldName === newName) return;
@@ -1450,143 +1599,364 @@ function renderTimeAndEnergy() {
 
 // 4. 渲染周日历
 function renderWeekCalendar() {
+    // 检查过期蓝图
+    checkExpiredBlueprints();
+    
     updateProductionColorMap();
-    let el = document.getElementById('week-calendar');
-    if (!el) return;
-    let days = ['一','二','三','四','五','六','日'];
-    let now = new Date();
-    let todayIdx = (now.getDay()+6)%7;
-    let monday = new Date(now);
-    monday.setHours(0,0,0,0);
-    monday.setDate(now.getDate() - todayIdx);
+    let calendarPanel = document.getElementById('week-calendar');
+    let container = document.getElementById('calendar-container');
+
+    // Ensure the container exists
+    if (!container) {
+        if (calendarPanel) {
+            // Create calendar container without affecting the title and navigation
+            const calendarContainer = document.createElement('div');
+            calendarContainer.className = 'week-calendar-container';
+            calendarContainer.id = 'calendar-container';
+            calendarPanel.appendChild(calendarContainer);
+            container = calendarContainer;
+        } else {
+            return; // Exit if the main panel doesn't exist
+        }
+    }
+
+    let days = ['一', '二', '三', '四', '五', '六', '日'];
+    let baseDate = new Date();
+    baseDate.setDate(baseDate.getDate() + currentDateOffset);
+
+    let dayOfWeek = baseDate.getDay();
+    if (dayOfWeek === 0) dayOfWeek = 7; // Sunday is 7 in our logic
+    
+    let monday = new Date(baseDate);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(baseDate.getDate() - (dayOfWeek - 1));
+
+    const weekStart = new Date(monday);
+    const weekEnd = new Date(monday);
+    weekEnd.setDate(monday.getDate() + 6);
+
+    const weekRangeLabel = document.getElementById('week-range-label');
+    if (weekRangeLabel) {
+        weekRangeLabel.textContent = `${formatDateLocal(weekStart)} - ${formatDateLocal(weekEnd)}`;
+    }
+
     let weekDates = [];
-    for(let i=0;i<7;i++) {
+    for (let i = 0; i < 7; i++) {
         let d = new Date(monday);
-        d.setDate(monday.getDate()+i);
+        d.setDate(monday.getDate() + i);
         weekDates.push(formatDateLocal(d));
     }
     let dateLabels = weekDates.map(dateStr => {
-        let [y,m,d] = dateStr.split('-');
+        let [y, m, d] = dateStr.split('-');
         return `${parseInt(m)}/${parseInt(d)}`;
     });
-    let html = '<div class="week-calendar-container" id="calendar-container">';
-    html += '<div style="font-weight:bold;margin-bottom:6px;">本周时间投入（日历）</div>';
-    html += '<table style="width:100%;border-collapse:collapse;text-align:center;font-size:0.85em;table-layout:fixed;">';
-    html += '<tr style="background:#f5f6fa;height:35px;"><th style="width:50px;"></th>';
-    for(let d=0;d<7;d++) html += `<th style="padding:4px 2px;">周${days[d]}<br><span style='font-size:0.9em;color:#888;'>${dateLabels[d]}</span></th>`;
-    html += '</tr>';
-    for(let h=0;h<=24;h++) {
-        // 夜间时段（22:00-08:00）使用深色背景
+
+    let todayDateStr = formatDateLocal(new Date());
+
+    let html = '<table style="width:100%;border-collapse:collapse;text-align:center;font-size:0.85em;table-layout:fixed;">';
+    html += '<thead><tr style="background:#f5f6fa;height:35px;"><th style="width:50px;"></th>';
+    for (let d = 0; d < 7; d++) {
+        html += `<th style="padding:4px 2px;">周${days[d]}<br><span style='font-size:0.9em;color:#888;'>${dateLabels[d]}</span></th>`;
+    }
+    html += '</tr></thead>';
+    html += '<tbody>';
+    for (let h = 0; h <= 24; h++) {
         const isNightTime = h >= 22 || h < 8;
         const nightClass = isNightTime ? 'night-time' : '';
-        // 显示时间标签：0-23显示为正常时间，24显示为24:00
         const timeLabel = h === 24 ? '24:00' : `${h}:00`;
         html += `<tr style="height:25px;" class="${nightClass}"><td style="color:#aaa;padding:2px;font-size:0.8em;">${timeLabel}</td>`;
-        for(let d=0;d<7;d++) {
+
+        for (let d = 0; d < 7; d++) {
             let cellBg = '';
+            let isTodayColumn = weekDates[d] === todayDateStr;
+
             if (isNightTime) {
-                cellBg = d===todayIdx ? 'background:#f3f3f3;' : 'background:#f8f8f8;';
+                cellBg = isTodayColumn ? 'background:#f3f3f3;' : 'background:#f8f8f8;';
             } else {
-                cellBg = d===todayIdx ? 'background:#f9fbe7;' : '';
+                cellBg = isTodayColumn ? 'background:#f9fbe7;' : '';
             }
             html += `<td style="border:1px solid #ecf0f1;padding:0;${cellBg}"></td>`;
         }
         html += '</tr>';
     }
-    html += '</table>';
+    html += '</tbody></table>';
     html += '<div class="calendar-overlay" id="calendar-overlay"></div>';
-    html += '</div>';
-    el.innerHTML = html;
-    // 使用延迟确保DOM更新完成后再渲染时间块
+    container.innerHTML = html;
+
     setTimeout(() => {
         renderTimeBlocks(weekDates);
     }, 50);
 }
 function renderTimeBlocks(weekDates) {
     const overlay = document.getElementById('calendar-overlay');
-    if (!overlay) return;
     const container = document.getElementById('calendar-container');
-    const table = container.querySelector('table');
-    if (!table) return;
-    
-    // 防重复逻辑：检查是否正在渲染中
-    if (window._isRendering) {
+    const table = container ? container.querySelector('table') : null;
+
+    if (!overlay || !container || !table || !table.rows[25] || !table.rows[25].cells[7]) {
+        requestAnimationFrame(() => renderTimeBlocks(weekDates));
         return;
     }
+
+    if (window._isRendering) return;
     window._isRendering = true;
-    
-    // 精确计算表格尺寸
-    const headerRow = table.rows[0];
-    const firstDataRow = table.rows[1];
-    if (!headerRow || !firstDataRow) return;
-    
-    const firstDataCell = firstDataRow.cells[1]; // 跳过时间标签列
-    const labelCell = firstDataRow.cells[0]; // 时间标签列
-    if (!firstDataCell || !labelCell) return;
-    
-    const cellHeight = firstDataCell.offsetHeight;
-    const cellWidth = firstDataCell.offsetWidth;
-    const headerHeight = headerRow.offsetHeight;
-    const labelWidth = labelCell.offsetWidth;
-    
-    // 清空并重新定位覆盖层 - 根据手动调整的值优化偏移
-    overlay.innerHTML = '';
-    overlay.style.position = 'absolute';
-    overlay.style.top = (headerHeight + 41) + 'px'; // 调整为93px偏移
-    overlay.style.left = (labelWidth + 4) + 'px'; // 增加4px偏移
-    overlay.style.width = (cellWidth * 7) + 'px';
-    overlay.style.height = (cellHeight * 25) + 'px'; // 25行（0-24时）
-    overlay.style.pointerEvents = 'none';
-    
-    // 按时间排序，确保后添加的在上层
-    const sortedLogs = (gameData.timeLogs || [])
-        .filter(log => weekDates.indexOf(log.date) >= 0)
-        .sort((a, b) => new Date(a.date + 'T' + String(a.hour).padStart(2,'0') + ':' + String(a.minute).padStart(2,'0')) - 
-                        new Date(b.date + 'T' + String(b.hour).padStart(2,'0') + ':' + String(b.minute).padStart(2,'0')));
-    
-    // 渲染时间块
-    sortedLogs.forEach((log, index) => {
-        let idx = weekDates.indexOf(log.date);
-        if(idx < 0) return; // 只显示本周
+
+    try {
+        const firstDataCell = table.rows[1].cells[1];
+        const lastDataCell = table.rows[25].cells[7]; // 24:00 row, Sunday cell
+        const cellHeight = firstDataCell.offsetHeight;
+        const cellWidth = firstDataCell.offsetWidth;
+
+        if (cellHeight === 0 || cellWidth === 0) {
+            window._isRendering = false;
+            requestAnimationFrame(() => renderTimeBlocks(weekDates));
+            return;
+        }
+
+        const containerRect = container.getBoundingClientRect();
+        const firstCellRect = firstDataCell.getBoundingClientRect();
+        const lastCellRect = lastDataCell.getBoundingClientRect();
+
+        overlay.style.position = 'absolute';
+        overlay.style.top = `${firstCellRect.top - containerRect.top}px`;
+        overlay.style.left = `${firstCellRect.left - containerRect.left}px`;
+        overlay.style.width = `${lastCellRect.right - firstCellRect.left}px`;
+        overlay.style.height = `${lastCellRect.bottom - firstCellRect.top}px`;
+        overlay.style.pointerEvents = 'none';
+        overlay.innerHTML = '';
         
-        let weekDay = idx;
-        const startMinutes = (log.hour || 0) * 60 + (log.minute || 0);
-        const endMinutes = (log.endHour || log.hour || 0) * 60 + (log.endMinute || log.minute || 0);
-        const duration = Math.max(endMinutes - startMinutes, 30); // 最小30分钟
-        
-        // 精确像素定位，适配单元格
-        const left = weekDay * cellWidth + 1; // 左边距1px
-        const top = (startMinutes / 60) * cellHeight;
-        const width = cellWidth - 3; // 留出边框空间
-        const height = Math.max((duration / 60) * cellHeight - 1, 15); // 最小15px高度，留出1px边距
-        
-        const colorClass = getCalendarBlockClass(log.name);
-        
-        const block = document.createElement('div');
-        block.className = `time-block ${colorClass}`;
-        block.style.position = 'absolute';
-        block.style.left = left + 'px';
-        block.style.top = top + 'px';
-        block.style.width = width + 'px';
-        block.style.height = height + 'px';
-        block.style.pointerEvents = 'auto'; // 时间块本身可以接收事件
-        block.style.zIndex = 100 + index; // 后添加的在上层
-        block.style.border = '1px solid rgba(255,255,255,0.3)'; // 添加边框便于区分
-        block.style.borderRadius = '4px';
-        
-        // 调试信息
-        block.title = `${log.name}\n时间: ${log.hour}:${String(log.minute).padStart(2,'0')}-${log.endHour}:${String(log.endMinute).padStart(2,'0')}\n位置: ${left}px, ${top}px\n尺寸: ${width}×${height}px\n颜色: ${getCalendarBlockClass(log.name)}`;
-        
-        block.innerHTML = `<div class="time-block-text">${log.name}</div>`;
-        block.oncontextmenu = (e) => {
-            e.preventDefault();
-            window._calendarBlockContextMenu(e, log.date, log.name, log.hour, log.minute);
-        };
-        overlay.appendChild(block);
-    });
-    
-    window._isRendering = false; // 渲染完成，重置标志
+        const allItems = [
+            ...((gameData.timeLogs || []).map(item => ({ ...item, itemType: 'log' }))),
+            ...((gameData.blueprints || []).filter(item => item.status === 'planned').map(item => ({ ...item, itemType: 'blueprint' })))
+        ];
+
+        const sortedItems = allItems
+            .filter(item => {
+                const dateStr = item.itemType === 'log' ? item.date : formatDateLocal(new Date(item.scheduledDate));
+                return weekDates.includes(dateStr);
+            })
+            .sort((a, b) => {
+                const dateA = new Date(a.itemType === 'log' ? `${a.date}T${String(a.hour || 0).padStart(2, '0')}:${String(a.minute || 0).padStart(2, '0')}` : a.scheduledDate);
+                const dateB = new Date(b.itemType === 'log' ? `${b.date}T${String(b.hour || 0).padStart(2, '0')}:${String(b.minute || 0).padStart(2, '0')}` : b.scheduledDate);
+                return dateA - dateB;
+            });
+
+        sortedItems.forEach((item, index) => {
+            const block = document.createElement('div');
+            let dateStr, startMinutes, duration, name;
+            
+            if (item.itemType === 'log') {
+                dateStr = item.date;
+                startMinutes = (item.hour || 0) * 60 + (item.minute || 0);
+                const endMinutes = (item.endHour || item.hour || 0) * 60 + (item.endMinute || item.minute || 0);
+                duration = Math.max(endMinutes - startMinutes, 15);
+                name = item.name;
+                block.className = `time-block ${getCalendarBlockClass(name)}`;
+                block.style.zIndex = 100 + index;
+                block.title = `${name}\n时间: ${item.hour}:${String(item.minute).padStart(2,'0')}-${item.endHour}:${String(item.endMinute).padStart(2,'0')}`;
+                block.oncontextmenu = (e) => { e.preventDefault(); window._calendarBlockContextMenu(e, item.date, item.name, item.hour, item.minute); };
+            } else { // Blueprint
+                const startDate = new Date(item.scheduledDate);
+                dateStr = formatDateLocal(startDate);
+                startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
+                duration = item.duration;
+                name = item.name;
+                // 根据优先级设置不同的样式类
+                const priorityClass = item.priority ? `priority-${item.priority}` : 'priority-medium';
+                block.className = `time-block blueprint ${priorityClass}`;
+                block.style.zIndex = 50 + index;
+                block.title = `计划: ${name} (${duration}分钟)\n优先级: ${item.priority || 'medium'}`;
+                block.dataset.blueprintId = item.id;
+                block.oncontextmenu = (e) => { e.preventDefault(); showBlueprintContextMenu(e, item.id); };
+            }
+
+            const weekDay = weekDates.indexOf(dateStr);
+            if (weekDay < 0) return;
+
+            // The drawing logic inside the now-perfectly-aligned overlay.
+            // Minor adjustments might be needed for border/padding of cells.
+            const left = weekDay * cellWidth;
+            const top = (startMinutes / 60) * cellHeight;
+            const width = cellWidth;
+            const height = Math.max((duration / 60) * cellHeight, 1);
+
+            block.style.position = 'absolute';
+            block.style.left = `${left}px`;
+            block.style.top = `${top}px`;
+            block.style.width = `${width}px`;
+            block.style.height = `${height}px`;
+            block.style.pointerEvents = 'auto';
+            block.innerHTML = `<div class="time-block-text">${name}</div>`;
+            
+            overlay.appendChild(block);
+        });
+    } finally {
+        window._isRendering = false;
+    }
+
+    // ====== 新增：当前时间线 ======
+    if (weekDates && weekDates.length === 7) {
+        const now = new Date();
+        const todayStr = formatDateLocal(now);
+        const weekDay = weekDates.indexOf(todayStr);
+        if (weekDay >= 0) {
+            const cellHeight = overlay.offsetHeight / 25; // 24小时+1行
+            const cellWidth = overlay.offsetWidth / 7;
+            const minutes = now.getHours() * 60 + now.getMinutes();
+            const top = (minutes / 60) * cellHeight;
+            const left = weekDay * cellWidth;
+            const width = cellWidth;
+            // 创建时间线
+            const line = document.createElement('div');
+            line.style.position = 'absolute';
+            line.style.left = `${left}px`;
+            line.style.top = `${top}px`;
+            line.style.width = `${width}px`;
+            line.style.height = '2px';
+            line.style.background = 'linear-gradient(90deg, #ff1744 60%, #ff9100 100%)';
+            line.style.boxShadow = '0 0 6px 2px #ff174488';
+            line.style.zIndex = 9999;
+            line.style.pointerEvents = 'none';
+            overlay.appendChild(line);
+        }
+    }
+
+    // ====== 新增：定时刷新时间线 ======
+    if (!window._calendarTimeLineTimer) {
+        window._calendarTimeLineTimer = setInterval(() => {
+            renderTimeBlocks(weekDates);
+        }, 60 * 1000);
+    }
 }
+
+function showBlueprintContextMenu(event, blueprintId) {
+    hideContextMenu();
+    const menu = document.getElementById('context-menu');
+    menu.innerHTML = `
+        <div class="context-menu-item" onclick="viewBlueprintInfo('${blueprintId}')">👁️ 查看信息</div>
+        <div class="context-menu-item" onclick="completeBlueprint('${blueprintId}')">✅ 标记完成</div>
+        <div class="context-menu-item" onclick="deleteBlueprint('${blueprintId}')">🗑️ 删除计划</div>
+    `;
+    menu.style.display = 'block';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+    contextMenuType = 'blueprint';
+    
+    // 添加点击其他地方关闭菜单的事件监听器
+    setTimeout(() => {
+        document.addEventListener('mousedown', hideContextMenu);
+    }, 0);
+}
+
+// 新增：查看蓝图信息
+window.viewBlueprintInfo = function(blueprintId) {
+    const bpIndex = gameData.blueprints.findIndex(bp => bp.id === blueprintId);
+    if (bpIndex === -1) return;
+    const blueprint = gameData.blueprints[bpIndex];
+    
+    const scheduledDate = new Date(blueprint.scheduledDate);
+    const endDate = new Date(scheduledDate.getTime() + blueprint.duration * 60000);
+    
+    const categoryNames = {
+        'production': '🏭 生产',
+        'automation': '⚙️ 自动化', 
+        'investment': '💰 投资',
+        'lifestyle': '🌱 生活方式',
+        'infrastructure': '🏗️ 基础设施'
+    };
+    
+    const priorityNames = {
+        'low': '低',
+        'medium': '中', 
+        'high': '高',
+        'urgent': '紧急'
+    };
+    
+    showCustomModal({
+        title: '蓝图信息',
+        content: `
+            <div style="margin-bottom: 16px;">
+                <div style="font-weight: bold; font-size: 1.1em; margin-bottom: 8px;">${blueprint.name}</div>
+                <div style="color: #666; font-size: 0.9em;">${categoryNames[blueprint.category] || blueprint.category}</div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <div style="font-weight: bold; margin-bottom: 4px;">📅 计划时间</div>
+                <div style="color: #333;">
+                    ${scheduledDate.toLocaleDateString('zh-CN')} ${scheduledDate.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <div style="font-weight: bold; margin-bottom: 4px;">⏱️ 计划时长</div>
+                <div style="color: #333;">${blueprint.duration} 分钟</div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <div style="font-weight: bold; margin-bottom: 4px;">🕐 结束时间</div>
+                <div style="color: #333;">
+                    ${endDate.toLocaleDateString('zh-CN')} ${endDate.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <div style="font-weight: bold; margin-bottom: 4px;">🎯 优先级</div>
+                <div style="color: #333;">${priorityNames[blueprint.priority] || blueprint.priority}</div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <div style="font-weight: bold; margin-bottom: 4px;">📊 状态</div>
+                <div style="color: #27ae60;">已计划</div>
+            </div>
+        `,
+        onConfirm: () => {
+            hideContextMenu();
+            return true;
+        },
+        confirmText: '关闭'
+    });
+}
+
+window.completeBlueprint = function(blueprintId) {
+    const bpIndex = gameData.blueprints.findIndex(bp => bp.id === blueprintId);
+    if (bpIndex === -1) return;
+    const blueprint = gameData.blueprints[bpIndex];
+
+    // 添加到蓝图历史记录（排除自动化类型）
+    if (blueprint.category !== 'automation') {
+        addToBlueprintHistory(blueprint, 'completed');
+    }
+
+    const start = new Date(blueprint.scheduledDate);
+    const end = new Date(start.getTime() + blueprint.duration * 60000);
+    const newLog = {
+        name: blueprint.name,
+        type: blueprint.category || 'blueprint',
+        date: start.toISOString().slice(0, 10),
+        weekDay: (start.getDay() + 6) % 7,
+        hour: start.getHours(),
+        minute: start.getMinutes(),
+        timeCost: blueprint.duration,
+        endHour: end.getHours(),
+        endMinute: end.getMinutes(),
+        fromBlueprint: true
+    };
+    gameData.timeLogs.push(newLog);
+    gameData.blueprints.splice(bpIndex, 1);
+    saveToCloud();
+    renderWeekCalendar();
+    hideContextMenu();
+}
+
+window.deleteBlueprint = function(blueprintId) {
+    const bpIndex = gameData.blueprints.findIndex(bp => bp.id === blueprintId);
+    if (bpIndex > -1) {
+        gameData.blueprints.splice(bpIndex, 1);
+        saveToCloud();
+        renderWeekCalendar();
+    }
+    hideContextMenu();
+}
+
 function getCalendarBlockClass(name) {
     // 简单的字符串hash到颜色索引的映射
     let hash = 0;
@@ -1603,6 +1973,8 @@ function getCalendarBlockClass(name) {
 window.addEventListener('DOMContentLoaded',function(){
     renderTimeAndEnergy();
     renderWeekCalendar();
+    // 检查过期蓝图
+    checkExpiredBlueprints();
 });
 
 // 7. 生产线数据结构增加timeCost字段（建议手动在已有数据中补充）
@@ -1701,20 +2073,17 @@ function renderResourceStats() {
             html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:#95a5a6;'>(${estimatedExpenseDetails.join(' + ')})</div>`;
         }
         
-        // 实际月支出与对比
-        const difference = monthlyTotal - estimatedExpense;
-        const diffColor = difference > 0 ? '#e74c3c' : (difference < 0 ? '#27ae60' : '#95a5a6');
-        const diffSymbol = difference > 0 ? '+' : '';
+        // 实际月支出（已支出）与尚未支出
+        const remainingExpense = estimatedExpense - monthlyTotal;
         
         html += `<div class='resource-row'>
-            <span class='resource-label'>实际月支出</span>
+            <span class='resource-label'>已支出</span>
             <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(monthlyTotal).toLocaleString()}</span>
         </div>`;
         
         if (estimatedExpense > 0) {
-            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:${diffColor};'>
-                差额：${diffSymbol}¥${Math.abs(Math.round(difference)).toLocaleString()} 
-                (${difference > 0 ? '超支' : difference < 0 ? '节省' : '无差异'})
+            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:#888;'>
+                尚未支出：¥${Math.round(remainingExpense).toLocaleString()}
             </div>`;
         }
         
@@ -3908,60 +4277,44 @@ function getEstimatedMonthlyExpense() {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+
     let total = 0;
-    let expensesByCurrency = {};
     
     // 计算支出管理面板中所有支出项的总和
     (gameData.expenses||[]).forEach(exp => {
         if (!exp || !exp.amount || !exp.currency) return;
         
+        const start = new Date(exp.date);
+        
+        // 跳过在当前月份之后才开始的支出
+        if (start > lastDayOfMonth) return;
+        
         if (exp.type === 'single') {
-            // 单次支出：如果还没发生，算入预计支出
-            const d = new Date(exp.date);
-            if (d.getFullYear() === year && d.getMonth() === month && d >= now) {
-                if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
-                expensesByCurrency[exp.currency] += exp.amount;
+            // 单次支出：只要在本月内，就计入
+            if (start >= firstDayOfMonth && start <= lastDayOfMonth) {
+                total += convertToCNY(exp.amount, exp.currency);
             }
         } else if (exp.type === 'recurring') {
-            // 固定支出：计算本月预计发生几次
-            const start = new Date(exp.date);
-            if (start > now) return; // 未来开始的不算
-            
+            // 固定支出
             if (exp.frequency === 'monthly') {
-                // 每月一次，只要起始日期<=本月
-                if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
-                    if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
-                    expensesByCurrency[exp.currency] += exp.amount;
-                }
+                // 每月一次，只要起始日期在本月或之前
+                total += convertToCNY(exp.amount, exp.currency);
             } else if (exp.frequency === 'biweekly') {
-                // 每2周，计算本月内预计发生几次
-                let firstDay = new Date(year, month, 1);
-                let lastDay = new Date(year, month + 1, 0);
-                let cycleStart = new Date(start);
-                
-                // 找到本月第一次发生的日期
-                while (cycleStart < firstDay) {
-                    cycleStart.setDate(cycleStart.getDate() + 14);
+                // 每2周，计算本月内发生几次
+                let current = new Date(start);
+                // 调整到本月第一次发生日期
+                while (current < firstDayOfMonth) {
+                    current.setDate(current.getDate() + 14);
                 }
-                
                 // 计算本月内发生的次数
-                let count = 0;
-                while (cycleStart <= lastDay) {
-                    count++;
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-                
-                if (count > 0) {
-                    if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
-                    expensesByCurrency[exp.currency] += exp.amount * count;
+                while (current <= lastDayOfMonth) {
+                    total += convertToCNY(exp.amount, exp.currency);
+                    current.setDate(current.getDate() + 14);
                 }
             }
         }
-    });
-    
-    // 转换为人民币总和
-    Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
-        total += convertToCNY(amount, currency);
     });
     
     return total;
@@ -3972,50 +4325,42 @@ function getEstimatedExpenseBreakdown() {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    
     let expensesByCurrency = {};
     
     (gameData.expenses||[]).forEach(exp => {
         if (!exp || !exp.amount || !exp.currency) return;
         
+        const start = new Date(exp.date);
+        // 跳过在当前月份之后才开始的支出
+        if (start > lastDayOfMonth) return;
+        
         if (exp.type === 'single') {
-            // 单次支出：如果还没发生，算入预计支出
-            const d = new Date(exp.date);
-            if (d.getFullYear() === year && d.getMonth() === month && d >= now) {
+            // 单次支出：只要在本月内，就计入
+             if (start >= firstDayOfMonth && start <= lastDayOfMonth) {
                 if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
                 expensesByCurrency[exp.currency] += exp.amount;
             }
         } else if (exp.type === 'recurring') {
-            // 固定支出：计算本月预计发生几次
-            const start = new Date(exp.date);
-            if (start > now) return; // 未来开始的不算
-            
+            // 固定支出
             if (exp.frequency === 'monthly') {
-                // 每月一次，只要起始日期<=本月
-                if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
+                // 每月一次，只要起始日期在本月或之前
+                if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
+                expensesByCurrency[exp.currency] += exp.amount;
+            } else if (exp.frequency === 'biweekly') {
+                // 每2周，计算本月内发生几次
+                let current = new Date(start);
+                // 调整到本月第一次发生日期
+                while (current < firstDayOfMonth) {
+                    current.setDate(current.getDate() + 14);
+                }
+                // 计算本月内发生的次数
+                while (current <= lastDayOfMonth) {
                     if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
                     expensesByCurrency[exp.currency] += exp.amount;
-                }
-            } else if (exp.frequency === 'biweekly') {
-                // 每2周，计算本月内预计发生几次
-                let firstDay = new Date(year, month, 1);
-                let lastDay = new Date(year, month + 1, 0);
-                let cycleStart = new Date(start);
-                
-                // 找到本月第一次发生的日期
-                while (cycleStart < firstDay) {
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-                
-                // 计算本月内发生的次数
-                let count = 0;
-                while (cycleStart <= lastDay) {
-                    count++;
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-                
-                if (count > 0) {
-                    if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
-                    expensesByCurrency[exp.currency] += exp.amount * count;
+                    current.setDate(current.getDate() + 14);
                 }
             }
         }
@@ -4026,4 +4371,129 @@ function getEstimatedExpenseBreakdown() {
         breakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
     });
     return breakdown;
+}
+
+function showBlueprintModal() {
+    document.getElementById('blueprint-form').reset();
+    // 设置默认日期为明天上午9点，使用本地时间
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    // 格式化为本地时间字符串，避免时区问题
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    const hours = String(tomorrow.getHours()).padStart(2, '0');
+    const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+    document.getElementById('blueprint-date').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    
+    // 渲染蓝图历史标签
+    renderBlueprintHistoryTags();
+    
+    document.getElementById('blueprint-modal').style.display = 'block';
+}
+
+// 新增：时间快捷设置函数
+window.setBlueprintTime = function(option) {
+    const dateInput = document.getElementById('blueprint-date');
+    let targetDate;
+    
+    switch(option) {
+        case 'now':
+            targetDate = new Date();
+            break;
+        case 'tomorrow-9':
+            targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() + 1);
+            targetDate.setHours(9, 0, 0, 0);
+            break;
+        case 'next-week':
+            targetDate = new Date();
+            // 获取当前是星期几 (0=周日, 1=周一, ..., 6=周六)
+            const currentDay = targetDate.getDay();
+            // 计算到下周一需要的天数
+            let daysToAdd;
+            if (currentDay === 0) { // 周日
+                daysToAdd = 1;
+            } else { // 周一到周六
+                daysToAdd = 8 - currentDay;
+            }
+            targetDate.setDate(targetDate.getDate() + daysToAdd);
+            targetDate.setHours(9, 0, 0, 0);
+            break;
+    }
+    
+    if (targetDate) {
+        // 使用本地时间格式，避免时区问题
+        const year = targetDate.getFullYear();
+        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const hours = String(targetDate.getHours()).padStart(2, '0');
+        const minutes = String(targetDate.getMinutes()).padStart(2, '0');
+        dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+}
+
+// 新增：时长快捷设置函数，支持叠加
+window.setBlueprintDuration = function(minutes) {
+    const durationInput = document.getElementById('blueprint-duration');
+    const currentValue = parseInt(durationInput.value) || 0;
+    
+    // 移除所有按钮的激活状态
+    document.querySelectorAll('.btn-duration').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // 找到被点击的按钮并添加激活状态
+    const clickedButton = event.target;
+    clickedButton.classList.add('active');
+    
+    // 如果当前输入框已有值，则叠加；否则直接设置
+    if (currentValue > 0) {
+        durationInput.value = currentValue + minutes;
+    } else {
+        durationInput.value = minutes;
+    }
+    
+    // 0.5秒后移除激活状态
+    setTimeout(() => {
+        clickedButton.classList.remove('active');
+    }, 500);
+}
+
+function saveBlueprint(e) {
+    e.preventDefault();
+    // 获取选中的优先级
+    const priorityRadios = document.querySelectorAll('input[name="priority"]');
+    let selectedPriority = 'medium'; // 默认值
+    for (const radio of priorityRadios) {
+        if (radio.checked) {
+            selectedPriority = radio.value;
+            break;
+        }
+    }
+    
+    const blueprint = {
+        id: `bp_${new Date().getTime()}`,
+        name: document.getElementById('blueprint-name').value,
+        category: document.getElementById('blueprint-category').value,
+        scheduledDate: new Date(document.getElementById('blueprint-date').value).toISOString(),
+        duration: parseInt(document.getElementById('blueprint-duration').value, 10),
+        priority: selectedPriority,
+        status: 'planned',
+    };
+
+    if (!blueprint.name || !blueprint.scheduledDate || isNaN(blueprint.duration) || blueprint.duration <= 0) {
+        alert('请确保计划名称、时间和时长都已正确填写。');
+        return;
+    }
+
+    if (!gameData.blueprints) {
+        gameData.blueprints = [];
+    }
+    gameData.blueprints.push(blueprint);
+
+    saveToCloud();
+    renderWeekCalendar();
+    window.closeModal('blueprint-modal');
 }

@@ -29,14 +29,27 @@
             <!-- 左侧：生产线 -->
             <div class="panel" style="grid-area: production;">
                 <h2 class="panel-title"><span class="conveyor-belt">⚙️</span><span>生产线</span></h2>
+                <div class="panel-actions">
+                    <button class="btn btn-add" onclick="window.showProductionModal()">+ 生产</button>
+                    <button id="add-blueprint-btn" class="btn btn-secondary">+ 蓝图</button>
+                </div>
                 <div id="productions-list"></div>
-                <button class="btn btn-add" onclick="window.showProductionModal()">+ 添加生产线</button>
             </div>
             
             <!-- 中间列：日历 + 研发中心 -->
             <div class="middle-column">
                 <!-- 日历 -->
-                <div id="week-calendar" class="panel"></div>
+                <div id="week-calendar" class="panel">
+                    <div class="panel-title">
+                        <span>🗓️ 本周时间投入</span>
+                        <div class="calendar-nav">
+                            <button id="prev-week-btn" class="nav-btn">← 上一周</button>
+                            <button id="today-btn" class="nav-btn">返回今天</button>
+                            <button id="next-week-btn" class="nav-btn">下一周 →</button>
+                        </div>
+                        <span id="week-range-label" class="week-range"></span>
+                    </div>
+                </div>
                 <!-- 研发中心 -->
                 <div class="panel research-panel">
                     <h2 class="panel-title"><span class="factory-icon">🏭</span><span>研发中心</span></h2>
@@ -615,6 +628,70 @@
             </div>
         </div>
     </div>
+
+    <!-- 新的蓝图模态框 -->
+    <div id="blueprint-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">创建蓝图计划</h3>
+            <form id="blueprint-form">
+                <div class="form-group">
+                    <label class="form-label">计划名称</label>
+                    <input type="text" class="form-input" id="blueprint-name" required>
+                    <!-- 蓝图历史标签 -->
+                    <div id="blueprint-history-tags" style="margin-top: 8px;"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">类别</label>
+                    <select class="form-select" id="blueprint-category">
+                        <option value="infrastructure">🏗️ 基础设施</option>
+                        <option value="production">🏭 生产</option>
+                        <option value="lifestyle">🏖️ 日常</option>
+                        <option value="automation">🤖 自动化</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="blueprint-date" class="form-label">计划日期和时间</label>
+                    <div class="datetime-quick-actions">
+                        <button type="button" class="btn-time-quick" onclick="setBlueprintTime('now')">现在</button>
+                        <button type="button" class="btn-time-quick" onclick="setBlueprintTime('tomorrow-9')">明天9点</button>
+                        <button type="button" class="btn-time-quick" onclick="setBlueprintTime('next-week')">下周一</button>
+                    </div>
+                    <input type="datetime-local" id="blueprint-date" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="blueprint-duration" class="form-label">计划时长 (分钟)</label>
+                    <div class="duration-options">
+                        <button type="button" class="btn-duration" onclick="setBlueprintDuration(5)">5m</button>
+                        <button type="button" class="btn-duration" onclick="setBlueprintDuration(15)">15m</button>
+                        <button type="button" class="btn-duration" onclick="setBlueprintDuration(30)">30m</button>
+                    </div>
+                    <input type="number" id="blueprint-duration" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">优先级</label>
+                    <div class="priority-options">
+                        <label class="priority-option">
+                            <input type="radio" name="priority" value="low">
+                            <span class="priority-label low">低</span>
+                        </label>
+                        <label class="priority-option">
+                            <input type="radio" name="priority" value="medium" checked>
+                            <span class="priority-label medium">中</span>
+                        </label>
+                        <label class="priority-option">
+                            <input type="radio" name="priority" value="high">
+                            <span class="priority-label high">高</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="window.closeModal('blueprint-modal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存计划</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="utils/tech-tree-renderer.js"></script>
     <script>
         // DOM加载完成后执行

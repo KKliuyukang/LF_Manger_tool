@@ -168,14 +168,27 @@ body {
 }
 
 .panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-size: 1.2em;
     font-weight: bold;
     margin-bottom: 15px;
     padding-bottom: 10px;
     border-bottom: 2px solid #ecf0f1;
-    display: flex;
-    align-items: center;
     gap: 8px;
+}
+
+.calendar-nav {
+    display: flex;
+    gap: 8px;
+    margin: 0 auto;
+}
+
+.week-range {
+    font-size: 0.8em;
+    font-weight: normal;
+    color: var(--text-secondary);
 }
 
 /* 动画样式 */
@@ -613,7 +626,10 @@ body {
     position: relative;
     overflow: hidden;
     backdrop-filter: blur(20px);
+    color: white;
 }
+
+/* 移除这个规则，因为现在使用nav-btn类 */
 
 .btn::before {
     content: '';
@@ -659,8 +675,6 @@ body {
 .btn-add {
     background: #27ae60;
     color: white;
-    width: 100%;
-    margin-top: 10px;
 }
 
 .btn-add:hover {
@@ -1121,15 +1135,81 @@ body {
     font-weight: 700 !important;
     margin-bottom: 20px !important;
     padding-bottom: 12px !important;
-    background: var(--primary-gradient) !important;
-    background-clip: text !important;
-    -webkit-background-clip: text !important;
-    -webkit-text-fill-color: transparent !important;
     border-bottom: 2px solid rgba(102, 126, 234, 0.2) !important;
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
     letter-spacing: 0.5px !important;
+}
+
+/* 面板标题中的文字渐变效果 - 只针对span元素 */
+.panel-title > span {
+    background: var(--primary-gradient) !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+/* 现代化日历导航按钮设计 */
+.calendar-nav .nav-btn {
+    /* 重置webkit问题 */
+    -webkit-text-fill-color: initial !important;
+    
+    /* 现代化样式 */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    
+    /* 尺寸调整 - 稍微小一点 */
+    padding: 5px 8px !important;
+    font-size: 0.55em !important;
+    font-weight: 600 !important;
+    
+    /* 现代化效果 */
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    backdrop-filter: blur(10px) !important;
+    
+    /* 布局 */
+    margin: 0 4px !important;
+    cursor: pointer !important;
+    letter-spacing: 0.3px !important;
+}
+
+/* 日历导航按钮悬停和交互效果 */
+.calendar-nav .nav-btn:hover {
+    background: linear-gradient(135deg, #7b8cf0 0%, #8a5eb8 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3) !important;
+}
+
+.calendar-nav .nav-btn:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2) !important;
+}
+
+/* 按钮点击水波纹效果 */
+.calendar-nav .nav-btn::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: -100% !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent) !important;
+    transition: left 0.5s !important;
+}
+
+.calendar-nav .nav-btn:hover::before {
+    left: 100% !important;
+}
+
+/* 移除之前可能的冲突样式 */
+.calendar-nav .nav-btn::after {
+    display: none !important;
 }
 
 /* 研发库管理弹窗样式优化 */
@@ -1204,17 +1284,17 @@ body {
     border-color: rgba(255,255,255,0.5);
 }
 
-/* 现代化渐变色彩方案 - 更柔和优雅 */
-.time-block.color-0 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; } /* 蓝紫渐变 */
-.time-block.color-1 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important; } /* 粉橙渐变 */
-.time-block.color-2 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important; } /* 天蓝渐变 */
-.time-block.color-3 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important; } /* 绿青渐变 */
-.time-block.color-4 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%) !important; } /* 粉黄渐变 */
-.time-block.color-5 { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%) !important; } /* 薄荷粉渐变 */
-.time-block.color-6 { background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%) !important; } /* 紫米渐变 */
-.time-block.color-7 { background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%) !important; } /* 冰蓝渐变 */
-.time-block.color-8 { background: linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%) !important; } /* 金青渐变 */
-.time-block.color-9 { background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%) !important; } /* 玫瑰渐变 */
+/* 现代化渐变色彩方案 - 更饱和、清晰 */
+.time-block.color-0 { background: linear-gradient(135deg, #d32f2f, #ef5350) !important; } /* 深红 */
+.time-block.color-1 { background: linear-gradient(135deg, #f57c00, #ffb74d) !important; } /* 深橙 */
+.time-block.color-2 { background: linear-gradient(135deg, #1976d2, #64b5f6) !important; } /* 主蓝 */
+.time-block.color-3 { background: linear-gradient(135deg, #388e3c, #81c784) !important; } /* 森林绿 */
+.time-block.color-4 { background: linear-gradient(135deg, #ffa000, #ffd54f) !important; } /* 琥珀黄 */
+.time-block.color-5 { background: linear-gradient(135deg, #00796b, #4db6ac) !important; } /* 青色 */
+.time-block.color-6 { background: linear-gradient(135deg, #303f9f, #7986cb) !important; } /* 靛蓝 */
+.time-block.color-7 { background: linear-gradient(135deg, #c2185b, #f06292) !important; } /* 玫红 */
+.time-block.color-8 { background: linear-gradient(135deg, #7b1fa2, #ba68c8) !important; } /* 紫色 */
+.time-block.color-9 { background: linear-gradient(135deg, #0277bd, #4fc3f7) !important; } /* 天蓝 */
 
 /* 移除默认背景 */
 .time-block {
@@ -1227,19 +1307,16 @@ body {
 
 /* 时间块内的文字 - 改进可读性 */
 .time-block-text {
-    color: #ffffff;
-    font-weight: 600;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    color: white;
     text-align: center;
     padding: 0 6px;
-    font-size: 0.9em;
+    font-size: 0.7em;
     word-break: break-all;
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     height: 100%;
-    line-height: 1.2;
-    letter-spacing: 0.3px;
+    text-shadow: 0px 0px 4px rgba(0, 0, 0, 0.8); /* Add text shadow for readability */
 }
 
 .time-block-time {
@@ -1463,6 +1540,27 @@ dialog::backdrop {
     background: linear-gradient(135deg, #a855c7 0%, #b465d1 100%);
 }
 
+/* 蓝图历史标签样式 */
+.blueprint-history-tag {
+    background: linear-gradient(135deg, #42a5f5 0%, #2196f3 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    box-shadow: 0 2px 4px rgba(66, 165, 245, 0.2);
+    margin: 2px 4px 2px 0;
+    display: inline-block;
+}
+
+.blueprint-history-tag:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(66, 165, 245, 0.3);
+    background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+}
+
 /* 科技树样式的研发库 */
 /* .tech-tree-container { ... } */
 /* .tech-tree-title { ... } */
@@ -1636,5 +1734,221 @@ dialog::backdrop {
 .btn-margin-left {
     margin-left: 8px;
 }
+
+.panel-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.panel-actions .btn {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 0.9em;
+    text-align: center;
+    justify-content: center;
+    width: auto !important; /* Override individual button widths */
+    margin-top: 0 !important; /* Remove individual margins */
+    height: 44px !important; /* 统一按钮高度 */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.time-block.blueprint {
+    background-color: rgba(89, 188, 255, 0.75) !important; /* A nice blue with adjusted opacity */
+    border: 1px dashed rgba(41, 128, 185, 1);
+    color: white !important;
+    box-sizing: border-box;
+    z-index: 5 !important;
+    opacity: 0.4 !important; /* 蓝图透明度 */
+}
+
+.time-block.blueprint .time-block-text {
+    color: white;
+    font-weight: bold;
+}
+
+/* 删除蓝图图标 */
+.time-block.blueprint::after {
+    content: none;
+}
+
+#add-blueprint-btn {
+    background: linear-gradient(135deg, #4a90e2, #357abd) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    backdrop-filter: blur(20px) !important;
+    box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3) !important;
+}
+
+#add-blueprint-btn:hover {
+    background: linear-gradient(135deg, #5ba0f2, #4080cd) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 25px rgba(74, 144, 226, 0.4) !important;
+}
+.panel input,
+.panel select,
+.panel label,
+.form-input,
+.form-select,
+.form-label {
+    -webkit-text-fill-color: initial !important;
+}
+
+/* 确保支出管理面板中的非金额文字正常显示 */
+#expenses-panel .expense-name,
+#expenses-panel .expense-meta {
+    -webkit-text-fill-color: initial !important;
+}
+
+/* 蓝图面板优化样式 */
+.datetime-quick-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-time-quick {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f8f9fa;
+    color: #495057;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s ease;
+}
+
+.btn-time-quick:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.btn-time-quick:active {
+    background: #2196f3;
+    color: white;
+    border-color: #2196f3;
+}
+
+.duration-options {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-duration {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f8f9fa;
+    color: #495057;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s ease;
+    min-width: 50px;
+}
+
+.btn-duration:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.btn-duration:active,
+.btn-duration.active {
+    background: #2196f3;
+    color: white;
+    border-color: #2196f3;
+    transform: scale(0.95);
+}
+
+.priority-options {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.priority-option {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.priority-option input[type="radio"] {
+    margin: 0;
+    margin-right: 6px;
+    width: 16px;
+    height: 16px;
+}
+
+.priority-label {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.priority-label.low {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.priority-label.medium {
+    background: #bbdefb;
+    color: #0d47a1;
+}
+
+.priority-label.high {
+    background: #90caf9;
+    color: #0d47a1;
+}
+
+.priority-option input[type="radio"]:checked + .priority-label.low {
+    border-color: #42a5f5;
+    background: #42a5f5;
+    color: white;
+}
+
+.priority-option input[type="radio"]:checked + .priority-label.medium {
+    border-color: #2196f3;
+    background: #2196f3;
+    color: white;
+}
+
+.priority-option input[type="radio"]:checked + .priority-label.high {
+    border-color: #1976d2;
+    background: #1976d2;
+    color: white;
+}
+
+/* 蓝图在日历上根据优先级显示不同样式 */
+.time-block.blueprint.priority-high {
+    border-color: #1976d2 !important;
+    border-width: 3px !important;
+    background-color: rgba(25, 118, 210, 0.9) !important;
+}
+
+.time-block.blueprint.priority-medium {
+    border-color: #2196f3 !important;
+    border-width: 2px !important;
+    background-color: rgba(33, 150, 243, 0.8) !important;
+}
+
+.time-block.blueprint.priority-low {
+    border-color: #42a5f5 !important;
+    border-width: 1px !important;
+    background-color: rgba(66, 165, 245, 0.7) !important;
+}
+
+
 
  
