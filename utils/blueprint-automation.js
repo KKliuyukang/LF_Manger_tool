@@ -75,11 +75,86 @@ class BlueprintAutomationManager {
     // 获取自动化项目
     getAutomationProjects() {
         const productions = window.gameData?.productions || [];
-        return productions.filter(prod => 
+        const automationProjects = productions.filter(prod => 
             prod.type === 'automation' && 
-            !prod.paused &&
-            prod.freq // 确保有频率设置
+            !prod.paused
         );
+        
+        // 为没有频率设置的项目从tech tree获取频率信息
+        automationProjects.forEach(project => {
+            if (!project.freq) {
+                // 尝试多种方式查找频率信息
+                let techFreq = null;
+                
+                // 1. 使用techId查找
+                if (project.techId) {
+                    techFreq = this.getFreqFromTechTree(project.techId);
+                }
+                
+                // 2. 使用id查找
+                if (!techFreq && project.id) {
+                    techFreq = this.getFreqFromTechTree(project.id);
+                }
+                
+                // 3. 使用name模糊匹配查找
+                if (!techFreq) {
+                    techFreq = this.getFreqFromTechTreeByName(project.name);
+                }
+                
+                if (techFreq) {
+                    project.freq = techFreq;
+                    console.log(`📋 从tech tree为项目 "${project.name}" 获取频率: ${techFreq}`);
+                } else {
+                    project.freq = '每天'; // 默认每天
+                    console.log(`⚠️ 为项目 "${project.name}" 设置默认频率: 每天`);
+                }
+            }
+        });
+        
+        return automationProjects;
+    }
+
+    // 从tech tree文档中获取项目的频率信息
+    getFreqFromTechTree(techId) {
+        // 优先从加载的tech tree数据中获取
+        const techTreeData = window.devLibraryData?.techTree;
+        if (!techTreeData?.layers) return null;
+        
+        // 遍历所有层级和技术
+        for (const layer of techTreeData.layers) {
+            if (layer.technologies) {
+                for (const tech of layer.technologies) {
+                    if (tech.id === techId && tech.freq) {
+                        console.log(`🎯 从tech tree找到项目 ${techId} 的频率: ${tech.freq}`);
+                        return tech.freq;
+                    }
+                }
+            }
+        }
+        
+        console.log(`⚠️ 在tech tree中未找到项目 ${techId} 的频率信息`);
+        return null;
+    }
+
+    // 通过名称从tech tree中查找频率信息（模糊匹配）
+    getFreqFromTechTreeByName(projectName) {
+        const techTreeData = window.devLibraryData?.techTree;
+        if (!techTreeData?.layers) return null;
+        
+        // 遍历所有层级和技术，进行名称匹配
+        for (const layer of techTreeData.layers) {
+            if (layer.technologies) {
+                for (const tech of layer.technologies) {
+                    if (tech.freq && tech.name === projectName) {
+                        console.log(`🎯 通过名称匹配找到项目 "${projectName}" 的频率: ${tech.freq}`);
+                        return tech.freq;
+                    }
+                }
+            }
+        }
+        
+        console.log(`⚠️ 在tech tree中未找到名称为 "${projectName}" 的频率信息`);
+        return null;
     }
 
     // 生成日期范围
@@ -116,8 +191,16 @@ class BlueprintAutomationManager {
         const requiredDates = [];
         const freq = project.freq;
         
-        if (freq === '每天') {
+        // 支持更多tech tree中的频率格式
+        if (freq === '每天' || freq === '每天记录') {
             return dateRange; // 每天都需要
+        }
+        
+        if (freq === '每工作日') {
+            return dateRange.filter(date => {
+                const dayOfWeek = date.getDay();
+                return dayOfWeek >= 1 && dayOfWeek <= 5; // 周一到周五
+            });
         }
         
         // 解析频率
@@ -131,6 +214,12 @@ class BlueprintAutomationManager {
         if (monthlyMatch) {
             const timesPerMonth = parseInt(monthlyMatch[1]);
             return this.distributeMonthly(dateRange, timesPerMonth);
+        }
+        
+        const quarterlyMatch = freq.match(/每季度(\d+)次/);
+        if (quarterlyMatch) {
+            const timesPerQuarter = parseInt(quarterlyMatch[1]);
+            return this.distributeQuarterly(dateRange, timesPerQuarter);
         }
         
         const intervalMatch = freq.match(/每(\d+)天/);
@@ -163,6 +252,19 @@ class BlueprintAutomationManager {
         
         for (const month of months) {
             const selected = this.selectDatesFromMonth(month, timesPerMonth);
+            result.push(...selected);
+        }
+        
+        return result;
+    }
+
+    // 在一季度内均匀分布
+    distributeQuarterly(dateRange, timesPerQuarter) {
+        const result = [];
+        const quarters = this.groupDatesByQuarter(dateRange);
+        
+        for (const quarter of quarters) {
+            const selected = this.selectDatesFromQuarter(quarter, timesPerQuarter);
             result.push(...selected);
         }
         
@@ -615,6 +717,25 @@ class BlueprintAutomationManager {
         return Object.values(months);
     }
 
+    // 按季度分组日期
+    groupDatesByQuarter(dates) {
+        const quarters = {};
+        
+        dates.forEach(date => {
+            const year = date.getFullYear();
+            const month = date.getMonth(); // 0-11
+            const quarter = Math.floor(month / 3) + 1; // 1-4
+            const quarterKey = `${year}-Q${quarter}`;
+            
+            if (!quarters[quarterKey]) {
+                quarters[quarterKey] = [];
+            }
+            quarters[quarterKey].push(date);
+        });
+        
+        return Object.values(quarters);
+    }
+
     // 获取周起始日期（周一）
     getWeekStart(date) {
         const d = new Date(date);
@@ -654,6 +775,24 @@ class BlueprintAutomationManager {
         for (let i = 0; i < count; i++) {
             const index = Math.floor(i * step);
             selected.push(monthDates[index]);
+        }
+        
+        return selected;
+    }
+
+    // 从一季度中选择指定数量的日期
+    selectDatesFromQuarter(quarterDates, count) {
+        if (quarterDates.length <= count) {
+            return quarterDates;
+        }
+        
+        // 均匀分布算法
+        const selected = [];
+        const step = quarterDates.length / count;
+        
+        for (let i = 0; i < count; i++) {
+            const index = Math.floor(i * step);
+            selected.push(quarterDates[index]);
         }
         
         return selected;

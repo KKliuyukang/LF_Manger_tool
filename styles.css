@@ -1561,17 +1561,7 @@ dialog::backdrop {
     background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
 }
 
-/* 科技树样式的研发库 */
-/* .tech-tree-container { ... } */
-/* .tech-tree-title { ... } */
-/* .tech-tree-level { ... } */
-/* .tech-tree-branch { ... } */
-/* .tech-connection { ... } */
-/* .tech-connection-vertical { ... } */
-/* .tech-connection-horizontal { ... } */
-/* .tech-node { ... } */
-/* .tech-node-tooltip { ... } */
-/* 以及相关的响应式、分支、节点动画等 */
+
 
 /* 常用布局类 */
 .status-container {
