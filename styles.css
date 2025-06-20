@@ -1949,6 +1949,172 @@ dialog::backdrop {
     background-color: rgba(66, 165, 245, 0.7) !important;
 }
 
+/* === 自动化蓝图管理样式 === */
 
+/* 自动化按钮样式 */
+.btn-automation {
+    background: linear-gradient(135deg, #2196f3, #21cbf3);
+    color: white;
+    font-weight: 600;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-automation:hover {
+    background: linear-gradient(135deg, #1976d2, #1e88e5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+/* 开关样式 */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #2196f3;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+/* 自动化项目卡片样式 */
+.automation-project-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #fff;
+    transition: all 0.2s ease;
+}
+
+.automation-project-card:hover {
+    border-color: #2196f3;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+}
+
+/* 自动化状态显示样式 */
+.automation-status {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #2196f3;
+}
+
+/* 自动化操作按钮组 */
+.automation-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.automation-actions .btn {
+    min-width: 120px;
+}
+
+/* 蓝图自动生成标识 */
+.time-block.blueprint.auto-generated::before {
+    content: "🤖";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 12px;
+    z-index: 10;
+}
+
+/* 自动化日志样式 */
+.automation-logs {
+    margin-top: 20px;
+}
+
+.automation-logs h4 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+#automation-logs-list {
+    max-height: 200px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+/* 自动化设置表单样式 */
+#automation-settings-modal .form-group {
+    margin-bottom: 20px;
+}
+
+#automation-settings-modal .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
+}
+
+/* 保护时段设置网格 */
+#automation-settings-modal .form-group div[style*="grid"] > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+#automation-settings-modal .form-group div[style*="grid"] > div label {
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 2px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .automation-actions {
+        flex-direction: column;
+    }
+    
+    .automation-actions .btn {
+        width: 100%;
+    }
+    
+    #automation-settings-modal .form-group div[style*="grid"] {
+        grid-template-columns: 1fr !important;
+    }
+}
 
  

@@ -14,6 +14,8 @@
     <script src="utils/data-validator.js"></script>
     <!-- 性能优化模块 -->
     <script src="utils/performance-optimizer.js"></script>
+    <!-- 蓝图自动化模块 -->
+    <script src="utils/blueprint-automation.js"></script>
     <!-- 主应用脚本 -->
     <script src="app.js"></script>
 </head>
@@ -32,6 +34,7 @@
                 <div class="panel-actions">
                     <button class="btn btn-add" onclick="window.showProductionModal()">+ 生产</button>
                     <button id="add-blueprint-btn" class="btn btn-secondary">+ 蓝图</button>
+                    <button class="btn btn-automation" onclick="window.showBlueprintAutomationModal()">🤖 自动化</button>
                 </div>
                 <div id="productions-list"></div>
             </div>
@@ -625,6 +628,110 @@
             
             <div style="text-align:right;">
                 <button onclick="window.closeModal('data-manage-modal')" class="btn btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自动化蓝图管理模态框 -->
+    <div id="blueprint-automation-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h3 class="modal-title">🤖 蓝图自动化管理</h3>
+            
+            <!-- 状态总览 -->
+            <div class="automation-status" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-weight: bold;">自动化状态</span>
+                    <div>
+                        <label class="switch">
+                            <input type="checkbox" id="automation-enabled" onchange="toggleAutomation()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div id="automation-summary" style="font-size: 0.9em; color: #666;"></div>
+            </div>
+            
+            <!-- 快速操作 -->
+            <div class="automation-actions" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="generateAutomationBlueprints()">🎯 立即生成蓝图</button>
+                <button class="btn btn-secondary" onclick="clearAutoBlueprints()">🧹 清除自动蓝图</button>
+                <button class="btn btn-secondary" onclick="showAutomationSettings()">⚙️ 设置</button>
+            </div>
+            
+            <!-- 自动化项目列表 -->
+            <div class="automation-projects">
+                <h4>自动化项目</h4>
+                <div id="automation-projects-list" style="max-height: 300px; overflow-y: auto;"></div>
+            </div>
+            
+            <!-- 生成日志 -->
+            <div class="automation-logs" style="margin-top: 20px;">
+                <h4>生成记录</h4>
+                <div id="automation-logs-list" style="max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 8px;"></div>
+            </div>
+            
+            <div style="text-align: right; margin-top: 20px;">
+                <button onclick="window.closeModal('blueprint-automation-modal')" class="btn btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自动化设置模态框 -->
+    <div id="automation-settings-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">⚙️ 自动化设置</h3>
+            
+            <div class="form-group">
+                <label class="form-label">生成范围</label>
+                <select class="form-select" id="automation-range">
+                    <option value="3">未来3天</option>
+                    <option value="7" selected>未来7天</option>
+                    <option value="14">未来14天</option>
+                    <option value="30">未来30天</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">每日最大蓝图数量</label>
+                <input type="number" class="form-input" id="max-daily-blueprints" min="1" max="20" value="8">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">工作日/周末不同规则</label>
+                <label class="switch">
+                    <input type="checkbox" id="workday-rules" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">保护时段设置</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label>睡眠开始时间</label>
+                        <input type="time" class="form-input" id="sleep-start" value="22:00">
+                    </div>
+                    <div>
+                        <label>睡眠结束时间</label>
+                        <input type="time" class="form-input" id="sleep-end" value="07:00">
+                    </div>
+                    <div>
+                        <label>午休开始时间</label>
+                        <input type="time" class="form-input" id="lunch-start" value="12:00">
+                    </div>
+                    <div>
+                        <label>午休结束时间</label>
+                        <input type="time" class="form-input" id="lunch-end" value="13:00">
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                <button onclick="resetAutomationSettings()" class="btn btn-secondary">重置默认</button>
+                <div>
+                    <button onclick="saveAutomationSettings()" class="btn btn-primary">保存设置</button>
+                    <button onclick="window.closeModal('automation-settings-modal')" class="btn btn-secondary">取消</button>
+                </div>
             </div>
         </div>
     </div>
