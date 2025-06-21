@@ -1,0 +1,80 @@
+{
+  "2024-04": {
+    "total": 2850.50,
+    "categories": {
+      "home": 1680,
+      "transport": 520.30,
+      "groceries": 285.20,
+      "dining": 195.00,
+      "entertainment": 120.00,
+      "others": 50.00
+    },
+    "fixed_expenses": ["home"],
+    "unusual_items": ["车辆保养 $320"]
+  },
+  "2024-05": {
+    "total": 2646.18,
+    "categories": {
+      "home": 1680,
+      "transport": 477.54,
+      "groceries": 238.72,
+      "dining": 82.50,
+      "entertainment": 66.34,
+      "others": 101.08
+    },
+    "fixed_expenses": ["home"],
+    "unusual_items": ["IKEA购物 $450"]
+  },
+  "2024-06": {
+    "total": 2789.45,
+    "categories": {
+      "home": 1680,
+      "transport": 495.80,
+      "groceries": 312.65,
+      "dining": 156.00,
+      "entertainment": 95.00,
+      "others": 50.00
+    },
+    "fixed_expenses": ["home"],
+    "unusual_items": []
+  },
+  "2024-07": {
+    "total": 3150.20,
+    "categories": {
+      "home": 1680,
+      "transport": 580.20,
+      "groceries": 290.00,
+      "dining": 220.00,
+      "entertainment": 180.00,
+      "others": 200.00
+    },
+    "fixed_expenses": ["home"],
+    "unusual_items": ["年度保险费 $800"]
+  },
+  "2024-08": {
+    "total": 2598.75,
+    "categories": {
+      "home": 1680,
+      "transport": 445.75,
+      "groceries": 265.00,
+      "dining": 98.00,
+      "entertainment": 75.00,
+      "others": 35.00
+    },
+    "fixed_expenses": ["home"],
+    "unusual_items": []
+  },
+  "2024-09": {
+    "total": 2723.30,
+    "categories": {
+      "home": 1680,
+      "transport": 512.30,
+      "groceries": 298.00,
+      "dining": 133.00,
+      "entertainment": 65.00,
+      "others": 35.00
+    },
+    "fixed_expenses": ["home"],
+    "unusual_items": ["医疗检查 $280"]
+  }
+} 

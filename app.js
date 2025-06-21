@@ -88,6 +88,39 @@ window.gameData = {
         },
         lastGeneratedAt: null, // 最后一次生成时间
         generationLog: [] // 生成日志，最多保留30条
+    },
+    // 新增：智能资源管理系统
+    resourceManagement: {
+        // 历史财务数据（按月存储）
+        historicalData: {
+            // 格式：'2024-06': { total: 2646.18, categories: {...}, fixed_expenses: [...], unusual_items: [...] }
+        },
+        // 分析结果
+        analysis: {
+            averageMonthlyExpense: 0,
+            fixedExpenseRatio: 0,
+            variableExpenseRatio: 0,
+            stabilityScore: 0,
+            insights: [],
+            lastAnalyzedAt: null
+        },
+        // 预测数据
+        predictions: {
+            nextMonthExpense: 0,
+            nextMonthBreakdown: {
+                fixed: 0,
+                variable: 0,
+                variableRange: 0
+            },
+            specialReminders: [],
+            lastPredictedAt: null
+        },
+        // 数据导入设置
+        importSettings: {
+            lastImportDate: null,
+            updateFrequency: 'biweekly', // 'weekly', 'biweekly', 'monthly'
+            autoAnalysis: true
+        }
     }
 };
 
@@ -269,6 +302,7 @@ window.init = async function() {
     renderResourceStats();
     renderWeekCalendar();
     renderExpenses(); // 新增：初始化时渲染支出栏
+    renderResourceAnalysis(); // 新增：初始化智能分析面板
     setupEventListeners();
     
     if (!familyCode) {
@@ -2987,6 +3021,376 @@ function setupExpenseFormHandlers() {
 // 支出表单处理已简化，不需要复杂调试
 
 // setupExpenseFormHandlers 现在在 setupEventListeners 中被调用
+
+// ========== 支出面板标签页切换 ========== //
+window.switchExpenseTab = function(tabName) {
+    // 切换标签按钮状态
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // 切换内容面板
+    document.getElementById('expense-records-tab').style.display = tabName === 'records' ? 'block' : 'none';
+    document.getElementById('expense-analysis-tab').style.display = tabName === 'analysis' ? 'block' : 'none';
+    
+    // 如果切换到分析面板，确保数据是最新的
+    if (tabName === 'analysis') {
+        renderResourceAnalysis();
+    }
+}
+
+// ========== 智能资源管理系统 ========== //
+
+// 批量导入历史数据
+window.showResourceImportModal = function() {
+    document.getElementById('resource-import-modal').style.display = 'block';
+    document.getElementById('import-data-text').value = '';
+    document.getElementById('import-preview').innerHTML = '';
+}
+
+// 处理JSON数据导入
+window.processImportData = function() {
+    const textArea = document.getElementById('import-data-text');
+    const previewDiv = document.getElementById('import-preview');
+    
+    try {
+        const data = JSON.parse(textArea.value);
+        
+        // 验证数据格式
+        if (!data || typeof data !== 'object') {
+            throw new Error('数据格式不正确');
+        }
+        
+        let previewHtml = '<h4>📊 数据预览</h4>';
+        let totalMonths = 0;
+        let totalAmount = 0;
+        
+        Object.entries(data).forEach(([month, monthData]) => {
+            if (monthData.total) {
+                totalMonths++;
+                totalAmount += monthData.total;
+                previewHtml += `
+                    <div class="import-month-preview">
+                        <strong>${month}</strong>: ¥${monthData.total.toLocaleString()}
+                        <br><small>分类: ${Object.keys(monthData.categories || {}).join(', ')}</small>
+                    </div>
+                `;
+            }
+        });
+        
+        previewHtml += `
+            <div class="import-summary">
+                <strong>汇总：</strong>${totalMonths}个月数据，总计¥${totalAmount.toLocaleString()}
+                <br><small>平均月支出：¥${Math.round(totalAmount / totalMonths).toLocaleString()}</small>
+            </div>
+            <button class="btn btn-primary" onclick="window.confirmImportData()">确认导入</button>
+        `;
+        
+        previewDiv.innerHTML = previewHtml;
+        window.pendingImportData = data;
+        
+    } catch (error) {
+        previewDiv.innerHTML = `<div style="color: #e74c3c;">❌ 数据格式错误: ${error.message}</div>`;
+    }
+}
+
+// 确认导入数据
+window.confirmImportData = function() {
+    if (!window.pendingImportData) return;
+    
+    // 初始化resourceManagement如果不存在
+    if (!gameData.resourceManagement) {
+        gameData.resourceManagement = {
+            historicalData: {},
+            analysis: {
+                averageMonthlyExpense: 0,
+                fixedExpenseRatio: 0,
+                variableExpenseRatio: 0,
+                stabilityScore: 0,
+                insights: [],
+                lastAnalyzedAt: null
+            },
+            predictions: {
+                nextMonthExpense: 0,
+                nextMonthBreakdown: { fixed: 0, variable: 0, variableRange: 0 },
+                specialReminders: [],
+                lastPredictedAt: null
+            },
+            importSettings: {
+                lastImportDate: null,
+                updateFrequency: 'biweekly',
+                autoAnalysis: true
+            }
+        };
+    }
+    
+    // 合并历史数据
+    Object.assign(gameData.resourceManagement.historicalData, window.pendingImportData);
+    gameData.resourceManagement.importSettings.lastImportDate = new Date().toISOString();
+    
+    // 自动分析
+    analyzeResourceData();
+    
+    // 保存数据
+    saveToCloud();
+    
+    // 更新界面
+    renderResourceAnalysis();
+    
+    // 关闭模态框
+    closeModal('resource-import-modal');
+    
+    alert(`✅ 成功导入${Object.keys(window.pendingImportData).length}个月的数据！`);
+    window.pendingImportData = null;
+}
+
+// 智能分析资源数据
+function analyzeResourceData() {
+    const rm = gameData.resourceManagement;
+    if (!rm || !rm.historicalData) return;
+    
+    const data = rm.historicalData;
+    const months = Object.keys(data).sort();
+    
+    if (months.length === 0) return;
+    
+    // 计算平均月支出
+    const totalExpense = months.reduce((sum, month) => sum + (data[month].total || 0), 0);
+    const averageMonthly = totalExpense / months.length;
+    
+    // 分析固定支出
+    const fixedExpenses = new Set();
+    months.forEach(month => {
+        if (data[month].fixed_expenses) {
+            data[month].fixed_expenses.forEach(expense => fixedExpenses.add(expense));
+        }
+    });
+    
+    // 计算固定支出金额
+    let fixedTotal = 0;
+    let variableTotal = 0;
+    
+    months.forEach(month => {
+        const monthData = data[month];
+        if (monthData.categories) {
+            Object.entries(monthData.categories).forEach(([category, amount]) => {
+                if (fixedExpenses.has(category)) {
+                    fixedTotal += amount;
+                } else {
+                    variableTotal += amount;
+                }
+            });
+        }
+    });
+    
+    const fixedRatio = fixedTotal / (fixedTotal + variableTotal);
+    const variableRatio = 1 - fixedRatio;
+    
+    // 计算稳定度评分
+    const monthlyTotals = months.map(month => data[month].total || 0);
+    const variance = monthlyTotals.reduce((sum, total) => sum + Math.pow(total - averageMonthly, 2), 0) / months.length;
+    const stabilityScore = Math.max(0, Math.min(5, 5 - (Math.sqrt(variance) / averageMonthly) * 10));
+    
+    // 生成洞察
+    const insights = [];
+    
+    if (fixedRatio > 0.7) {
+        insights.push('💰 支出结构稳定，固定支出占比较高');
+    } else if (fixedRatio < 0.5) {
+        insights.push('📈 支出灵活性较高，变动支出较多');
+    }
+    
+    if (stabilityScore >= 4) {
+        insights.push('✅ 支出非常稳定，预测准确度高');
+    } else if (stabilityScore < 2) {
+        insights.push('⚠️ 支出波动较大，建议关注异常项目');
+    }
+    
+    // 分析趋势
+    if (months.length >= 3) {
+        const recentMonths = months.slice(-3);
+        const recentAvg = recentMonths.reduce((sum, month) => sum + data[month].total, 0) / 3;
+        const olderMonths = months.slice(0, -3);
+        const olderAvg = olderMonths.reduce((sum, month) => sum + data[month].total, 0) / olderMonths.length;
+        
+        const trendChange = (recentAvg - olderAvg) / olderAvg;
+        if (trendChange > 0.1) {
+            insights.push('📈 最近支出呈上升趋势');
+        } else if (trendChange < -0.1) {
+            insights.push('📉 最近支出呈下降趋势');
+        }
+    }
+    
+    // 更新分析结果
+    rm.analysis = {
+        averageMonthlyExpense: averageMonthly,
+        fixedExpenseRatio: fixedRatio,
+        variableExpenseRatio: variableRatio,
+        stabilityScore: stabilityScore,
+        insights: insights,
+        lastAnalyzedAt: new Date().toISOString()
+    };
+    
+    // 生成预测
+    generatePredictions();
+}
+
+// 生成支出预测
+function generatePredictions() {
+    const rm = gameData.resourceManagement;
+    if (!rm || !rm.analysis) return;
+    
+    const analysis = rm.analysis;
+    const data = rm.historicalData;
+    const months = Object.keys(data).sort();
+    
+    if (months.length === 0) return;
+    
+    // 预测下月支出
+    const baseExpense = analysis.averageMonthlyExpense;
+    const fixedExpense = baseExpense * analysis.fixedExpenseRatio;
+    const variableExpense = baseExpense * analysis.variableExpenseRatio;
+    const variableRange = variableExpense * 0.2; // ±20%的波动范围
+    
+    // 检查特殊提醒
+    const specialReminders = [];
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const nextMonth = new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 7);
+    
+    // 检查季度性支出
+    months.forEach(month => {
+        const monthData = data[month];
+        if (monthData.unusual_items) {
+            monthData.unusual_items.forEach(item => {
+                if (item.includes('保险') || item.includes('年费')) {
+                    const monthNum = parseInt(month.split('-')[1]);
+                    const nextMonthNum = parseInt(nextMonth.split('-')[1]);
+                    if (monthNum === nextMonthNum) {
+                        specialReminders.push(`⚠️ 下月可能有${item}`);
+                    }
+                }
+            });
+        }
+    });
+    
+    rm.predictions = {
+        nextMonthExpense: Math.round(baseExpense),
+        nextMonthBreakdown: {
+            fixed: Math.round(fixedExpense),
+            variable: Math.round(variableExpense),
+            variableRange: Math.round(variableRange)
+        },
+        specialReminders: specialReminders,
+        lastPredictedAt: new Date().toISOString()
+    };
+}
+
+// 渲染资源分析面板
+function renderResourceAnalysis() {
+    const container = document.getElementById('resource-analysis-content');
+    if (!container) return;
+    
+    const rm = gameData.resourceManagement;
+    if (!rm || !rm.analysis || !rm.analysis.lastAnalyzedAt) {
+        container.innerHTML = `
+            <div class="analysis-empty">
+                <p>📊 暂无分析数据</p>
+                <p>导入历史数据后将自动生成智能分析报告</p>
+                <button class="btn btn-primary" onclick="window.showResourceImportModal()">📥 导入数据</button>
+            </div>
+        `;
+        return;
+    }
+    
+    const analysis = rm.analysis;
+    const predictions = rm.predictions;
+    
+    let html = `
+        <div class="analysis-dashboard">
+            <div class="analysis-overview">
+                <h4>📊 支出分析报告</h4>
+                <div class="analysis-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">平均月支出</span>
+                        <span class="stat-value">¥${Math.round(analysis.averageMonthlyExpense).toLocaleString()}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">固定支出</span>
+                        <span class="stat-value">${Math.round(analysis.fixedExpenseRatio * 100)}%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">变动支出</span>
+                        <span class="stat-value">${Math.round(analysis.variableExpenseRatio * 100)}%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">支出稳定度</span>
+                        <span class="stat-value">${'★'.repeat(Math.round(analysis.stabilityScore))}${'☆'.repeat(5 - Math.round(analysis.stabilityScore))}</span>
+                    </div>
+                </div>
+            </div>
+    `;
+    
+    // 洞察发现
+    if (analysis.insights && analysis.insights.length > 0) {
+        html += `
+            <div class="analysis-insights">
+                <h4>💡 发现</h4>
+                <ul>
+                    ${analysis.insights.map(insight => `<li>${insight}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    // 预测部分
+    if (predictions && predictions.lastPredictedAt) {
+        html += `
+            <div class="analysis-predictions">
+                <h4>🔮 下月支出预测</h4>
+                <div class="prediction-breakdown">
+                    <div class="prediction-item">
+                        <span>固定支出</span>
+                        <span>¥${predictions.nextMonthBreakdown.fixed.toLocaleString()}</span>
+                        <span class="prediction-confidence">✓</span>
+                    </div>
+                    <div class="prediction-item">
+                        <span>预估变动</span>
+                        <span>¥${predictions.nextMonthBreakdown.variable.toLocaleString()}±${predictions.nextMonthBreakdown.variableRange.toLocaleString()}</span>
+                        <span class="prediction-confidence">~</span>
+                    </div>
+                    <div class="prediction-total">
+                        <span>总计预测</span>
+                        <span>¥${predictions.nextMonthExpense.toLocaleString()}</span>
+                    </div>
+                </div>
+        `;
+        
+        // 特别提醒
+        if (predictions.specialReminders && predictions.specialReminders.length > 0) {
+            html += `
+                <div class="special-reminders">
+                    <h5>特别提醒</h5>
+                    <ul>
+                        ${predictions.specialReminders.map(reminder => `<li>${reminder}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+    }
+    
+    html += `
+            <div class="analysis-actions">
+                <button class="btn btn-secondary" onclick="window.showResourceImportModal()">📥 更新数据</button>
+                <button class="btn btn-secondary" onclick="analyzeResourceData(); renderResourceAnalysis();">🔄 重新分析</button>
+                <small style="color: #888;">最后分析时间: ${new Date(analysis.lastAnalyzedAt).toLocaleString()}</small>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
 // ========== 本月支出合并统计（生产线+支出项） ========== //
 function getMonthlyExpenseTotalMerged() {
     const now = new Date();

@@ -68,9 +68,24 @@
                     <div id="resource-stats"></div>
                 </div>
                 <div id="expenses-panel" class="panel">
-                    <h2 class="panel-title"><span>💸</span><span>支出管理</span></h2>
-                    <div id="expenses-list"></div>
-                    <button class="btn btn-add" onclick="window.showExpenseModal()">+ 添加支出</button>
+                    <h2 class="panel-title">
+                        <span>💸</span><span>支出管理</span>
+                        <div class="panel-tabs">
+                            <button class="tab-btn active" onclick="window.switchExpenseTab('records')">记录</button>
+                            <button class="tab-btn" onclick="window.switchExpenseTab('analysis')">智能分析</button>
+                        </div>
+                    </h2>
+                    
+                    <!-- 支出记录面板 -->
+                    <div id="expense-records-tab" class="expense-tab-content">
+                        <div id="expenses-list"></div>
+                        <button class="btn btn-add" onclick="window.showExpenseModal()">+ 添加支出</button>
+                    </div>
+                    
+                    <!-- 智能分析面板 -->
+                    <div id="expense-analysis-tab" class="expense-tab-content" style="display: none;">
+                        <div id="resource-analysis-content"></div>
+                    </div>
                 </div>
             </div>
             
@@ -810,5 +825,50 @@
             }
         });
     </script>   
+    <!-- 资源数据导入模态框 -->
+    <div id="resource-import-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h3 class="modal-title">📥 批量导入历史数据</h3>
+            <div class="import-instructions">
+                <h4>💡 使用说明</h4>
+                <ol>
+                    <li>导出银行交易记录CSV文件</li>
+                    <li>使用AI整理成以下JSON格式：</li>
+                </ol>
+                <pre class="import-example">{
+  "2024-06": {
+    "total": 2646.18,
+    "categories": {
+      "home": 1680,
+      "transport": 477.54,
+      "groceries": 238.72,
+      "dining": 82.50,
+      "entertainment": 66.34,
+      "others": 101.08
+    },
+    "fixed_expenses": ["home"],
+    "unusual_items": ["IKEA购物 $450"]
+  }
+}</pre>
+                <p><strong>建议：</strong>每两周更新一次数据，保持分析的准确性</p>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">粘贴AI处理后的JSON数据</label>
+                <textarea id="import-data-text" class="form-textarea" rows="10" placeholder="在此粘贴JSON数据..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <button type="button" class="btn btn-secondary" onclick="window.processImportData()">🔍 预览数据</button>
+            </div>
+            
+            <div id="import-preview" class="import-preview"></div>
+            
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('resource-import-modal')">取消</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
