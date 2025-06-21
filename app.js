@@ -3067,10 +3067,14 @@ window.processImportData = function() {
         Object.entries(data).forEach(([month, monthData]) => {
             if (monthData.total) {
                 totalMonths++;
-                totalAmount += monthData.total;
+                const currency = monthData.currency || 'CNY';
+                const convertedAmount = convertToCNY(monthData.total, currency);
+                totalAmount += convertedAmount;
+                const symbol = currencySymbols[currency] || '¥';
                 previewHtml += `
                     <div class="import-month-preview">
-                        <strong>${month}</strong>: ¥${monthData.total.toLocaleString()}
+                        <strong>${month}</strong>: ${symbol}${monthData.total.toLocaleString()} 
+                        ${currency !== 'CNY' ? `(≈¥${Math.round(convertedAmount).toLocaleString()})` : ''}
                         <br><small>分类: ${Object.keys(monthData.categories || {}).join(', ')}</small>
                     </div>
                 `;
@@ -3153,8 +3157,12 @@ function analyzeResourceData() {
     
     if (months.length === 0) return;
     
-    // 计算平均月支出
-    const totalExpense = months.reduce((sum, month) => sum + (data[month].total || 0), 0);
+    // 计算平均月支出（转换为人民币）
+    const totalExpense = months.reduce((sum, month) => {
+        const monthData = data[month];
+        const currency = monthData.currency || 'CNY';
+        return sum + convertToCNY(monthData.total || 0, currency);
+    }, 0);
     const averageMonthly = totalExpense / months.length;
     
     // 分析固定支出
@@ -3171,12 +3179,14 @@ function analyzeResourceData() {
     
     months.forEach(month => {
         const monthData = data[month];
+        const currency = monthData.currency || 'CNY';
         if (monthData.categories) {
             Object.entries(monthData.categories).forEach(([category, amount]) => {
+                const convertedAmount = convertToCNY(amount, currency);
                 if (fixedExpenses.has(category)) {
-                    fixedTotal += amount;
+                    fixedTotal += convertedAmount;
                 } else {
-                    variableTotal += amount;
+                    variableTotal += convertedAmount;
                 }
             });
         }
@@ -3186,7 +3196,11 @@ function analyzeResourceData() {
     const variableRatio = 1 - fixedRatio;
     
     // 计算稳定度评分
-    const monthlyTotals = months.map(month => data[month].total || 0);
+    const monthlyTotals = months.map(month => {
+        const monthData = data[month];
+        const currency = monthData.currency || 'CNY';
+        return convertToCNY(monthData.total || 0, currency);
+    });
     const variance = monthlyTotals.reduce((sum, total) => sum + Math.pow(total - averageMonthly, 2), 0) / months.length;
     const stabilityScore = Math.max(0, Math.min(5, 5 - (Math.sqrt(variance) / averageMonthly) * 10));
     
@@ -3208,9 +3222,17 @@ function analyzeResourceData() {
     // 分析趋势
     if (months.length >= 3) {
         const recentMonths = months.slice(-3);
-        const recentAvg = recentMonths.reduce((sum, month) => sum + data[month].total, 0) / 3;
+        const recentAvg = recentMonths.reduce((sum, month) => {
+            const monthData = data[month];
+            const currency = monthData.currency || 'CNY';
+            return sum + convertToCNY(monthData.total, currency);
+        }, 0) / 3;
         const olderMonths = months.slice(0, -3);
-        const olderAvg = olderMonths.reduce((sum, month) => sum + data[month].total, 0) / olderMonths.length;
+        const olderAvg = olderMonths.reduce((sum, month) => {
+            const monthData = data[month];
+            const currency = monthData.currency || 'CNY';
+            return sum + convertToCNY(monthData.total, currency);
+        }, 0) / olderMonths.length;
         
         const trendChange = (recentAvg - olderAvg) / olderAvg;
         if (trendChange > 0.1) {
@@ -3306,24 +3328,20 @@ function renderResourceAnalysis() {
     
     let html = `
         <div class="analysis-dashboard">
-            <div class="analysis-overview">
-                <h4>📊 支出分析报告</h4>
-                <div class="analysis-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">平均月支出</span>
-                        <span class="stat-value">¥${Math.round(analysis.averageMonthlyExpense).toLocaleString()}</span>
+            <!-- 核心指标 -->
+            <div class="analysis-summary">
+                <div class="primary-metric">
+                    <div class="metric-value">¥${Math.round(analysis.averageMonthlyExpense).toLocaleString()}</div>
+                    <div class="metric-label">月均支出</div>
+                </div>
+                <div class="secondary-metrics">
+                    <div class="metric-item">
+                        <span class="metric-number">${Math.round(analysis.fixedExpenseRatio * 100)}%</span>
+                        <span class="metric-desc">固定支出</span>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">固定支出</span>
-                        <span class="stat-value">${Math.round(analysis.fixedExpenseRatio * 100)}%</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">变动支出</span>
-                        <span class="stat-value">${Math.round(analysis.variableExpenseRatio * 100)}%</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">支出稳定度</span>
-                        <span class="stat-value">${'★'.repeat(Math.round(analysis.stabilityScore))}${'☆'.repeat(5 - Math.round(analysis.stabilityScore))}</span>
+                    <div class="metric-item">
+                        <span class="metric-number">${'★'.repeat(Math.round(analysis.stabilityScore))}</span>
+                        <span class="metric-desc">稳定度</span>
                     </div>
                 </div>
             </div>
@@ -3333,10 +3351,10 @@ function renderResourceAnalysis() {
     if (analysis.insights && analysis.insights.length > 0) {
         html += `
             <div class="analysis-insights">
-                <h4>💡 发现</h4>
-                <ul>
-                    ${analysis.insights.map(insight => `<li>${insight}</li>`).join('')}
-                </ul>
+                <h5>💡 智能洞察</h5>
+                <div class="insights-list">
+                    ${analysis.insights.map(insight => `<span class="insight-item">${insight}</span>`).join('')}
+                </div>
             </div>
         `;
     }
@@ -3345,21 +3363,12 @@ function renderResourceAnalysis() {
     if (predictions && predictions.lastPredictedAt) {
         html += `
             <div class="analysis-predictions">
-                <h4>🔮 下月支出预测</h4>
-                <div class="prediction-breakdown">
-                    <div class="prediction-item">
-                        <span>固定支出</span>
-                        <span>¥${predictions.nextMonthBreakdown.fixed.toLocaleString()}</span>
-                        <span class="prediction-confidence">✓</span>
-                    </div>
-                    <div class="prediction-item">
-                        <span>预估变动</span>
-                        <span>¥${predictions.nextMonthBreakdown.variable.toLocaleString()}±${predictions.nextMonthBreakdown.variableRange.toLocaleString()}</span>
-                        <span class="prediction-confidence">~</span>
-                    </div>
-                    <div class="prediction-total">
-                        <span>总计预测</span>
-                        <span>¥${predictions.nextMonthExpense.toLocaleString()}</span>
+                <h5>🔮 下月预测</h5>
+                <div class="prediction-main">
+                    <div class="prediction-total">¥${predictions.nextMonthExpense.toLocaleString()}</div>
+                    <div class="prediction-breakdown">
+                        固定 ¥${predictions.nextMonthBreakdown.fixed.toLocaleString()} + 
+                        变动 ¥${predictions.nextMonthBreakdown.variable.toLocaleString()}±${predictions.nextMonthBreakdown.variableRange.toLocaleString()}
                     </div>
                 </div>
         `;
@@ -3368,10 +3377,7 @@ function renderResourceAnalysis() {
         if (predictions.specialReminders && predictions.specialReminders.length > 0) {
             html += `
                 <div class="special-reminders">
-                    <h5>特别提醒</h5>
-                    <ul>
-                        ${predictions.specialReminders.map(reminder => `<li>${reminder}</li>`).join('')}
-                    </ul>
+                    ${predictions.specialReminders.map(reminder => `<div class="reminder-item">${reminder}</div>`).join('')}
                 </div>
             `;
         }

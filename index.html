@@ -78,8 +78,11 @@
                     
                     <!-- 支出记录面板 -->
                     <div id="expense-records-tab" class="expense-tab-content">
-                        <div id="expenses-list"></div>
-                        <button class="btn btn-add" onclick="window.showExpenseModal()">+ 添加支出</button>
+                        <div class="expense-import-hint">
+                            <p>💡 现在通过智能分析面板批量导入数据</p>
+                            <p>支持多货币账单，自动分析和预测</p>
+                            <button class="btn btn-primary" onclick="window.switchExpenseTab('analysis')">📊 开始分析</button>
+                        </div>
                     </div>
                     
                     <!-- 智能分析面板 -->
@@ -832,12 +835,13 @@
             <div class="import-instructions">
                 <h4>💡 使用说明</h4>
                 <ol>
-                    <li>导出银行交易记录CSV文件</li>
-                    <li>使用AI整理成以下JSON格式：</li>
+                    <li>导出银行交易记录CSV文件（支持多货币账单）</li>
+                    <li>使用AI整理成以下JSON格式（注意添加currency字段）：</li>
                 </ol>
                 <pre class="import-example">{
   "2024-06": {
     "total": 2646.18,
+    "currency": "AUD",
     "categories": {
       "home": 1680,
       "transport": 477.54,
@@ -847,7 +851,21 @@
       "others": 101.08
     },
     "fixed_expenses": ["home"],
-    "unusual_items": ["IKEA购物 $450"]
+    "unusual_items": ["IKEA购物 A$450"]
+  },
+  "2024-07": {
+    "total": 15800,
+    "currency": "CNY",
+    "categories": {
+      "home": 8500,
+      "transport": 2300,
+      "groceries": 1800,
+      "dining": 1200,
+      "entertainment": 800,
+      "others": 1200
+    },
+    "fixed_expenses": ["home"],
+    "unusual_items": ["年度保险 ¥3200"]
   }
 }</pre>
                 <p><strong>建议：</strong>每两周更新一次数据，保持分析的准确性</p>

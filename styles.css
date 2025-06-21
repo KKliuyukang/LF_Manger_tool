@@ -2309,6 +2309,17 @@ input:checked + .slider:before {
     border-left: 3px solid #27ae60;
 }
 
+/* 支出记录面板提示 */
+.expense-import-hint {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+}
+
+.expense-import-hint p {
+    margin-bottom: 12px;
+}
+
 /* 智能分析面板样式 */
 .analysis-empty {
     text-align: center;
@@ -2321,142 +2332,141 @@ input:checked + .slider:before {
 }
 
 .analysis-dashboard {
-    padding: 20px;
-}
-
-.analysis-overview h4 {
-    color: #667eea;
-    margin-bottom: 16px;
-    font-size: 1.2em;
-}
-
-.analysis-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.stat-item {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     padding: 16px;
-    border-radius: 12px;
-    text-align: center;
-    border: 1px solid #e2e8f0;
 }
 
-.stat-label {
-    display: block;
-    font-size: 0.85em;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
-    font-weight: 500;
+/* 紧凑的核心指标布局 */
+.analysis-summary {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    color: white;
+    margin-bottom: 20px;
 }
 
-.stat-value {
-    display: block;
-    font-size: 1.4em;
+.primary-metric {
+    flex: 1;
+}
+
+.metric-value {
+    font-size: 2.2em;
     font-weight: bold;
-    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.metric-label {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.secondary-metrics {
+    display: flex;
+    gap: 16px;
+}
+
+.metric-item {
+    text-align: center;
+    padding: 12px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+}
+
+.metric-number {
+    display: block;
+    font-size: 1.3em;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.metric-desc {
+    font-size: 0.8em;
+    opacity: 0.9;
 }
 
 .analysis-insights {
-    background: #fff3cd;
-    border: 1px solid #ffeaa7;
+    background: #fff9e6;
     border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 24px;
-}
-
-.analysis-insights h4 {
-    color: #d68910;
-    margin-bottom: 12px;
-}
-
-.analysis-insights ul {
-    list-style: none;
-    padding: 0;
-}
-
-.analysis-insights li {
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(214, 137, 16, 0.1);
-}
-
-.analysis-insights li:last-child {
-    border-bottom: none;
-}
-
-.analysis-predictions {
-    background: linear-gradient(135deg, #e8f5e9 0%, #d4edda 100%);
-    border: 1px solid #c3e6cb;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 24px;
-}
-
-.analysis-predictions h4 {
-    color: #28a745;
-    margin-bottom: 16px;
-}
-
-.prediction-breakdown {
-    background: white;
-    border-radius: 8px;
     padding: 16px;
     margin-bottom: 16px;
 }
 
-.prediction-item {
+.analysis-insights h5 {
+    color: #d68910;
+    margin-bottom: 12px;
+    font-size: 1em;
+    font-weight: 600;
+}
+
+.insights-list {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #e9ecef;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
-.prediction-item:last-child {
-    border-bottom: none;
+.insight-item {
+    background: rgba(214, 137, 16, 0.1);
+    color: #d68910;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    border: 1px solid rgba(214, 137, 16, 0.2);
 }
 
-.prediction-confidence {
-    font-size: 1.2em;
-    font-weight: bold;
+.analysis-predictions {
+    background: #f0f9f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.analysis-predictions h5 {
+    color: #28a745;
+    margin-bottom: 12px;
+    font-size: 1em;
+    font-weight: 600;
+}
+
+.prediction-main {
+    text-align: center;
 }
 
 .prediction-total {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-    border-top: 2px solid #28a745;
-    margin-top: 8px;
+    font-size: 2em;
     font-weight: bold;
-    font-size: 1.1em;
-}
-
-.special-reminders {
-    background: #f8d7da;
-    border: 1px solid #f5c6cb;
-    border-radius: 8px;
-    padding: 12px;
-    margin-top: 16px;
-}
-
-.special-reminders h5 {
-    color: #721c24;
+    color: #28a745;
     margin-bottom: 8px;
 }
 
-.special-reminders ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+.prediction-breakdown {
+    font-size: 0.85em;
+    color: #6c757d;
+    line-height: 1.4;
 }
 
-.special-reminders li {
-    padding: 4px 0;
-    color: #721c24;
+.special-reminders {
+    margin-top: 12px;
+}
+
+.reminder-item {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    color: #856404;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reminder-item:last-child {
+    margin-bottom: 0;
 }
 
 .analysis-actions {
