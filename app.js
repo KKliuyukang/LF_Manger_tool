@@ -12,9 +12,9 @@ const DATA_VERSION = 1;
 // 汇率设置（相对于澳元）
 const exchangeRates = {
     AUD: 1,
-    CNY: 5.0,    // 1 AUD = 5 CNY
-    USD: 1.44,   // 1 AUD = 1.44 USD
-    EUR: 1.56    // 1 AUD = 1.56 EUR
+    CNY: 4.65,    
+    USD: 0.65,   
+    EUR: 0.60    
 };
 
 const currencySymbols = {
@@ -302,9 +302,14 @@ window.init = async function() {
     renderResourceStats();
     renderWeekCalendar();
     renderExpenses(); // 新增：初始化时渲染支出栏
-    renderResourceOverview(); // 新增：初始化时渲染资源总览
-    renderBillsSummary(); // 新增：初始化时渲染账单汇总
-    renderResourceAnalysis(); // 新增：初始化智能分析面板
+    
+    // 确保资源管理面板数据正确初始化
+    setTimeout(() => {
+        renderResourceOverview(); // 新增：初始化时渲染资源总览
+        renderBillsSummary(); // 新增：初始化时渲染账单汇总
+        renderResourceAnalysis(); // 新增：初始化智能分析面板
+    }, 200);
+    
     setupEventListeners();
     
     if (!familyCode) {
@@ -483,8 +488,7 @@ function setupEventListeners() {
 
 // 转换为澳元基准（函数名保持不变以兼容现有代码）
 function convertToCNY(amount, currency) {
-    if (!currencySymbols[currency] || !exchangeRates[currency]) currency = 'AUD';
-    return amount / exchangeRates[currency];
+    return convertToAUD(amount, currency);
 }
 
 // 全局变量存储排序后的生产线
@@ -914,6 +918,7 @@ window.removeContextItem = function() {
                     gameData.productions.splice(prod._realIndex, 1);
                     renderProductions();
                     renderResourceStats();
+                    renderResourceOverview(); // 添加资源总览刷新
                     renderWeekCalendar();
                     saveToCloud();
                     return true;
@@ -925,6 +930,7 @@ window.removeContextItem = function() {
             gameData.productions.splice(prod._realIndex, 1);
             renderProductions();
             renderResourceStats();
+            renderResourceOverview(); // 添加资源总览刷新
             renderWeekCalendar();
             saveToCloud();
         }
@@ -1056,6 +1062,7 @@ window.removeDev = function(index) {
     
     renderDevelopments();
     renderProductions();
+    renderResourceOverview(); // 添加资源总览刷新
     saveToCloud();
 }
 
@@ -1069,6 +1076,7 @@ window.completeExperience = function(category, index) {
     
     renderMilestones();
     renderResourceStats();
+    renderResourceOverview(); // 添加资源总览刷新
     saveToCloud();
 }
 
@@ -1083,8 +1091,9 @@ window.editSavings = function() {
             gameData.finance.savingsCurrency = currency.toUpperCase();
         }
         
-        // 只重新渲染资源统计，不调用完整的init()
+        // 重新渲染资源相关面板
         renderResourceStats();
+        renderResourceOverview(); // 添加资源总览刷新
         saveToCloud();
     }
 }
@@ -1111,7 +1120,7 @@ window.showTodayTimeDetails = function() {
         if (!groupedLogs[log.name]) groupedLogs[log.name] = [];
         let timeCost = log.timeCost || 0;
         if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
-            timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
+            timeCost = calculateTimeCost(log.hour, log.minute || 0, log.endHour, log.endMinute || 0);
         }
         timeCost = Math.max(0, timeCost);
         groupedLogs[log.name].push({...log, timeCost});
@@ -1195,6 +1204,18 @@ function updateFormVisibility() {
     const expenseGroup = document.getElementById('expense-group');
     const hasPassive = document.getElementById('has-passive-income').parentElement.parentElement;
     const lifestyleHistoryGroup = document.getElementById('lifestyle-history-group');
+    const hasActiveIncome = document.getElementById('has-active-income');
+    const hasPassiveIncome = document.getElementById('has-passive-income');
+    
+    // 重置checkbox状态
+    if (hasActiveIncome) {
+        hasActiveIncome.checked = false;
+        hasActiveIncome.dispatchEvent(new Event('change'));
+    }
+    if (hasPassiveIncome) {
+        hasPassiveIncome.checked = false;
+        hasPassiveIncome.dispatchEvent(new Event('change'));
+    }
     
     if (type === 'investment') {
         incomeGroup.style.display = 'none';
@@ -1591,6 +1612,7 @@ function saveProduction() {
         closeModal('production-modal');
         renderProductions();
         renderResourceStats();
+        renderResourceOverview(); // 添加资源总览刷新
         renderDevelopments();
         renderDevLibrary();
         renderWeekCalendar();
@@ -2168,7 +2190,7 @@ function renderResourceStats() {
         // 确保时间成本为正值，如果timeCost异常则重新计算
         let timeCost = log.timeCost || 0;
         if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
-            timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
+            timeCost = calculateTimeCost(log.hour, log.minute || 0, log.endHour, log.endMinute || 0);
         }
         return sum + Math.max(0, timeCost); // 确保不会是负数
     }, 0);
@@ -2384,6 +2406,7 @@ window.logProductionTime = function(sortedIndex) {
     renderDevelopments();
     renderWeekCalendar();
     renderResourceStats();
+    renderResourceOverview(); // 添加资源总览刷新
 }
 
 // 2. 修复数据关联
@@ -2487,6 +2510,7 @@ function listenCloudData() {
                 renderMilestones();
                 renderDevLibrary();
                 renderResourceStats();
+                renderResourceOverview(); // 添加资源总览刷新
                 renderWeekCalendar();
                 
                 // 如果支出数据有变化，重新渲染支出面板
@@ -2687,7 +2711,7 @@ window.editCalendarLog = function(date, name, hour, minute) {
             log.date = newDate;
             log.hour = sh; log.minute = sm;
             log.endHour = eh; log.endMinute = em;
-            log.timeCost = (eh*60+em)-(sh*60+sm);
+            log.timeCost = calculateTimeCost(sh, sm, eh, em);
             saveToCloud();
             renderResourceStats();
             
@@ -2923,6 +2947,7 @@ function setupExpenseFormHandlers() {
                 // 更新界面
                 renderExpenses();
                 renderResourceStats();
+                renderResourceOverview(); // 添加资源总览刷新
                 
                 // 保存到云端
                 console.log('[支出表单] 开始保存到云端');
@@ -2982,37 +3007,65 @@ function renderResourceOverview() {
     const container = document.getElementById('resource-overview-content');
     if (!container) return;
     
-    // 始终更新分析数据，确保数据是最新的
-    updateResourceAnalysisData();
+    // 确保有基础数据结构
+    if (!gameData.resourceAnalysis) {
+        gameData.resourceAnalysis = {
+            monthlyAverage: 0,
+            fixedExpenseRatio: 0,
+            stabilityScore: 0,
+            insights: [],
+            predictions: {
+                nextMonthExpense: 0,
+                specialReminders: []
+            }
+        };
+    }
     
-    // 计算当前月份的收入和支出
-    const currentMonth = new Date().toISOString().slice(0, 7); // 2024-06
-    const monthlyData = getBillsDataForMonth(currentMonth);
+    // 只有在有账单数据时才更新分析
+    if (gameData.billsData && Object.keys(gameData.billsData).length > 0) {
+        updateResourceAnalysisData();
+    }
     
-    // 从生产线获取月收入
-    const productionIncome = getProductionMonthlyIncome();
+    const displayCurrency = gameData.displayCurrency || 'AUD';
+    const currencySymbol = getCurrencySymbol(displayCurrency);
     
-    // 合并收入数据
-    const totalMonthlyIncome = monthlyData.income + productionIncome;
+    // 计算本月收支（基于 expenses 数组的实时数据）
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    let monthlyIncome = 0;
+    let monthlyExpense = 0;
+    
+    // 从生产线计算收入
+    (gameData.productions || []).forEach(prod => {
+        if (prod.hasActiveIncome && prod.activeIncome > 0) {
+            monthlyIncome += convertToDisplayCurrency(prod.activeIncome, prod.activeCurrency || 'AUD', displayCurrency);
+        }
+        if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
+            monthlyIncome += convertToDisplayCurrency(prod.passiveIncome, prod.passiveCurrency || 'AUD', displayCurrency);
+        }
+    });
+    
+    // 从支出记录计算本月支出
+    (gameData.expenses || []).forEach(exp => {
+        const expDate = exp.date || new Date().toISOString().split('T')[0];
+        if (expDate.startsWith(currentMonth)) {
+            monthlyExpense += convertToDisplayCurrency(exp.amount || 0, exp.currency || 'AUD', displayCurrency);
+        }
+    });
     
     // 获取存款信息
     const savings = gameData.finance?.totalSavings || 0;
     const savingsCurrency = gameData.finance?.savingsCurrency || 'AUD';
-    const savingsSymbol = currencySymbols[savingsCurrency] || 'A$';
-    
-    // 预测下月支出
-    const predictedExpense = getPredictedMonthlyExpense();
-    
-    // 获取当前显示货币设置 - 默认澳元
-    const displayCurrency = gameData.displayCurrency || 'AUD';
-    
-    // 转换为显示货币
-    const displayIncome = convertToDisplayCurrency(totalMonthlyIncome, 'AUD', displayCurrency);
-    const displayExpense = convertToDisplayCurrency(monthlyData.totalExpense, 'AUD', displayCurrency);
     const displaySavings = convertToDisplayCurrency(savings, savingsCurrency, displayCurrency);
-    const displayPredicted = convertToDisplayCurrency(predictedExpense, 'AUD', displayCurrency);
     
-    const currencySymbol = getCurrencySymbol(displayCurrency);
+    // 如果有分析数据，使用分析数据；否则使用实时计算的数据
+    const analysisData = gameData.resourceAnalysis;
+    const displayAverage = analysisData.monthlyAverage > 0 
+        ? convertToDisplayCurrency(analysisData.monthlyAverage, 'AUD', displayCurrency)
+        : monthlyExpense;
+    
+    const predictedExpense = analysisData.predictions?.nextMonthExpense > 0
+        ? convertToDisplayCurrency(analysisData.predictions.nextMonthExpense, 'AUD', displayCurrency)
+        : displayAverage;
     
     const html = `
         <!-- 货币切换 -->
@@ -3028,13 +3081,13 @@ function renderResourceOverview() {
         <div class="resource-overview-grid">
             <div class="resource-overview-card">
                 <h4>📈 本月收入</h4>
-                <div class="resource-overview-value income">${currencySymbol}${Math.round(displayIncome).toLocaleString()}</div>
-                <div class="resource-overview-meta">生产线 + 账单数据</div>
+                <div class="resource-overview-value income">${currencySymbol}${Math.round(monthlyIncome).toLocaleString()}</div>
+                <div class="resource-overview-meta">生产线收入</div>
             </div>
             <div class="resource-overview-card">
                 <h4>📉 本月支出</h4>
-                <div class="resource-overview-value expense">${currencySymbol}${Math.round(displayExpense).toLocaleString()}</div>
-                <div class="resource-overview-meta">已支出 ${monthlyData.expenseCount} 项</div>
+                <div class="resource-overview-value expense">${currencySymbol}${Math.round(monthlyExpense).toLocaleString()}</div>
+                <div class="resource-overview-meta">支出记录</div>
             </div>
             <div class="resource-overview-card">
                 <h4>💰 累计存款</h4>
@@ -3045,27 +3098,37 @@ function renderResourceOverview() {
             </div>
             <div class="resource-overview-card">
                 <h4>🔮 下月预测</h4>
-                <div class="resource-overview-value prediction">${currencySymbol}${Math.round(displayPredicted).toLocaleString()}</div>
+                <div class="resource-overview-value prediction">${currencySymbol}${Math.round(predictedExpense).toLocaleString()}</div>
                 <div class="resource-overview-meta">基于历史数据</div>
             </div>
         </div>
-        
-
     `;
     
     container.innerHTML = html;
+}
+
+// 时间成本计算函数（处理跨天情况）
+function calculateTimeCost(startHour, startMinute, endHour, endMinute) {
+    let timeCost = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+    
+    // 如果结束时间早于开始时间，说明跨天了
+    if (timeCost < 0) {
+        timeCost += 24 * 60; // 加上24小时
+    }
+    
+    return Math.max(0, timeCost); // 确保不会是负数
 }
 
 // 货币转换函数 - 以澳元为基准
 function convertToDisplayCurrency(amount, fromCurrency, toCurrency) {
     if (fromCurrency === toCurrency) return amount;
     
-    // 汇率表（相对于AUD）
+    // 汇率表（1 AUD = X 其他货币）
     const exchangeRates = {
         'AUD': 1.0,
         'CNY': 5.0,     // 1 AUD = 5 CNY
-        'USD': 1.44,    // 1 AUD = 1.44 USD  
-        'EUR': 1.56     // 1 AUD = 1.56 EUR
+        'USD': 0.65,    // 1 AUD = 0.65 USD  
+        'EUR': 0.60     // 1 AUD = 0.60 EUR
     };
     
     // 先转换为AUD，再转换为目标货币
@@ -3611,6 +3674,59 @@ function updateResourceAnalysisData() {
     };
 }
 
+// 辅助函数：生成洞察
+function generateInsights(expenses, categories, stability) {
+    const insights = [];
+    
+    if (stability < 0.7) {
+        insights.push('支出波动较大，建议制定更稳定的预算计划');
+    }
+    
+    const topCategories = Object.entries(categories)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 3);
+    
+    if (topCategories.length > 0) {
+        insights.push(`主要支出类别：${topCategories.map(([cat]) => cat).join('、')}`);
+    }
+    
+    return insights;
+}
+
+// 辅助函数：生成提醒
+function generateReminders(months, billsData) {
+    const reminders = [];
+    const currentMonth = new Date().getMonth();
+    
+    // 检查季度性支出
+    months.forEach(month => {
+        const monthNum = parseInt(month.split('-')[1]) - 1;
+        if ((monthNum - currentMonth + 12) % 12 === 1) { // 下个月
+            const monthData = billsData[month];
+            monthData.expenses.forEach(exp => {
+                if (exp.name && (exp.name.includes('保险') || exp.name.includes('年费'))) {
+                    reminders.push(`⚠️ 可能需要支付${exp.name}`);
+                }
+            });
+        }
+    });
+    
+    return reminders.slice(0, 3); // 最多显示3条提醒
+}
+
+// 辅助函数：转换为AUD（内部计算基准）
+function convertToAUD(amount, fromCurrency) {
+    const ratesFromAUD = {
+        'AUD': 1.0,
+        'CNY': 5.0,
+        'USD': 0.65,
+        'EUR': 0.60
+    };
+    
+    // 转换为AUD基准
+    return amount / ratesFromAUD[fromCurrency];
+}
+
 // 批量导入历史数据
 window.showResourceImportModal = function() {
     document.getElementById('resource-import-modal').style.display = 'block';
@@ -3645,7 +3761,7 @@ window.processImportData = function() {
                 previewHtml += `
                     <div class="import-month-preview">
                         <strong>${month}</strong>: ${symbol}${monthData.total.toLocaleString()} 
-                        ${currency !== 'CNY' ? `(≈¥${Math.round(convertedAmount).toLocaleString()})` : ''}
+                        ${currency !== 'AUD' ? `(≈A$${Math.round(convertedAmount).toLocaleString()})` : ''}
                         <br><small>分类: ${Object.keys(monthData.categories || {}).join(', ')}</small>
                     </div>
                 `;
@@ -3654,8 +3770,8 @@ window.processImportData = function() {
         
         previewHtml += `
             <div class="import-summary">
-                <strong>汇总：</strong>${totalMonths}个月数据，总计¥${totalAmount.toLocaleString()}
-                <br><small>平均月支出：¥${Math.round(totalAmount / totalMonths).toLocaleString()}</small>
+                <strong>汇总：</strong>${totalMonths}个月数据，总计A$${totalAmount.toLocaleString()}
+                <br><small>平均月支出：A$${Math.round(totalAmount / totalMonths).toLocaleString()}</small>
             </div>
             <button class="btn btn-primary" onclick="window.confirmImportData()">确认导入</button>
         `;
@@ -4999,7 +5115,7 @@ window.recordTimeForProduction = function(sortedIndex) {
         if([sh,sm,eh,em].some(x=>isNaN(x)||x<0||x>59||(x>23&&[sh,eh].includes(x)))) { alert('时间格式错误'); return; }
         let d = new Date(date);
         let weekDay = (d.getDay()+6)%7;
-        let actualTimeCost = (eh*60+em)-(sh*60+sm);
+        let actualTimeCost = calculateTimeCost(sh, sm, eh, em);
         if (actualTimeCost <= 0) {
             alert('结束时间必须晚于开始时间');
             return;
@@ -5250,7 +5366,7 @@ window.fixAllTimezoneIssues = function() {
             if([sh,sm,eh,em].some(x=>isNaN(x)||x<0||x>59||(x>23&&[sh,eh].includes(x)))) { alert('时间格式错误'); return; }
             let d = new Date(date);
             let weekDay = (d.getDay()+6)%7;
-            let actualTimeCost = (eh*60+em)-(sh*60+sm);
+            let actualTimeCost = calculateTimeCost(sh, sm, eh, em);
             if (actualTimeCost <= 0) {
                 alert('结束时间必须晚于开始时间');
                 return;

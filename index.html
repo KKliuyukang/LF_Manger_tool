@@ -63,19 +63,21 @@
             
             <!-- 右侧：资源 & 支出 -->
             <div style="grid-area: status; display:flex; flex-direction:column; gap:20px;">
-                <div id="resource-panel" class="panel">
-                    <h2 class="panel-title"><span>⏱️</span><span>今日用时</span></h2>
+                <div id="resource-panel" class="panel compact-panel">
                     <div id="resource-stats"></div>
                 </div>
                 <div id="expenses-panel" class="panel">
-                    <h2 class="panel-title">
-                        <span>💰</span><span>资源管理</span>
+                    <div class="panel-title-wrapper">
+                        <div class="panel-title-content">
+                            <span class="panel-icon">💰</span>
+                            <span class="panel-text">资源管理</span>
+                        </div>
                         <div class="panel-tabs">
                             <button class="tab-btn active" onclick="window.switchResourceTab('overview')">总览</button>
                             <button class="tab-btn" onclick="window.switchResourceTab('bills')">账单管理</button>
                             <button class="tab-btn" onclick="window.switchResourceTab('analysis')">详细分析</button>
                         </div>
-                    </h2>
+                    </div>
                     
                     <!-- 资源总览面板 -->
                     <div id="resource-overview-tab" class="resource-tab-content">

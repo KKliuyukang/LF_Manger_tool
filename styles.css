@@ -1165,6 +1165,23 @@ body {
     -webkit-text-fill-color: transparent !important;
 }
 
+/* 面板标题中的图标保护 - 不受渐变效果影响 */
+.panel-title > span.conveyor-belt,
+.panel-title > span.factory-icon,
+.panel-title > span:first-child {
+    background: none !important;
+    -webkit-text-fill-color: initial !important;
+    color: initial !important;
+}
+
+/* 面板标题中的文字部分 - 只有第二个span才应用渐变 */
+.panel-title > span:last-child {
+    background: var(--primary-gradient) !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
 /* 现代化日历导航按钮设计 */
 .calendar-nav .nav-btn {
     /* 重置webkit问题 */
@@ -2226,33 +2243,7 @@ input:checked + .slider:before {
 /* ========== 智能资源管理面板样式 ========== */
 
 /* 标签页样式 */
-.panel-tabs {
-    display: flex;
-    gap: 8px;
-    margin-left: auto;
-}
-
-.tab-btn {
-    padding: 6px 12px;
-    border: 1px solid #ddd;
-    background: #f8f9fa;
-    color: #333;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85em;
-    transition: all 0.2s ease;
-}
-
-.tab-btn:hover {
-    background: #e9ecef;
-    border-color: #3498db;
-}
-
-.tab-btn.active {
-    background: #3498db;
-    border-color: #3498db;
-    color: white;
-}
+/* 旧的标签页样式已移除，使用新的设计 */
 
 .expense-tab-content {
     margin-top: 15px;
@@ -2865,4 +2856,83 @@ input:checked + .slider:before {
 
 .reminder-item:last-child {
     margin-bottom: 0;
+}
+
+/* 精简的今日用时面板样式 */
+.compact-panel {
+    padding: 16px !important;
+    min-height: auto !important;
+}
+
+.compact-panel #resource-stats {
+    margin: 0 !important;
+}
+
+/* 资源管理面板标题重新设计 */
+.panel-title-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.15);
+}
+
+.panel-title-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.3em;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.panel-icon {
+    font-size: 1.2em;
+    /* 图标不受-webkit-text-fill-color影响 */
+    -webkit-text-fill-color: initial !important;
+    color: initial !important;
+}
+
+.panel-text {
+    background: var(--primary-gradient) !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+/* 标签页按钮重新设计 */
+.panel-tabs {
+    display: flex;
+    gap: 4px;
+    background: #f8f9fa;
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.tab-btn.active {
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
 }
