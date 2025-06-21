@@ -75,10 +75,25 @@ class BlueprintAutomationManager {
     // 获取自动化项目
     getAutomationProjects() {
         const productions = window.gameData?.productions || [];
-        const automationProjects = productions.filter(prod => 
-            prod.type === 'automation' && 
-            !prod.paused
-        );
+        const developments = window.gameData?.developments || [];
+        
+        const automationProjects = productions.filter(prod => {
+            // 基本过滤条件
+            if (prod.type !== 'automation' || prod.paused) {
+                return false;
+            }
+            
+            // 如果生产线关联了研发项目，检查研发项目是否暂停
+            if (prod.linkedDev) {
+                const linkedDev = developments.find(d => d.researchName === prod.linkedDev);
+                if (linkedDev && linkedDev.paused) {
+                    console.log(`🔗 跳过生产线 "${prod.name}"：关联的研发项目 "${prod.linkedDev}" 已暂停`);
+                    return false;
+                }
+            }
+            
+            return true;
+        });
         
         // 为没有频率设置的项目从tech tree获取频率信息
         automationProjects.forEach(project => {
@@ -399,9 +414,10 @@ class BlueprintAutomationManager {
     async findAvailableTime(preferredTime, date, project) {
         const settings = this.getSettings();
         const flexWindow = 120; // 弹性窗口2小时
+        const duration = this.calculateDuration(project);
         
         // 检查偏好时间是否可用
-        if (this.isTimeAvailable(preferredTime, date)) {
+        if (this.isTimeAvailable(preferredTime, date, duration)) {
             return preferredTime;
         }
         
@@ -417,7 +433,7 @@ class BlueprintAutomationManager {
                 laterTime.minute = laterTime.minute % 60;
             }
             
-            if (this.isTimeAvailable(laterTime, date)) {
+            if (laterTime.hour < 24 && this.isTimeAvailable(laterTime, date, duration)) {
                 return laterTime;
             }
             
@@ -431,7 +447,7 @@ class BlueprintAutomationManager {
                 earlierTime.minute = (earlierTime.minute % 60 + 60) % 60;
             }
             
-            if (earlierTime.hour >= 0 && this.isTimeAvailable(earlierTime, date)) {
+            if (earlierTime.hour >= 0 && this.isTimeAvailable(earlierTime, date, duration)) {
                 return earlierTime;
             }
         }
@@ -441,7 +457,7 @@ class BlueprintAutomationManager {
     }
 
     // 检查时间是否可用
-    isTimeAvailable(time, date) {
+    isTimeAvailable(time, date, duration = 30) {
         const settings = this.getSettings();
         const { protectedHours } = settings.globalSettings;
         
@@ -451,7 +467,7 @@ class BlueprintAutomationManager {
         }
         
         // 检查是否与现有蓝图冲突
-        return !this.hasTimeConflict(time, date);
+        return !this.hasTimeConflict(time, date, duration);
     }
 
     // 检查是否在保护时段
@@ -480,25 +496,55 @@ class BlueprintAutomationManager {
         return false;
     }
 
-    // 检查时间冲突
-    hasTimeConflict(time, date) {
+    // 检查时间冲突（增强版，考虑完整时长和手动蓝图优先级）
+    hasTimeConflict(time, date, duration = 30) {
         const dateStr = this.formatDateLocal(date);
         const startMinutes = time.hour * 60 + time.minute;
+        const endMinutes = startMinutes + duration;
         
-        // 检查现有蓝图
+        // 获取该日期的所有蓝图
         const existingBlueprints = window.gameData?.blueprints || [];
-        for (const blueprint of existingBlueprints) {
+        const dayBlueprints = existingBlueprints.filter(blueprint => {
             const bpDate = new Date(blueprint.scheduledDate);
             const bpDateStr = this.formatDateLocal(bpDate);
+            return bpDateStr === dateStr && blueprint.status === 'planned';
+        });
+        
+        for (const blueprint of dayBlueprints) {
+            const bpDate = new Date(blueprint.scheduledDate);
+            const bpStartMinutes = bpDate.getHours() * 60 + bpDate.getMinutes();
+            const bpEndMinutes = bpStartMinutes + (blueprint.duration || 30);
             
-            if (bpDateStr === dateStr) {
-                const bpStartMinutes = bpDate.getHours() * 60 + bpDate.getMinutes();
-                const bpEndMinutes = bpStartMinutes + blueprint.duration;
-                
-                // 检查重叠（给15分钟缓冲）
-                if (Math.abs(startMinutes - bpStartMinutes) < 15) {
+            // 检查时间段重叠，给15分钟缓冲间隔
+            const bufferMinutes = 15;
+            const conflictStart = Math.max(startMinutes, bpStartMinutes);
+            const conflictEnd = Math.min(endMinutes + bufferMinutes, bpEndMinutes + bufferMinutes);
+            
+            if (conflictStart < conflictEnd) {
+                // 手动创建的蓝图优先级更高
+                if (!blueprint.autoGenerated) {
+                    console.log(`⚠️ 自动蓝图与手动蓝图冲突: ${time.hour}:${String(time.minute).padStart(2, '0')} vs 手动蓝图"${blueprint.name}"`);
                     return true;
                 }
+                
+                // 自动蓝图之间也要避免冲突
+                console.log(`⚠️ 自动蓝图时间冲突: ${time.hour}:${String(time.minute).padStart(2, '0')} vs 自动蓝图"${blueprint.name}"`);
+                return true;
+            }
+        }
+        
+        // 检查时间日志冲突
+        const timeLogs = window.gameData?.timeLogs || [];
+        const dayLogs = timeLogs.filter(log => log.date === dateStr);
+        
+        for (const log of dayLogs) {
+            const logStartMinutes = (log.hour || 0) * 60 + (log.minute || 0);
+            const logEndMinutes = (log.endHour || log.hour || 0) * 60 + (log.endMinute || log.minute || 0);
+            
+            // 检查与时间日志的冲突
+            if (startMinutes < logEndMinutes + 15 && endMinutes > logStartMinutes - 15) {
+                console.log(`⚠️ 自动蓝图与时间日志冲突: ${time.hour}:${String(time.minute).padStart(2, '0')} vs 时间日志"${log.name}"`);
+                return true;
             }
         }
         
@@ -583,25 +629,37 @@ class BlueprintAutomationManager {
         return false;
     }
 
-    // 重新安排蓝图
+    // 重新安排蓝图（智能避开手动蓝图）
     rescheduleBlueprint(blueprint, existingBlueprints) {
         const originalDate = new Date(blueprint.scheduledDate);
         const settings = this.getSettings();
+        const duration = blueprint.duration || 30;
         
-        // 尝试在同一天找到其他时间
+        // 优先尝试在同一天找到其他时间，以15分钟为间隔
         for (let hour = 6; hour <= 22; hour++) {
-            const testTime = { hour, minute: 0 };
-            const testDate = new Date(originalDate);
-            testDate.setHours(hour, 0, 0, 0);
-            
-            if (!this.isInProtectedHours(testTime, settings.globalSettings.protectedHours)) {
-                const testBlueprint = {
-                    ...blueprint,
-                    scheduledDate: testDate.toISOString()
-                };
+            for (let minute = 0; minute < 60; minute += 15) {
+                const testTime = { hour, minute };
+                const testDate = new Date(originalDate);
+                testDate.setHours(hour, minute, 0, 0);
                 
-                if (!this.hasConflictWithResolved(testBlueprint, existingBlueprints)) {
-                    return testBlueprint;
+                // 检查是否在保护时段
+                if (this.isInProtectedHours(testTime, settings.globalSettings.protectedHours)) {
+                    continue;
+                }
+                
+                // 检查是否与手动蓝图和时间日志冲突
+                if (this.isTimeAvailable(testTime, originalDate, duration)) {
+                    const testBlueprint = {
+                        ...blueprint,
+                        scheduledDate: testDate.toISOString(),
+                        rescheduled: true
+                    };
+                    
+                    // 最后检查是否与其他已解决的自动蓝图冲突
+                    if (!this.hasConflictWithResolved(testBlueprint, existingBlueprints)) {
+                        console.log(`✅ 自动蓝图"${blueprint.name}"重新安排到 ${hour}:${String(minute).padStart(2, '0')}`);
+                        return testBlueprint;
+                    }
                 }
             }
         }
@@ -611,24 +669,64 @@ class BlueprintAutomationManager {
         nextDay.setDate(nextDay.getDate() + 1);
         
         for (let hour = 6; hour <= 22; hour++) {
-            const testTime = { hour, minute: 0 };
-            const testDate = new Date(nextDay);
-            testDate.setHours(hour, 0, 0, 0);
-            
-            if (!this.isInProtectedHours(testTime, settings.globalSettings.protectedHours)) {
-                const testBlueprint = {
-                    ...blueprint,
-                    scheduledDate: testDate.toISOString()
-                };
+            for (let minute = 0; minute < 60; minute += 15) {
+                const testTime = { hour, minute };
+                const testDate = new Date(nextDay);
+                testDate.setHours(hour, minute, 0, 0);
                 
-                if (!this.hasConflictWithResolved(testBlueprint, existingBlueprints)) {
-                    return testBlueprint;
+                // 检查是否在保护时段
+                if (this.isInProtectedHours(testTime, settings.globalSettings.protectedHours)) {
+                    continue;
+                }
+                
+                // 检查是否与手动蓝图和时间日志冲突
+                if (this.isTimeAvailable(testTime, nextDay, duration)) {
+                    const testBlueprint = {
+                        ...blueprint,
+                        scheduledDate: testDate.toISOString(),
+                        rescheduled: true
+                    };
+                    
+                    // 最后检查是否与其他已解决的自动蓝图冲突
+                    if (!this.hasConflictWithResolved(testBlueprint, existingBlueprints)) {
+                        console.log(`✅ 自动蓝图"${blueprint.name}"推迟到第二天 ${hour}:${String(minute).padStart(2, '0')}`);
+                        return testBlueprint;
+                    }
+                }
+            }
+        }
+        
+        // 尝试推迟到第三天
+        const thirdDay = new Date(originalDate);
+        thirdDay.setDate(thirdDay.getDate() + 2);
+        
+        for (let hour = 6; hour <= 22; hour++) {
+            for (let minute = 0; minute < 60; minute += 30) { // 第三天用30分钟间隔，减少计算量
+                const testTime = { hour, minute };
+                const testDate = new Date(thirdDay);
+                testDate.setHours(hour, minute, 0, 0);
+                
+                if (this.isInProtectedHours(testTime, settings.globalSettings.protectedHours)) {
+                    continue;
+                }
+                
+                if (this.isTimeAvailable(testTime, thirdDay, duration)) {
+                    const testBlueprint = {
+                        ...blueprint,
+                        scheduledDate: testDate.toISOString(),
+                        rescheduled: true
+                    };
+                    
+                    if (!this.hasConflictWithResolved(testBlueprint, existingBlueprints)) {
+                        console.log(`✅ 自动蓝图"${blueprint.name}"推迟到第三天 ${hour}:${String(minute).padStart(2, '0')}`);
+                        return testBlueprint;
+                    }
                 }
             }
         }
         
         // 无法重新安排，返回null
-        console.warn(`⚠️ 无法为蓝图 "${blueprint.name}" 找到合适的时间`);
+        console.warn(`⚠️ 无法为自动蓝图 "${blueprint.name}" 找到合适的时间，已跳过`);
         return null;
     }
 

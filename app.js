@@ -529,13 +529,24 @@ function renderProductions() {
                 if((prod.type==='automation' || prod.type==='habit') && prod.lastCheckIn && new Date().toDateString() === new Date(prod.lastCheckIn).toDateString()) {
                     canCheckIn = false;
                 }
+                
+                // 检查生产线是否暂停（直接暂停或通过关联研发项目暂停）
+                let isPaused = prod.paused;
+                if (!isPaused && prod.linkedDev) {
+                    const linkedDev = gameData.developments.find(d => d.researchName === prod.linkedDev);
+                    isPaused = linkedDev && linkedDev.paused;
+                }
+                
                 // 恢复原有结构和class，修复按钮HTML
                 return `
-                    <div class="production-item" data-sorted-index="${index}" oncontextmenu="window.showContextMenu(event, ${index}, 'production')">
+                    <div class="production-item ${isPaused ? 'paused' : ''}" data-sorted-index="${index}" oncontextmenu="window.showContextMenu(event, ${index}, 'production')">
                         <div class="production-header">
-                            <div class="production-name">${prod.name}</div>
+                            <div class="production-name">
+                                ${isPaused ? '⏸️ ' : ''}${prod.name}
+                                ${isPaused && prod.linkedDev ? `<span style="font-size:0.8em;color:#999;margin-left:8px;">(研发项目已暂停)</span>` : ''}
+                            </div>
                             <div>
-                                ${(prod.type==='automation' || prod.type==='habit') ? (canCheckIn ? `<button class='check-btn' onclick='window.logProductionTime(${index})'>打卡</button>` : `<span style='color: #27ae60; font-size: 0.85em;'>✓ 已完成</span>`) : ''}
+                                ${(prod.type==='automation' || prod.type==='habit') ? (canCheckIn && !isPaused ? `<button class='check-btn' onclick='window.logProductionTime(${index})'>打卡</button>` : isPaused ? `<span style='color: #999; font-size: 0.85em;'>⏸️ 已暂停</span>` : `<span style='color: #27ae60; font-size: 0.85em;'>✓ 已完成</span>`) : ''}
                             </div>
                         </div>
                         ${tags.length > 0 ? `
@@ -936,10 +947,25 @@ window.checkInHabit = function(index) {
 
 window.pauseDev = function(index) {
     if (!gameData.developments[index]) return;
-    gameData.developments[index].active = false;
-    gameData.developments[index].paused = true;
+    
+    const dev = gameData.developments[index];
+    dev.active = false;
+    dev.paused = true;
+    
+    // 同时暂停所有关联的生产线项目
+    const linkedProductions = gameData.productions.filter(p => p.linkedDev === dev.researchName);
+    linkedProductions.forEach(prod => {
+        prod.paused = true;
+        console.log(`⏸️ 自动暂停关联生产线: ${prod.name}`);
+    });
+    
+    if (linkedProductions.length > 0) {
+        console.log(`🔗 研发项目 "${dev.researchName}" 暂停，同时暂停了 ${linkedProductions.length} 个关联生产线`);
+    }
+    
     renderDevelopments();
-    saveToCloud(); // 添加保存到云端
+    renderProductions(); // 重新渲染生产线以显示暂停状态
+    saveToCloud();
 }
 
 window.resumeDev = function(index) {
@@ -950,10 +976,25 @@ window.resumeDev = function(index) {
     }
     
     if (!gameData.developments[index]) return;
-    gameData.developments[index].active = true;
-    gameData.developments[index].paused = false;
+    
+    const dev = gameData.developments[index];
+    dev.active = true;
+    dev.paused = false;
+    
+    // 同时恢复所有关联的生产线项目
+    const linkedProductions = gameData.productions.filter(p => p.linkedDev === dev.researchName);
+    linkedProductions.forEach(prod => {
+        prod.paused = false;
+        console.log(`▶️ 自动恢复关联生产线: ${prod.name}`);
+    });
+    
+    if (linkedProductions.length > 0) {
+        console.log(`🔗 研发项目 "${dev.researchName}" 恢复，同时恢复了 ${linkedProductions.length} 个关联生产线`);
+    }
+    
     renderDevelopments();
-    saveToCloud(); // 添加保存到云端
+    renderProductions(); // 重新渲染生产线以显示恢复状态
+    saveToCloud();
 }
 
 window.removeDev = function(index) {
@@ -1693,7 +1734,11 @@ function renderWeekCalendar() {
             } else {
                 cellBg = isTodayColumn ? 'background:#f9fbe7;' : '';
             }
-            html += `<td style="border:1px solid #ecf0f1;padding:0;${cellBg}"></td>`;
+            // 为每个日历单元格添加数据属性，用于右键创建蓝图
+            html += `<td style="border:1px solid #ecf0f1;padding:0;${cellBg}" 
+                        data-date="${weekDates[d]}" 
+                        data-hour="${h}" 
+                        class="calendar-cell"></td>`;
         }
         html += '</tr>';
     }
@@ -1701,7 +1746,47 @@ function renderWeekCalendar() {
     html += '<div class="calendar-overlay" id="calendar-overlay"></div>';
     container.innerHTML = html;
 
+    // 为日历单元格添加右键事件监听器和拖放功能
     setTimeout(() => {
+        const calendarCells = container.querySelectorAll('.calendar-cell');
+        calendarCells.forEach(cell => {
+            // 右键菜单
+            cell.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const date = cell.dataset.date;
+                const hour = parseInt(cell.dataset.hour);
+                
+                // 不允许在24:00时间点创建蓝图
+                if (hour >= 24) return;
+                
+                showCalendarCellContextMenu(e, date, hour);
+            });
+            
+            // 拖放功能
+            cell.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const hour = parseInt(cell.dataset.hour);
+                if (hour < 24) { // 只有24:00之前的时间可以作为拖放目标
+                    cell.classList.add('drag-over');
+                }
+            });
+            
+            cell.addEventListener('dragleave', (e) => {
+                cell.classList.remove('drag-over');
+            });
+            
+            cell.addEventListener('drop', (e) => {
+                e.preventDefault();
+                cell.classList.remove('drag-over');
+                const date = cell.dataset.date;
+                const hour = parseInt(cell.dataset.hour);
+                
+                if (hour >= 24) return; // 不允许拖放到24:00
+                
+                handleBlueprintDrop(e, date, hour);
+            });
+        });
+        
         renderTimeBlocks(weekDates);
     }, 50);
 }
@@ -1784,9 +1869,15 @@ function renderTimeBlocks(weekDates) {
                 block.className = `time-block blueprint ${priorityClass} ${autoGeneratedClass}`.trim();
                 block.style.zIndex = 50 + index;
                 const sourceInfo = item.autoGenerated ? '\n来源: 自动生成' : '';
-                block.title = `计划: ${name} (${duration}分钟)\n优先级: ${item.priority || 'medium'}${sourceInfo}`;
+                block.title = `计划: ${name} (${duration}分钟)\n优先级: ${item.priority || 'medium'}${sourceInfo}\n💡 提示: 可拖拽调整时间`;
                 block.dataset.blueprintId = item.id;
                 block.oncontextmenu = (e) => { e.preventDefault(); showBlueprintContextMenu(e, item.id); };
+                
+                // 添加拖拽功能
+                block.draggable = true;
+                block.style.cursor = 'move';
+                block.addEventListener('dragstart', (e) => handleBlueprintDragStart(e, item.id));
+                block.addEventListener('dragend', handleBlueprintDragEnd);
             }
 
             const weekDay = weekDates.indexOf(dateStr);
@@ -5223,3 +5314,288 @@ window.verifyTimezonefix = function() {
         total: blueprintLogs.length
     };
 };
+
+// === 日历右键菜单功能 ===
+
+// 显示日历单元格右键菜单
+function showCalendarCellContextMenu(event, date, hour) {
+    hideContextMenu();
+    const menu = document.getElementById('context-menu');
+    
+    // 计算具体时间
+    const targetDate = new Date(`${date}T${String(hour).padStart(2, '0')}:00:00`);
+    const timeStr = `${hour}:00`;
+    const dateStr = new Date(date).toLocaleDateString('zh-CN', { 
+        month: 'short', 
+        day: 'numeric',
+        weekday: 'short'
+    });
+    
+    menu.innerHTML = `
+        <div class="context-menu-item" onclick="quickCreateBlueprint('${date}', ${hour})">
+            ➕ 新建蓝图 (${dateStr} ${timeStr})
+        </div>
+        <div class="context-menu-item" onclick="showTimeBlocksAtTime('${date}', ${hour})">
+            👁️ 查看此时段
+        </div>
+    `;
+    
+    menu.style.display = 'block';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+    contextMenuType = 'calendar-cell';
+    
+    // 添加点击其他地方关闭菜单的事件监听器
+    setTimeout(() => {
+        document.addEventListener('mousedown', hideContextMenu);
+    }, 0);
+}
+
+// 快速创建蓝图
+window.quickCreateBlueprint = function(date, hour) {
+    hideContextMenu();
+    
+    // 计算目标时间
+    const targetDateTime = new Date(`${date}T${String(hour).padStart(2, '0')}:00:00`);
+    
+    // 重置表单并设置默认值
+    document.getElementById('blueprint-form').reset();
+    
+    // 设置时间为指定的日期和时间
+    const year = targetDateTime.getFullYear();
+    const month = String(targetDateTime.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDateTime.getDate()).padStart(2, '0');
+    const hours = String(targetDateTime.getHours()).padStart(2, '0');
+    const minutes = '00';
+    
+    document.getElementById('blueprint-date').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    
+    // 设置默认时长为60分钟
+    document.getElementById('blueprint-duration').value = '60';
+    
+    // 设置默认优先级为中等
+    const mediumPriorityRadio = document.querySelector('input[name="priority"][value="medium"]');
+    if (mediumPriorityRadio) {
+        mediumPriorityRadio.checked = true;
+    }
+    
+    // 渲染蓝图历史标签
+    renderBlueprintHistoryTags();
+    
+    // 显示蓝图创建模态框
+    document.getElementById('blueprint-modal').style.display = 'block';
+    
+    // 自动聚焦到名称输入框
+    setTimeout(() => {
+        const nameInput = document.getElementById('blueprint-name');
+        if (nameInput) {
+            nameInput.focus();
+        }
+    }, 100);
+}
+
+// 查看指定时段的时间块
+window.showTimeBlocksAtTime = function(date, hour) {
+    hideContextMenu();
+    
+    // 获取该时段的所有时间块
+    const allItems = [
+        ...((gameData.timeLogs || []).map(item => ({ ...item, itemType: 'log' }))),
+        ...((gameData.blueprints || []).filter(item => item.status === 'planned').map(item => ({ ...item, itemType: 'blueprint' })))
+    ];
+    
+    const timeBlocks = allItems.filter(item => {
+        let itemDate, itemHour;
+        
+        if (item.itemType === 'log') {
+            itemDate = item.date;
+            itemHour = item.hour || 0;
+        } else {
+            const scheduledDate = new Date(item.scheduledDate);
+            itemDate = formatDateLocal(scheduledDate);
+            itemHour = scheduledDate.getHours();
+        }
+        
+        return itemDate === date && itemHour === hour;
+    });
+    
+    if (timeBlocks.length === 0) {
+        showCustomModal({
+            title: '时段信息',
+            content: `<p>该时段 (${date} ${hour}:00) 暂无安排</p>`,
+            confirmText: '确定'
+        });
+        return;
+    }
+    
+    const timeStr = `${hour}:00`;
+    const dateStr = new Date(date).toLocaleDateString('zh-CN', { 
+        year: 'numeric',
+        month: 'short', 
+        day: 'numeric',
+        weekday: 'short'
+    });
+    
+    const blocksList = timeBlocks.map(block => {
+        if (block.itemType === 'log') {
+            const endTime = `${block.endHour || block.hour}:${String(block.endMinute || block.minute || 0).padStart(2, '0')}`;
+            return `
+                <div style="padding: 8px; margin: 4px 0; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #007bff;">
+                    <strong>📝 ${block.name}</strong><br>
+                    <small>时间日志: ${hour}:${String(block.minute || 0).padStart(2, '0')} - ${endTime}</small>
+                </div>
+            `;
+        } else {
+            const duration = block.duration || 60;
+            const endTime = new Date(new Date(block.scheduledDate).getTime() + duration * 60000);
+            const endTimeStr = `${endTime.getHours()}:${String(endTime.getMinutes()).padStart(2, '0')}`;
+            const priorityText = {
+                'low': '低',
+                'medium': '中',
+                'high': '高',
+                'urgent': '紧急'
+            }[block.priority] || '中';
+            
+            return `
+                <div style="padding: 8px; margin: 4px 0; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
+                    <strong>📋 ${block.name}</strong><br>
+                    <small>蓝图计划: ${timeStr} - ${endTimeStr} (${duration}分钟) | 优先级: ${priorityText}</small>
+                    ${block.autoGenerated ? '<br><small style="color: #6c757d;">🤖 自动生成</small>' : ''}
+                </div>
+            `;
+        }
+    }).join('');
+    
+    showCustomModal({
+        title: `时段详情 - ${dateStr} ${timeStr}`,
+        content: `
+            <div style="max-height: 400px; overflow-y: auto;">
+                <p style="margin-bottom: 12px; color: #666;">该时段共有 ${timeBlocks.length} 项安排：</p>
+                ${blocksList}
+            </div>
+        `,
+        confirmText: '确定'
+    });
+}
+
+// === 蓝图拖拽功能 ===
+
+let draggedBlueprintId = null;
+
+// 处理蓝图拖拽开始
+function handleBlueprintDragStart(e, blueprintId) {
+    draggedBlueprintId = blueprintId;
+    
+    // 设置拖拽效果
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', blueprintId);
+    
+    // 添加拖拽样式
+    e.target.style.opacity = '0.5';
+    
+    // 为所有可拖放的单元格添加视觉提示
+    setTimeout(() => {
+        const calendarCells = document.querySelectorAll('.calendar-cell');
+        calendarCells.forEach(cell => {
+            const hour = parseInt(cell.dataset.hour);
+            if (hour < 24) {
+                cell.classList.add('drag-target');
+            }
+        });
+    }, 0);
+}
+
+// 处理蓝图拖拽结束
+function handleBlueprintDragEnd(e) {
+    // 恢复样式
+    e.target.style.opacity = '1';
+    
+    // 移除所有拖放样式
+    const calendarCells = document.querySelectorAll('.calendar-cell');
+    calendarCells.forEach(cell => {
+        cell.classList.remove('drag-target', 'drag-over');
+    });
+    
+    draggedBlueprintId = null;
+}
+
+// 处理蓝图拖放
+function handleBlueprintDrop(e, targetDate, targetHour) {
+    if (!draggedBlueprintId) return;
+    
+    // 查找要移动的蓝图
+    const blueprintIndex = gameData.blueprints.findIndex(bp => bp.id === draggedBlueprintId);
+    if (blueprintIndex === -1) return;
+    
+    const blueprint = gameData.blueprints[blueprintIndex];
+    const oldDate = new Date(blueprint.scheduledDate);
+    
+    // 创建新的时间
+    const newDate = new Date(`${targetDate}T${String(targetHour).padStart(2, '0')}:00:00`);
+    
+    // 检查是否真的需要移动（避免拖到相同位置）
+    if (formatDateLocal(oldDate) === targetDate && oldDate.getHours() === targetHour) {
+        return;
+    }
+    
+    // 确认对话框
+    const oldDateStr = oldDate.toLocaleDateString('zh-CN', { 
+        year: 'numeric',
+        month: 'short', 
+        day: 'numeric',
+        weekday: 'short'
+    });
+    const newDateStr = newDate.toLocaleDateString('zh-CN', { 
+        year: 'numeric',
+        month: 'short', 
+        day: 'numeric',
+        weekday: 'short'
+    });
+    const oldTimeStr = `${oldDate.getHours()}:${String(oldDate.getMinutes()).padStart(2, '0')}`;
+    const newTimeStr = `${targetHour}:00`;
+    
+    showCustomModal({
+        title: '确认移动蓝图',
+        content: `
+            <div style="padding: 16px; text-align: center;">
+                <div style="font-size: 1.1em; margin-bottom: 16px;">
+                    📋 <strong>${blueprint.name}</strong>
+                </div>
+                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="color: #dc3545; margin-bottom: 8px;">
+                        <strong>原时间:</strong> ${oldDateStr} ${oldTimeStr}
+                    </div>
+                    <div style="font-size: 1.5em; margin: 8px 0;">⬇️</div>
+                    <div style="color: #28a745;">
+                        <strong>新时间:</strong> ${newDateStr} ${newTimeStr}
+                    </div>
+                </div>
+                <div style="font-size: 0.9em; color: #6c757d;">
+                    时长: ${blueprint.duration}分钟 | 优先级: ${blueprint.priority || 'medium'}
+                </div>
+            </div>
+        `,
+        confirmText: '确认移动',
+        onConfirm: () => {
+            // 更新蓝图时间
+            blueprint.scheduledDate = newDate.toISOString();
+            
+            // 添加到历史记录
+            addToBlueprintHistory(blueprint, `时间调整: ${oldDateStr} ${oldTimeStr} → ${newDateStr} ${newTimeStr}`);
+            
+            // 保存并刷新
+            saveToCloud();
+            renderWeekCalendar();
+            
+            // 显示成功提示
+            showCustomModal({
+                title: '移动成功',
+                content: `<p style="text-align: center; color: #28a745;">✅ 蓝图"${blueprint.name}"已成功移动到新时间</p>`,
+                confirmText: '确定'
+            });
+        },
+        onCancel: () => {
+            // 取消移动，什么都不做
+        }
+    });
+}

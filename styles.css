@@ -556,6 +556,21 @@ body {
     border-color: #95a5a6;
 }
 
+/* 暂停的生产线样式 */
+.production-item.paused {
+    opacity: 0.6;
+    background: #f8f9fa;
+    border-left: 4px solid #6c757d;
+}
+
+.production-item.paused .production-name {
+    color: #6c757d;
+}
+
+.production-item.paused .tag {
+    opacity: 0.7;
+}
+
 .dev-header {
     display: flex;
     justify-content: space-between;
@@ -2038,13 +2053,50 @@ input:checked + .slider:before {
     min-width: 120px;
 }
 
-/* 蓝图自动生成标识 */
+/* 蓝图来源标识 */
 .time-block.blueprint.auto-generated::before {
     content: "🤖";
     position: absolute;
     top: 2px;
     right: 2px;
     font-size: 12px;
+    z-index: 10;
+}
+
+.time-block.blueprint.manual-created::before {
+    content: "👤";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 12px;
+    z-index: 10;
+    color: #007bff;
+}
+
+/* 手动创建蓝图的特殊样式 */
+.time-block.blueprint.manual-created {
+    border: 2px solid #007bff !important;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3) !important;
+}
+
+/* 自动蓝图的柔和样式 */
+.time-block.blueprint.auto-generated {
+    border: 1px dashed #6c757d !important;
+    opacity: 0.85;
+}
+
+/* 重新安排的自动蓝图样式 */
+.time-block.blueprint.auto-generated.rescheduled {
+    border-style: dotted !important;
+    border-color: #ffc107 !important;
+}
+
+.time-block.blueprint.auto-generated.rescheduled::after {
+    content: "📅";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 10px;
     z-index: 10;
 }
 
@@ -2107,4 +2159,36 @@ input:checked + .slider:before {
     }
 }
 
- 
+/* === 拖拽功能样式 === */
+
+/* 拖拽目标提示 */
+.calendar-cell.drag-target {
+    background-color: rgba(0, 123, 255, 0.1) !important;
+    border: 1px dashed #007bff !important;
+    transition: all 0.2s ease;
+}
+
+/* 拖拽悬停效果 */
+.calendar-cell.drag-over {
+    background-color: rgba(0, 123, 255, 0.2) !important;
+    border: 2px solid #007bff !important;
+    box-shadow: inset 0 0 10px rgba(0, 123, 255, 0.3);
+}
+
+/* 蓝图拖拽时的样式 */
+.time-block.blueprint[draggable="true"] {
+    transition: opacity 0.2s ease;
+}
+
+.time-block.blueprint[draggable="true"]:hover {
+    cursor: move;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+/* 拖拽中的蓝图样式 */
+.time-block.blueprint.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+    z-index: 9999;
+}
