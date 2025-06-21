@@ -64,29 +64,35 @@
             <!-- 右侧：资源 & 支出 -->
             <div style="grid-area: status; display:flex; flex-direction:column; gap:20px;">
                 <div id="resource-panel" class="panel">
-                    <h2 class="panel-title"><span>📊</span><span>资源数据统计</span></h2>
+                    <h2 class="panel-title"><span>⏱️</span><span>今日用时</span></h2>
                     <div id="resource-stats"></div>
                 </div>
                 <div id="expenses-panel" class="panel">
                     <h2 class="panel-title">
-                        <span>💸</span><span>支出管理</span>
+                        <span>💰</span><span>资源管理</span>
                         <div class="panel-tabs">
-                            <button class="tab-btn active" onclick="window.switchExpenseTab('records')">记录</button>
-                            <button class="tab-btn" onclick="window.switchExpenseTab('analysis')">智能分析</button>
+                            <button class="tab-btn active" onclick="window.switchResourceTab('overview')">总览</button>
+                            <button class="tab-btn" onclick="window.switchResourceTab('bills')">账单管理</button>
+                            <button class="tab-btn" onclick="window.switchResourceTab('analysis')">详细分析</button>
                         </div>
                     </h2>
                     
-                    <!-- 支出记录面板 -->
-                    <div id="expense-records-tab" class="expense-tab-content">
-                        <div class="expense-import-hint">
-                            <p>💡 现在通过智能分析面板批量导入数据</p>
-                            <p>支持多货币账单，自动分析和预测</p>
-                            <button class="btn btn-primary" onclick="window.switchExpenseTab('analysis')">📊 开始分析</button>
-                        </div>
+                    <!-- 资源总览面板 -->
+                    <div id="resource-overview-tab" class="resource-tab-content">
+                        <div id="resource-overview-content"></div>
                     </div>
                     
-                    <!-- 智能分析面板 -->
-                    <div id="expense-analysis-tab" class="expense-tab-content" style="display: none;">
+                    <!-- 账单管理面板 -->
+                    <div id="resource-bills-tab" class="resource-tab-content" style="display: none;">
+                        <div class="bills-import-section">
+                            <button class="btn btn-primary" onclick="window.showBillsImportModal()">📋 导入账单数据</button>
+                            <button class="btn btn-secondary" onclick="window.showMonthlyComparison()">📊 月度对比</button>
+                        </div>
+                        <div id="bills-summary-content"></div>
+                    </div>
+                    
+                    <!-- 详细分析面板 -->
+                    <div id="resource-analysis-tab" class="resource-tab-content" style="display: none;">
                         <div id="resource-analysis-content"></div>
                     </div>
                 </div>
@@ -884,6 +890,119 @@
             
             <div class="modal-buttons">
                 <button type="button" class="btn btn-secondary" onclick="window.closeModal('resource-import-modal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据管理模态框 -->
+    <div id="data-manage-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3 class="modal-title">数据管理</h3>
+            <div class="modal-body">
+                <div class="data-manage-section">
+                    <h4>家庭码管理</h4>
+                    <div class="data-status">
+                        <div>当前家庭码: <span id="current-family-code"></span></div>
+                        <button class="btn btn-secondary" onclick="window.copyFamilyCode()">复制</button>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="new-family-code" placeholder="输入新的家庭码" class="form-input">
+                        <button class="btn btn-primary" onclick="window.changeFamilyCode()">更换</button>
+                    </div>
+                </div>
+                
+                <div class="data-manage-section">
+                    <h4>数据状态</h4>
+                    <div id="status-details" class="data-status"></div>
+                </div>
+                
+                <div class="data-manage-section">
+                    <h4>备份管理</h4>
+                    <div class="backup-controls">
+                        <button class="btn btn-primary" onclick="window.createManualBackup()">📥 手动备份</button>
+                        <button class="btn btn-secondary" onclick="window.createCloudBackup()">☁️ 云端备份</button>
+                    </div>
+                    <div class="backup-status">
+                        <div>
+                            <label>
+                                <input type="checkbox" id="auto-backup-enabled" onchange="window.toggleAutoBackup(this.checked)">
+                                启用自动云备份 (每10分钟)
+                            </label>
+                        </div>
+                        <div>上次备份: <span id="last-backup-time"></span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('data-manage-modal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 账单导入模态框 -->
+    <div id="bills-import-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <h3 class="modal-title">账单数据导入</h3>
+            <div class="modal-body">
+                <div class="import-instructions">
+                    <h4>📋 使用说明</h4>
+                    <p>1. 从银行导出CSV账单数据</p>
+                    <p>2. 使用AI整理成JSON格式（参考下方示例）</p>
+                    <p>3. <strong>重要：</strong>收入和支出都需要指定货币类型</p>
+                    <p>4. 粘贴到下方文本框并导入</p>
+                    <p>5. 支持增量更新，新数据会覆盖同月份的旧数据</p>
+                </div>
+                
+                <div class="import-example">
+                    <h4>📝 JSON格式示例（多货币支持）</h4>
+                    <pre id="bills-json-example">{
+  "2024-01": {
+    "income": 15000,
+    "incomeCurrency": "CNY",
+    "expenses": [
+      {"name": "房租", "amount": 3000, "currency": "CNY", "category": "住房"},
+      {"name": "生活费", "amount": 2000, "currency": "CNY", "category": "生活"},
+      {"name": "澳洲账单", "amount": 500, "currency": "AUD", "category": "账单"}
+    ]
+  },
+  "2024-02": {
+    "income": 3200,
+    "incomeCurrency": "AUD",
+    "expenses": [
+      {"name": "房租", "amount": 3000, "currency": "CNY", "category": "住房"},
+      {"name": "澳洲生活费", "amount": 600, "currency": "AUD", "category": "生活"}
+    ]
+  }
+}</pre>
+                </div>
+                
+                <div class="import-input">
+                    <h4>📥 导入数据</h4>
+                    <textarea id="bills-import-data" placeholder="粘贴JSON数据..." rows="8" style="width: 100%; font-family: monospace;"></textarea>
+                </div>
+                
+                <div id="bills-import-preview" style="display: none;">
+                    <h4>📊 数据预览</h4>
+                    <div id="bills-preview-content"></div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('bills-import-modal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="window.previewBillsData()">预览数据</button>
+                <button type="button" class="btn btn-success" onclick="window.confirmBillsImport()" id="confirm-bills-import" style="display: none;">确认导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 月度对比模态框 -->
+    <div id="monthly-comparison-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h3 class="modal-title">月度对比分析</h3>
+            <div class="modal-body">
+                <div id="monthly-comparison-content"></div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.closeModal('monthly-comparison-modal')">关闭</button>
             </div>
         </div>
     </div>

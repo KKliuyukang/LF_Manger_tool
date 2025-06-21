@@ -9,12 +9,12 @@ let fileHandle = null;
 // 数据结构版本号
 const DATA_VERSION = 1;
 
-// 汇率设置（相对于人民币）
+// 汇率设置（相对于澳元）
 const exchangeRates = {
-    CNY: 1,
-    AUD: 4.8,
-    USD: 7.2,
-    EUR: 7.8
+    AUD: 1,
+    CNY: 5.0,    // 1 AUD = 5 CNY
+    USD: 1.44,   // 1 AUD = 1.44 USD
+    EUR: 1.56    // 1 AUD = 1.56 EUR
 };
 
 const currencySymbols = {
@@ -57,7 +57,7 @@ window.gameData = {
     version: DATA_VERSION,
     finance: {
         totalSavings: 0,
-        savingsCurrency: 'CNY',
+        savingsCurrency: 'AUD',
         savingsUpdateTime: null
     },
     productions: [],
@@ -302,6 +302,8 @@ window.init = async function() {
     renderResourceStats();
     renderWeekCalendar();
     renderExpenses(); // 新增：初始化时渲染支出栏
+    renderResourceOverview(); // 新增：初始化时渲染资源总览
+    renderBillsSummary(); // 新增：初始化时渲染账单汇总
     renderResourceAnalysis(); // 新增：初始化智能分析面板
     setupEventListeners();
     
@@ -447,6 +449,8 @@ function setupEventListeners() {
     
     // 设置支出表单处理器
     setupExpenseFormHandlers();
+    
+    // 不需要延迟初始化资源管理面板，已在window.init中调用
 
     document.getElementById('add-blueprint-btn').addEventListener('click', () => showBlueprintModal());
     document.getElementById('blueprint-form').addEventListener('submit', saveBlueprint);
@@ -477,10 +481,10 @@ function setupEventListeners() {
     }
 }
 
-// 转换为人民币
+// 转换为澳元基准（函数名保持不变以兼容现有代码）
 function convertToCNY(amount, currency) {
-    if (!currencySymbols[currency] || !exchangeRates[currency]) currency = 'CNY';
-    return amount * exchangeRates[currency];
+    if (!currencySymbols[currency] || !exchangeRates[currency]) currency = 'AUD';
+    return amount / exchangeRates[currency];
 }
 
 // 全局变量存储排序后的生产线
@@ -1074,7 +1078,7 @@ window.editSavings = function() {
         gameData.finance.totalSavings = parseFloat(newSavings);
         gameData.finance.savingsUpdateTime = new Date().toISOString();
         
-        const currency = prompt('选择货币 (CNY/AUD/USD/EUR):', gameData.finance.savingsCurrency) || 'CNY';
+        const currency = prompt('选择货币 (CNY/AUD/USD/EUR):', gameData.finance.savingsCurrency) || 'AUD';
         if (['CNY', 'AUD', 'USD', 'EUR'].includes(currency.toUpperCase())) {
             gameData.finance.savingsCurrency = currency.toUpperCase();
         }
@@ -1158,23 +1162,23 @@ function editProduction(index) {
     document.getElementById('prod-type').value = prod.type;
     document.getElementById('has-active-income').checked = prod.hasActiveIncome;
     document.getElementById('active-amount').value = prod.activeIncome || '';
-    document.getElementById('active-currency').value = prod.activeCurrency || 'CNY';
+            document.getElementById('active-currency').value = prod.activeCurrency || 'AUD';
     document.getElementById('active-income-row').style.display = prod.hasActiveIncome ? 'grid' : 'none';
     document.getElementById('has-passive-income').checked = prod.hasPassiveIncome;
     document.getElementById('passive-amount').value = prod.passiveIncome || '';
-    document.getElementById('passive-currency').value = prod.passiveCurrency || 'CNY';
+            document.getElementById('passive-currency').value = prod.passiveCurrency || 'AUD';
     document.getElementById('passive-income-row').style.display = prod.hasPassiveIncome ? 'grid' : 'none';
     document.getElementById('prod-expense-amount').value = prod.expense || '';
-    document.getElementById('prod-expense-currency').value = prod.expenseCurrency || 'CNY';
+            document.getElementById('prod-expense-currency').value = prod.expenseCurrency || 'AUD';
     updateLinkedDevOptions();
     document.getElementById('linked-dev').value = prod.linkedDev || '';
     // 投资类专属
     if (prod.type === 'investment') {
         document.getElementById('invest-amount').value = prod.investAmount || '';
-        document.getElementById('invest-currency').value = prod.investCurrency || 'CNY';
+        document.getElementById('invest-currency').value = prod.investCurrency || 'AUD';
         document.getElementById('invest-date').value = prod.investDate || '';
         document.getElementById('invest-current').value = prod.investCurrent || '';
-        document.getElementById('invest-current-currency').value = prod.investCurrentCurrency || prod.investCurrency || 'CNY';
+        document.getElementById('invest-current-currency').value = prod.investCurrentCurrency || prod.investCurrency || 'AUD';
         document.getElementById('investment-fields').style.display = '';
         document.getElementById('income-type-group').style.display = 'none';
     } else {
@@ -1459,11 +1463,11 @@ function startResearch(research, createProductionLine) {
                     name: dev.prodName,
                     type: 'automation',
                     activeIncome: 0,
-                    activeCurrency: 'CNY',
+                    activeCurrency: 'AUD',
                     passiveIncome: 0,
-                    passiveCurrency: 'CNY',
+                    passiveCurrency: 'AUD',
                     expense: 0,
-                    expenseCurrency: 'CNY',
+                    expenseCurrency: 'AUD',
                     linkedDev: dev.researchName,
                     lastCheckIn: null,
                     hasActiveIncome: false,
@@ -1522,11 +1526,11 @@ function saveProduction() {
             name: productionName,
             type: type,
             activeIncome: 0,
-            activeCurrency: 'CNY',
+            activeCurrency: 'AUD',
             passiveIncome: 0,
-            passiveCurrency: 'CNY',
+            passiveCurrency: 'AUD',
             expense: 0,
-            expenseCurrency: 'CNY',
+            expenseCurrency: 'AUD',
             linkedDev: document.getElementById('linked-dev').value || null,
             lastCheckIn: null,
             hasActiveIncome: false,
@@ -2141,6 +2145,10 @@ window.addEventListener('DOMContentLoaded',function(){
     renderWeekCalendar();
     // 检查过期蓝图
     checkExpiredBlueprints();
+    // 初始化资源总览
+    renderResourceOverview();
+    renderBillsSummary();
+    renderResourceStats();
 });
 
 // 7. 生产线数据结构增加timeCost字段（建议手动在已有数据中补充）
@@ -2148,117 +2156,32 @@ window.addEventListener('DOMContentLoaded',function(){
 
 // 新增：渲染资源数据统计面板
 function renderResourceStats() {
-        const container = document.getElementById('resource-stats');
-        if (!container) return;
-        let totalActive = 0, totalPassive = 0, totalExpense = 0;
-        let activeBreakdown = [], passiveBreakdown = [], expenseBreakdown = [];
-        let activeIncomesByCurrency = {}, passiveIncomesByCurrency = {}, expensesByCurrency = {};
-        (gameData.productions || []).forEach(prod => {
-            if (prod.hasActiveIncome && prod.activeIncome > 0) {
-                if (!activeIncomesByCurrency[prod.activeCurrency]) activeIncomesByCurrency[prod.activeCurrency] = 0;
-                activeIncomesByCurrency[prod.activeCurrency] += prod.activeIncome;
-            }
-            if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
-                if (!passiveIncomesByCurrency[prod.passiveCurrency]) passiveIncomesByCurrency[prod.passiveCurrency] = 0;
-                passiveIncomesByCurrency[prod.passiveCurrency] += prod.passiveIncome;
-            }
-            if (prod.expense > 0) {
-                if (!expensesByCurrency[prod.expenseCurrency]) expensesByCurrency[prod.expenseCurrency] = 0;
-                expensesByCurrency[prod.expenseCurrency] += prod.expense;
-            }
-        });
-        Object.entries(activeIncomesByCurrency).forEach(([currency, amount]) => {
-            totalActive += convertToCNY(amount, currency);
-            activeBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-        });
-        Object.entries(passiveIncomesByCurrency).forEach(([currency, amount]) => {
-            totalPassive += convertToCNY(amount, currency);
-            passiveBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-        });
-        Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
-            totalExpense += convertToCNY(amount, currency);
-            expenseBreakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-        });
-        let savings = gameData.finance.totalSavings;
-        let savingsCurrency = gameData.finance.savingsCurrency;
-        let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
-        let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
-        let today = getLocalDateString(); // 修复：使用本地日期
-        let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
-            // 确保时间成本为正值，如果timeCost异常则重新计算
-            let timeCost = log.timeCost || 0;
-            if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
-                timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
-            }
-            return sum + Math.max(0, timeCost); // 确保不会是负数
-        }, 0);
+    const container = document.getElementById('resource-stats');
+    if (!container) return;
+    
+    let savings = gameData.finance.totalSavings;
+    let savingsCurrency = gameData.finance.savingsCurrency;
+    let savingsStr = `${currencySymbols[savingsCurrency]}${savings.toLocaleString()}`;
+    let savingsUpdate = gameData.finance.savingsUpdateTime ? `更新于 ${(new Date(gameData.finance.savingsUpdateTime)).toLocaleDateString()}` : '未更新';
+    let today = getLocalDateString(); // 修复：使用本地日期
+    let todayActiveMins = (gameData.timeLogs||[]).filter(log=>log.date===today).reduce((sum,log)=>{
+        // 确保时间成本为正值，如果timeCost异常则重新计算
+        let timeCost = log.timeCost || 0;
+        if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
+            timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
+        }
+        return sum + Math.max(0, timeCost); // 确保不会是负数
+    }, 0);
+    
     let html = '';
-        html += `<div class='resource-stats-section'>
-            <div class='resource-label'>累计存款
-                <button class='resource-btn-edit' onclick='window.editSavings()'>✏️</button>
-            </div>
-            <div class='resource-main-value'>${savingsStr}</div>
-            <div class='resource-sub'>${savingsUpdate}</div>
-        </div>`;
-        html += `<div class='resource-divider'></div>`;
-        html += `<div class='resource-stats-section'>
-            <div class='resource-label'>今天主动用时 
-                <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
-            </div>
-            <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
-        </div>`;
-        html += `<div class='resource-divider'></div>`;
-        html += `<div class='resource-row'>
-            <span class='resource-label'>主动收入</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#2980b9;'>¥${Math.round(totalActive).toLocaleString()}</span>
-        </div>`;
-        if (activeBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${activeBreakdown.join(' + ')})</div>`;
-        
-        html += `<div class='resource-row'>
-            <span class='resource-label'>被动收入</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#16a085;'>¥${Math.round(totalPassive).toLocaleString()}</span>
-        </div>`;
-        if (passiveBreakdown.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${passiveBreakdown.join(' + ')})</div>`;
-        
-        html += `<div class='resource-divider'></div>`;
-        // 使用合并的月支出统计（包括生产线支出和支出面板的支出）
-        const monthlyTotal = getMonthlyExpenseTotalMerged();
-        const monthlyExpenseDetails = getMonthlyExpenseBreakdown();
-        
-        // 预计月支出（自动计算，基于支出管理面板数据）
-        const estimatedExpense = getEstimatedMonthlyExpense();
-        const estimatedExpenseDetails = getEstimatedExpenseBreakdown();
-        
-        html += `<div class='resource-row'>
-            <span class='resource-label'>预计月支出</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#95a5a6;'>¥${Math.round(estimatedExpense).toLocaleString()}</span>
-        </div>`;
-        
-        // 显示预计支出明细
-        if (estimatedExpenseDetails.length) {
-            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:#95a5a6;'>(${estimatedExpenseDetails.join(' + ')})</div>`;
-        }
-        
-        // 实际月支出（已支出）与尚未支出
-        const remainingExpense = estimatedExpense - monthlyTotal;
-        
-        html += `<div class='resource-row'>
-            <span class='resource-label'>已支出</span>
-            <span class='resource-main-value' style='font-size:1.2em;color:#e67e22;'>¥${Math.round(monthlyTotal).toLocaleString()}</span>
-        </div>`;
-        
-        if (estimatedExpense > 0) {
-            html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;color:#888;'>
-                尚未支出：¥${Math.round(remainingExpense).toLocaleString()}
-            </div>`;
-        }
-        
-        // 支出明细紧挨着实际月支出
-        const allExpenseDetails = [];
-        if (expenseBreakdown.length) allExpenseDetails.push(...expenseBreakdown);
-        if (monthlyExpenseDetails.length) allExpenseDetails.push(...monthlyExpenseDetails);
-        if (allExpenseDetails.length) html += `<div class='resource-breakdown' style='margin-top:-8px;margin-bottom:8px;'>(${allExpenseDetails.join(' + ')})</div>`;
-        container.innerHTML = html;
+    html += `<div class='resource-stats-section'>
+        <div class='resource-label'>今天主动用时 
+            <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
+        </div>
+        <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
+    </div>`;
+    
+    container.innerHTML = html;
 }
 
 // 清除用时记录
@@ -2392,11 +2315,11 @@ function syncResearchProductions() {
             name: dev.prodName, // 生产线名称
             type: 'habit',
             activeIncome: 0,
-            activeCurrency: 'CNY',
-            passiveIncome: 0,
-            passiveCurrency: 'CNY',
-            expense: 0,
-            expenseCurrency: 'CNY',
+                            activeCurrency: 'AUD',
+                passiveIncome: 0,
+                passiveCurrency: 'AUD',
+                expense: 0,
+                expenseCurrency: 'AUD',
             linkedDev: dev.researchName, // 关联研发项目
             lastCheckIn: null,
             hasActiveIncome: false,
@@ -2900,7 +2823,7 @@ window.editExpense = function(idx) {
     // 设置表单值 - 像生产线一样简单直接
     document.getElementById('expense-name').value = exp.name || '';
     document.getElementById('expense-amount').value = exp.amount || '';
-    document.getElementById('expense-currency').value = exp.currency || 'CNY';
+    document.getElementById('expense-currency').value = exp.currency || 'AUD';
     document.getElementById('expense-date').value = exp.date || '';
     document.getElementById('expense-type').value = exp.type || 'single';
     document.getElementById('expense-frequency-group').style.display = (exp.type==='recurring')?'':'none';
@@ -3022,23 +2945,671 @@ function setupExpenseFormHandlers() {
 
 // setupExpenseFormHandlers 现在在 setupEventListeners 中被调用
 
-// ========== 支出面板标签页切换 ========== //
-window.switchExpenseTab = function(tabName) {
+// ========== 资源管理面板功能 ========== //
+
+// 标签页切换
+window.switchResourceTab = function(tabName) {
     // 切换标签按钮状态
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
     
-    // 切换内容面板
-    document.getElementById('expense-records-tab').style.display = tabName === 'records' ? 'block' : 'none';
-    document.getElementById('expense-analysis-tab').style.display = tabName === 'analysis' ? 'block' : 'none';
+    // 切换内容显示
+    document.querySelectorAll('.resource-tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
     
-    // 如果切换到分析面板，确保数据是最新的
-    if (tabName === 'analysis') {
-        renderResourceAnalysis();
+    const targetTab = document.getElementById(`resource-${tabName}-tab`);
+    if (targetTab) {
+        targetTab.style.display = 'block';
+        
+        // 根据不同标签页渲染对应内容
+        switch(tabName) {
+            case 'overview':
+                renderResourceOverview();
+                break;
+            case 'bills':
+                renderBillsSummary();
+                break;
+            case 'analysis':
+                renderResourceAnalysis();
+                break;
+        }
     }
 }
 
+// 渲染资源总览
+function renderResourceOverview() {
+    const container = document.getElementById('resource-overview-content');
+    if (!container) return;
+    
+    // 始终更新分析数据，确保数据是最新的
+    updateResourceAnalysisData();
+    
+    // 计算当前月份的收入和支出
+    const currentMonth = new Date().toISOString().slice(0, 7); // 2024-06
+    const monthlyData = getBillsDataForMonth(currentMonth);
+    
+    // 从生产线获取月收入
+    const productionIncome = getProductionMonthlyIncome();
+    
+    // 合并收入数据
+    const totalMonthlyIncome = monthlyData.income + productionIncome;
+    
+    // 获取存款信息
+    const savings = gameData.finance?.totalSavings || 0;
+    const savingsCurrency = gameData.finance?.savingsCurrency || 'AUD';
+    const savingsSymbol = currencySymbols[savingsCurrency] || 'A$';
+    
+    // 预测下月支出
+    const predictedExpense = getPredictedMonthlyExpense();
+    
+    // 获取当前显示货币设置 - 默认澳元
+    const displayCurrency = gameData.displayCurrency || 'AUD';
+    
+    // 转换为显示货币
+    const displayIncome = convertToDisplayCurrency(totalMonthlyIncome, 'AUD', displayCurrency);
+    const displayExpense = convertToDisplayCurrency(monthlyData.totalExpense, 'AUD', displayCurrency);
+    const displaySavings = convertToDisplayCurrency(savings, savingsCurrency, displayCurrency);
+    const displayPredicted = convertToDisplayCurrency(predictedExpense, 'AUD', displayCurrency);
+    
+    const currencySymbol = getCurrencySymbol(displayCurrency);
+    
+    const html = `
+        <!-- 货币切换 -->
+        <div class="currency-switch">
+            <button class="currency-btn ${displayCurrency === 'CNY' ? 'active' : ''}" onclick="window.switchDisplayCurrency('CNY')">
+                🇨🇳 人民币
+            </button>
+            <button class="currency-btn ${displayCurrency === 'AUD' ? 'active' : ''}" onclick="window.switchDisplayCurrency('AUD')">
+                🇦🇺 澳元
+            </button>
+        </div>
+        
+        <div class="resource-overview-grid">
+            <div class="resource-overview-card">
+                <h4>📈 本月收入</h4>
+                <div class="resource-overview-value income">${currencySymbol}${Math.round(displayIncome).toLocaleString()}</div>
+                <div class="resource-overview-meta">生产线 + 账单数据</div>
+            </div>
+            <div class="resource-overview-card">
+                <h4>📉 本月支出</h4>
+                <div class="resource-overview-value expense">${currencySymbol}${Math.round(displayExpense).toLocaleString()}</div>
+                <div class="resource-overview-meta">已支出 ${monthlyData.expenseCount} 项</div>
+            </div>
+            <div class="resource-overview-card">
+                <h4>💰 累计存款</h4>
+                <div class="resource-overview-value savings">${currencySymbol}${Math.round(displaySavings).toLocaleString()}</div>
+                <div class="resource-overview-meta">
+                    <button class="btn btn-sm" onclick="window.editSavings()" style="font-size: 0.8em; padding: 2px 6px;">✏️ 更新</button>
+                </div>
+            </div>
+            <div class="resource-overview-card">
+                <h4>🔮 下月预测</h4>
+                <div class="resource-overview-value prediction">${currencySymbol}${Math.round(displayPredicted).toLocaleString()}</div>
+                <div class="resource-overview-meta">基于历史数据</div>
+            </div>
+        </div>
+        
+
+    `;
+    
+    container.innerHTML = html;
+}
+
+// 货币转换函数 - 以澳元为基准
+function convertToDisplayCurrency(amount, fromCurrency, toCurrency) {
+    if (fromCurrency === toCurrency) return amount;
+    
+    // 汇率表（相对于AUD）
+    const exchangeRates = {
+        'AUD': 1.0,
+        'CNY': 5.0,     // 1 AUD = 5 CNY
+        'USD': 1.44,    // 1 AUD = 1.44 USD  
+        'EUR': 1.56     // 1 AUD = 1.56 EUR
+    };
+    
+    // 先转换为AUD，再转换为目标货币
+    const audAmount = amount / exchangeRates[fromCurrency];
+    return audAmount * exchangeRates[toCurrency];
+}
+
+// 获取货币符号
+function getCurrencySymbol(currency) {
+    const symbols = {
+        'CNY': '¥',
+        'AUD': 'A$',
+        'USD': '$',
+        'EUR': '€'
+    };
+    return symbols[currency] || '¥';
+}
+
+// 切换显示货币
+window.switchDisplayCurrency = function(currency) {
+    gameData.displayCurrency = currency;
+    
+    // 重新渲染所有相关面板
+    renderResourceOverview();
+    renderBillsSummary();
+    if (document.getElementById('resource-analysis-content')) {
+        renderResourceAnalysis();
+    }
+    
+    // 保存设置
+    saveToCloud();
+}
+
+// 获取指定月份的账单数据（返回澳元基准的数值）
+function getBillsDataForMonth(monthKey) {
+    if (!gameData.billsData) gameData.billsData = {};
+    
+    const monthData = gameData.billsData[monthKey];
+    if (!monthData) {
+        return { income: 0, totalExpense: 0, expenseCount: 0, expenses: [] };
+    }
+    
+    let totalExpense = 0;
+    const expenses = monthData.expenses || [];
+    
+    expenses.forEach(expense => {
+        totalExpense += convertToCNY(expense.amount, expense.currency);
+    });
+    
+    return {
+        income: convertToCNY(monthData.income || 0, monthData.incomeCurrency || 'AUD'),
+        totalExpense: totalExpense,
+        expenseCount: expenses.length,
+        expenses: expenses
+    };
+}
+
+// 从生产线计算月收入（返回澳元基准的数值）
+function getProductionMonthlyIncome() {
+    let totalIncome = 0;
+    
+    (gameData.productions || []).forEach(prod => {
+        if (prod.hasActiveIncome && prod.activeIncome > 0) {
+            totalIncome += convertToCNY(prod.activeIncome, prod.activeCurrency);
+        }
+        if (prod.hasPassiveIncome && prod.passiveIncome > 0) {
+            totalIncome += convertToCNY(prod.passiveIncome, prod.passiveCurrency);
+        }
+    });
+    
+    return totalIncome;
+}
+
+// 预测下月支出（返回澳元基准的数值）
+function getPredictedMonthlyExpense() {
+    // 如果有详细分析数据，优先使用
+    if (gameData.resourceAnalysis && gameData.resourceAnalysis.predictions.nextMonthExpense > 0) {
+        return gameData.resourceAnalysis.predictions.nextMonthExpense;
+    }
+    
+    // 否则使用简单的3个月平均值
+    if (!gameData.billsData) return 0;
+    
+    const months = Object.keys(gameData.billsData).sort().slice(-3); // 最近3个月
+    if (months.length === 0) return 0;
+    
+    let totalExpense = 0;
+    let monthCount = 0;
+    
+    months.forEach(monthKey => {
+        const monthData = getBillsDataForMonth(monthKey);
+        totalExpense += monthData.totalExpense;
+        monthCount++;
+    });
+    
+    return monthCount > 0 ? totalExpense / monthCount : 0;
+}
+
+// 渲染账单汇总
+function renderBillsSummary() {
+    const container = document.getElementById('bills-summary-content');
+    if (!container) return;
+    
+    if (!gameData.billsData || Object.keys(gameData.billsData).length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #95a5a6;">
+                <p>📋 还没有账单数据</p>
+                <p>点击上方"导入账单数据"开始使用</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const displayCurrency = gameData.displayCurrency || 'AUD';
+    const currencySymbol = getCurrencySymbol(displayCurrency);
+    
+    const months = Object.keys(gameData.billsData).sort().reverse(); // 按时间倒序
+    let html = '<div class="bills-summary-list">';
+    
+    months.forEach(monthKey => {
+        const monthData = getBillsDataForMonth(monthKey);
+        
+        // 转换为显示货币
+        const displayIncome = convertToDisplayCurrency(monthData.income, 'AUD', displayCurrency);
+        const displayExpense = convertToDisplayCurrency(monthData.totalExpense, 'AUD', displayCurrency);
+        const balance = displayIncome - displayExpense;
+        const balanceClass = balance >= 0 ? 'positive' : 'negative';
+        
+        html += `
+            <div class="bills-summary-item">
+                <div class="bills-summary-header">
+                    <span class="bills-summary-month">${monthKey}</span>
+                    <span class="bills-summary-balance ${balanceClass}">
+                        ${balance >= 0 ? '+' : ''}${currencySymbol}${Math.round(balance).toLocaleString()}
+                    </span>
+                </div>
+                <div class="bills-summary-details">
+                    <span>收入: ${currencySymbol}${Math.round(displayIncome).toLocaleString()}</span>
+                    <span>支出: ${currencySymbol}${Math.round(displayExpense).toLocaleString()} (${monthData.expenseCount}项)</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// 显示账单导入模态框
+window.showBillsImportModal = function() {
+    document.getElementById('bills-import-modal').style.display = 'block';
+    document.getElementById('bills-import-data').value = '';
+    document.getElementById('bills-import-preview').style.display = 'none';
+    document.getElementById('confirm-bills-import').style.display = 'none';
+}
+
+// 预览账单数据
+window.previewBillsData = function() {
+    const jsonData = document.getElementById('bills-import-data').value.trim();
+    if (!jsonData) {
+        alert('请输入JSON数据');
+        return;
+    }
+    
+    try {
+        const data = JSON.parse(jsonData);
+        let previewHtml = '';
+        let totalMonths = 0;
+        let totalIncome = 0;
+        let totalExpense = 0;
+        
+        Object.entries(data).forEach(([monthKey, monthData]) => {
+            totalMonths++;
+            const income = convertToCNY(monthData.income || 0, monthData.incomeCurrency || 'AUD');
+            totalIncome += income;
+            
+            let monthExpense = 0;
+            const expenses = monthData.expenses || [];
+            expenses.forEach(exp => {
+                monthExpense += convertToCNY(exp.amount, exp.currency);
+            });
+            totalExpense += monthExpense;
+            
+            previewHtml += `
+                <div class="bills-preview-item">
+                    <div class="bills-preview-month">${monthKey}</div>
+                    <div class="bills-preview-summary">
+                        <span>收入: ¥${Math.round(income).toLocaleString()}</span>
+                        <span>支出: ¥${Math.round(monthExpense).toLocaleString()}</span>
+                    </div>
+                    <div class="bills-preview-expenses">
+                        ${expenses.map(exp => `${exp.name}: ${currencySymbols[exp.currency]}${exp.amount}`).join(', ')}
+                    </div>
+                </div>
+            `;
+        });
+        
+        previewHtml += `
+            <div style="background: #27ae60; color: white; padding: 12px; border-radius: 6px; margin-top: 10px;">
+                <strong>汇总: ${totalMonths}个月，总收入 ¥${Math.round(totalIncome).toLocaleString()}，总支出 ¥${Math.round(totalExpense).toLocaleString()}</strong>
+            </div>
+        `;
+        
+        document.getElementById('bills-preview-content').innerHTML = previewHtml;
+        document.getElementById('bills-import-preview').style.display = 'block';
+        document.getElementById('confirm-bills-import').style.display = 'inline-block';
+        
+        // 保存解析后的数据供确认导入使用
+        window.pendingBillsData = data;
+        
+    } catch (error) {
+        alert('JSON格式错误: ' + error.message);
+    }
+}
+
+// 确认导入账单数据
+window.confirmBillsImport = function() {
+    if (!window.pendingBillsData) {
+        alert('没有待导入的数据');
+        return;
+    }
+    
+    if (!gameData.billsData) gameData.billsData = {};
+    
+    // 合并数据，新数据覆盖旧数据
+    Object.assign(gameData.billsData, window.pendingBillsData);
+    
+    // 更新资源分析数据（统一的分析更新）
+    updateResourceAnalysisData();
+    
+    // 保存到云端
+    saveToCloud();
+    
+    // 刷新相关显示
+    renderResourceOverview();
+    renderBillsSummary();
+    renderResourceStats();
+    renderResourceAnalysis(); // 同步更新详细分析页面
+    
+    // 关闭模态框
+    closeModal('bills-import-modal');
+    
+    alert(`✅ 成功导入 ${Object.keys(window.pendingBillsData).length} 个月的账单数据！`);
+    window.pendingBillsData = null;
+}
+
+// 显示月度对比
+window.showMonthlyComparison = function() {
+    if (!gameData.billsData || Object.keys(gameData.billsData).length === 0) {
+        alert('还没有账单数据可供对比');
+        return;
+    }
+    
+    const displayCurrency = gameData.displayCurrency || 'AUD';
+    const currencySymbol = getCurrencySymbol(displayCurrency);
+    
+    const months = Object.keys(gameData.billsData).sort().reverse().slice(0, 6); // 最近6个月
+    let html = '<div class="monthly-comparison-grid">';
+    
+    months.forEach((monthKey, index) => {
+        const monthData = getBillsDataForMonth(monthKey);
+        
+        // 转换为显示货币
+        const displayIncome = convertToDisplayCurrency(monthData.income, 'AUD', displayCurrency);
+        const displayExpense = convertToDisplayCurrency(monthData.totalExpense, 'AUD', displayCurrency);
+        const balance = displayIncome - displayExpense;
+        const balanceClass = balance >= 0 ? 'positive' : 'negative';
+        
+        // 计算支出分类
+        const categories = {};
+        monthData.expenses.forEach(exp => {
+            const category = exp.category || exp.name || '其他';
+            if (!categories[category]) categories[category] = 0;
+            const amount = convertToDisplayCurrency(convertToCNY(exp.amount, exp.currency), 'AUD', displayCurrency);
+            categories[category] += amount;
+        });
+        
+        // 获取上月数据用于对比
+        const prevMonth = months[index + 1];
+        const prevCategories = {};
+        if (prevMonth && gameData.billsData[prevMonth]) {
+            const prevMonthData = getBillsDataForMonth(prevMonth);
+            prevMonthData.expenses.forEach(exp => {
+                const category = exp.category || exp.name || '其他';
+                if (!prevCategories[category]) prevCategories[category] = 0;
+                const amount = convertToDisplayCurrency(convertToCNY(exp.amount, exp.currency), 'AUD', displayCurrency);
+                prevCategories[category] += amount;
+            });
+        }
+        
+        // 生成分类详情HTML
+        const categoriesHtml = Object.entries(categories)
+            .sort((a, b) => b[1] - a[1])
+            .map(([cat, amount]) => {
+                let changeHtml = '';
+                if (prevCategories[cat]) {
+                    const change = ((amount - prevCategories[cat]) / prevCategories[cat] * 100);
+                    if (Math.abs(change) > 5) {
+                        const changeClass = change > 0 ? 'increase' : 'decrease';
+                        changeHtml = `<span class="comparison-category-change ${changeClass}">${change > 0 ? '+' : ''}${change.toFixed(0)}%</span>`;
+                    }
+                } else if (amount > 0) {
+                    changeHtml = `<span class="comparison-category-change increase">新增</span>`;
+                }
+                
+                return `
+                    <div class="comparison-category-item" onclick="showCategoryDetails('${monthKey}', '${cat.replace(/'/g, "\\'")}')">
+                        <span class="comparison-category-name">${cat}</span>
+                        <div>
+                            <span class="comparison-category-amount">${currencySymbol}${Math.round(amount).toLocaleString()}</span>
+                            ${changeHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        
+        html += `
+            <div class="comparison-month-card" onclick="toggleMonthDetails('${monthKey}')">
+                <div class="comparison-month-header">
+                    <span class="comparison-expand-icon">▶</span>
+                    <span class="comparison-month-title">${monthKey}</span>
+                    <span class="comparison-income-value">${currencySymbol}${Math.round(displayIncome).toLocaleString()}</span>
+                    <span class="comparison-expense-value">${currencySymbol}${Math.round(displayExpense).toLocaleString()}</span>
+                    <span class="comparison-balance-value ${balanceClass}">
+                        ${balance >= 0 ? '+' : ''}${currencySymbol}${Math.round(Math.abs(balance)).toLocaleString()}
+                    </span>
+                </div>
+                <div class="comparison-details">
+                    <div class="comparison-categories-grid">
+                        ${categoriesHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    document.getElementById('monthly-comparison-content').innerHTML = html;
+    document.getElementById('monthly-comparison-modal').style.display = 'block';
+}
+
+// 切换月度详情展开/收起
+window.toggleMonthDetails = function(monthKey) {
+    const cards = document.querySelectorAll('.comparison-month-card');
+    cards.forEach(card => {
+        const title = card.querySelector('.comparison-month-title').textContent;
+        if (title === monthKey) {
+            card.classList.toggle('expanded');
+        }
+    });
+}
+
+// 显示分类详情
+window.showCategoryDetails = function(monthKey, categoryName) {
+    // 阻止事件冒泡，避免触发月度详情切换
+    event.stopPropagation();
+    
+    if (!gameData.billsData || !gameData.billsData[monthKey]) {
+        alert('未找到该月份的数据');
+        return;
+    }
+    
+    const displayCurrency = gameData.displayCurrency || 'AUD';
+    const currencySymbol = getCurrencySymbol(displayCurrency);
+    const monthData = gameData.billsData[monthKey];
+    
+    // 找到该分类下的所有支出项目
+    const categoryExpenses = monthData.expenses.filter(exp => {
+        const category = exp.category || exp.name || '其他';
+        return category === categoryName;
+    });
+    
+    if (categoryExpenses.length === 0) {
+        alert('该分类下没有支出项目');
+        return;
+    }
+    
+    // 计算总金额
+    let totalAmount = 0;
+    categoryExpenses.forEach(exp => {
+        const amount = convertToDisplayCurrency(convertToCNY(exp.amount, exp.currency), 'AUD', displayCurrency);
+        totalAmount += amount;
+    });
+    
+    // 生成详情HTML
+    let html = `
+        <div style="max-height: 400px; overflow-y: auto; padding: 16px;">
+            <h4 style="margin-bottom: 16px; color: #2c3e50;">
+                📊 ${monthKey} - ${categoryName}
+            </h4>
+            <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 16px; text-align: center;">
+                <div style="font-size: 1.2em; font-weight: bold; color: #e67e22;">
+                    总计：${currencySymbol}${Math.round(totalAmount).toLocaleString()}
+                </div>
+                <div style="font-size: 0.9em; color: #7f8c8d;">
+                    共 ${categoryExpenses.length} 项支出
+                </div>
+            </div>
+            <div style="space-y: 8px;">
+    `;
+    
+    // 按金额降序排列
+    categoryExpenses
+        .sort((a, b) => convertToCNY(b.amount, b.currency) - convertToCNY(a.amount, a.currency))
+        .forEach(exp => {
+            const amount = convertToDisplayCurrency(convertToCNY(exp.amount, exp.currency), 'AUD', displayCurrency);
+            const originalAmount = exp.amount;
+            const originalCurrency = exp.currency || 'AUD';
+            const originalSymbol = getCurrencySymbol(originalCurrency);
+            
+            html += `
+                <div style="background: white; border: 1px solid #e1e8ed; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-weight: 600; color: #2c3e50;">${exp.name}</span>
+                        <span style="font-weight: bold; color: #e67e22;">${currencySymbol}${Math.round(amount).toLocaleString()}</span>
+                    </div>
+                    ${originalCurrency !== displayCurrency ? `
+                        <div style="font-size: 0.85em; color: #7f8c8d; text-align: right;">
+                            原始金额：${originalSymbol}${originalAmount.toLocaleString()}
+                        </div>
+                    ` : ''}
+                    ${exp.description ? `
+                        <div style="font-size: 0.9em; color: #666; margin-top: 4px;">
+                            ${exp.description}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    showCustomModal({
+        title: `${categoryName} 详细支出`,
+        content: html,
+        confirmText: '关闭'
+    });
+}
+
 // ========== 智能资源管理系统 ========== //
+
+// 统一的资源分析数据更新函数
+function updateResourceAnalysisData() {
+    if (!gameData.billsData || Object.keys(gameData.billsData).length === 0) {
+        // 清空分析数据
+        gameData.resourceAnalysis = {
+            monthlyAverage: 0,
+            fixedExpenseRatio: 0,
+            stabilityScore: 0,
+            insights: [],
+            predictions: {
+                nextMonthExpense: 0,
+                specialReminders: []
+            }
+        };
+        return;
+    }
+    
+    // 分析历史数据
+    const months = Object.keys(gameData.billsData).sort();
+    const monthlyExpenses = [];
+    const monthlyIncomes = [];
+    const expenseCategories = {};
+    
+    months.forEach(month => {
+        const monthData = gameData.billsData[month];
+        
+        // 计算月支出（转换为澳元基准）
+        const monthExpense = monthData.expenses.reduce((sum, expense) => {
+            return sum + convertToCNY(expense.amount, expense.currency || 'AUD');
+        }, 0);
+        monthlyExpenses.push(monthExpense);
+        
+        // 计算月收入（转换为澳元基准）
+        const monthIncome = convertToCNY(monthData.income || 0, monthData.incomeCurrency || 'AUD');
+        monthlyIncomes.push(monthIncome);
+        
+        // 统计支出类别
+        monthData.expenses.forEach(expense => {
+            const category = expense.category || expense.name || '其他';
+            const amount = convertToCNY(expense.amount, expense.currency || 'AUD');
+            expenseCategories[category] = (expenseCategories[category] || 0) + amount;
+        });
+    });
+    
+    // 计算平均月支出
+    const monthlyAverage = monthlyExpenses.reduce((sum, exp) => sum + exp, 0) / monthlyExpenses.length;
+    
+    // 计算固定支出占比（假设房租、保险等为固定支出）
+    const fixedCategories = ['房租', '保险', '贷款', '水电费', '网费', '手机费', 'Rent', 'Insurance', 'Loan'];
+    const fixedExpenses = Object.entries(expenseCategories)
+        .filter(([category]) => fixedCategories.some(fixed => category.toLowerCase().includes(fixed.toLowerCase())))
+        .reduce((sum, [, amount]) => sum + amount, 0);
+    const fixedExpenseRatio = monthlyExpenses.length > 0 ? (fixedExpenses / (monthlyAverage * monthlyExpenses.length)) : 0;
+    
+    // 计算稳定度评分（基于支出变化的标准差）
+    const avgExpense = monthlyAverage;
+    const variance = monthlyExpenses.reduce((sum, exp) => sum + Math.pow(exp - avgExpense, 2), 0) / monthlyExpenses.length;
+    const stabilityScore = Math.max(0, Math.min(100, 100 - (Math.sqrt(variance) / avgExpense) * 100));
+    
+    // 生成洞察
+    const insights = [];
+    if (fixedExpenseRatio > 0.6) {
+        insights.push('固定支出占比较高');
+    }
+    if (stabilityScore > 80) {
+        insights.push('支出模式稳定');
+    } else if (stabilityScore < 50) {
+        insights.push('支出波动较大');
+    }
+    
+    // 找出最大支出类别
+    const topCategory = Object.entries(expenseCategories)
+        .sort(([,a], [,b]) => b - a)[0];
+    if (topCategory) {
+        insights.push(`主要支出: ${topCategory[0]}`);
+    }
+    
+    // 生成预测
+    const recentMonths = monthlyExpenses.slice(-3); // 最近3个月
+    const recentAverage = recentMonths.reduce((sum, exp) => sum + exp, 0) / recentMonths.length;
+    const nextMonthExpense = Math.round(recentAverage * 1.05); // 预测增长5%
+    
+    const specialReminders = [];
+    if (nextMonthExpense > monthlyAverage * 1.2) {
+        specialReminders.push('下月支出可能超出平均水平20%');
+    }
+    
+    // 更新分析数据
+    gameData.resourceAnalysis = {
+        monthlyAverage: Math.round(monthlyAverage),
+        fixedExpenseRatio: Math.round(fixedExpenseRatio * 100),
+        stabilityScore: Math.round(stabilityScore),
+        insights: insights,
+        predictions: {
+            nextMonthExpense: nextMonthExpense,
+            specialReminders: specialReminders
+        }
+    };
+}
 
 // 批量导入历史数据
 window.showResourceImportModal = function() {
@@ -3311,85 +3882,76 @@ function renderResourceAnalysis() {
     const container = document.getElementById('resource-analysis-content');
     if (!container) return;
     
-    const rm = gameData.resourceManagement;
-    if (!rm || !rm.analysis || !rm.analysis.lastAnalyzedAt) {
+    if (!gameData.billsData || Object.keys(gameData.billsData).length === 0) {
         container.innerHTML = `
-            <div class="analysis-empty">
-                <p>📊 暂无分析数据</p>
-                <p>导入历史数据后将自动生成智能分析报告</p>
-                <button class="btn btn-primary" onclick="window.showResourceImportModal()">📥 导入数据</button>
+            <div style="text-align: center; padding: 40px; color: #95a5a6;">
+                <h4>📊 暂无分析数据</h4>
+                <p>请先在"账单管理"页面导入财务数据</p>
+                <button class="btn btn-primary" onclick="window.switchResourceTab('bills')">
+                    📋 导入账单数据
+                </button>
             </div>
         `;
         return;
     }
     
-    const analysis = rm.analysis;
-    const predictions = rm.predictions;
+    // 如果没有分析结果，先进行分析
+    if (!gameData.resourceAnalysis) {
+        updateResourceAnalysisData();
+    }
+    
+    const analysis = gameData.resourceAnalysis;
+    const displayCurrency = gameData.displayCurrency || 'AUD';
+    const currencySymbol = getCurrencySymbol(displayCurrency);
+    
+    // 转换为显示货币（analysis中的数据已经是澳元基准）
+    const displayMonthlyAvg = convertToDisplayCurrency(analysis.monthlyAverage, 'AUD', displayCurrency);
+    const displayPrediction = convertToDisplayCurrency(analysis.predictions.nextMonthExpense, 'AUD', displayCurrency);
     
     let html = `
         <div class="analysis-dashboard">
-            <!-- 核心指标 -->
+            <!-- 核心指标摘要 -->
             <div class="analysis-summary">
                 <div class="primary-metric">
-                    <div class="metric-value">¥${Math.round(analysis.averageMonthlyExpense).toLocaleString()}</div>
+                    <div class="metric-value">${currencySymbol}${Math.round(displayMonthlyAvg).toLocaleString()}</div>
                     <div class="metric-label">月均支出</div>
                 </div>
                 <div class="secondary-metrics">
                     <div class="metric-item">
-                        <span class="metric-number">${Math.round(analysis.fixedExpenseRatio * 100)}%</span>
-                        <span class="metric-desc">固定支出</span>
+                        <span class="metric-number">${analysis.fixedExpenseRatio}%</span>
+                        <span class="metric-desc">固定支出占比</span>
                     </div>
                     <div class="metric-item">
-                        <span class="metric-number">${'★'.repeat(Math.round(analysis.stabilityScore))}</span>
-                        <span class="metric-desc">稳定度</span>
+                        <span class="metric-number">${analysis.stabilityScore}</span>
+                        <span class="metric-desc">稳定度评分</span>
                     </div>
                 </div>
             </div>
-    `;
-    
-    // 洞察发现
-    if (analysis.insights && analysis.insights.length > 0) {
-        html += `
+            
+            <!-- 关键洞察 -->
             <div class="analysis-insights">
-                <h5>💡 智能洞察</h5>
+                <h5>💡 关键洞察</h5>
                 <div class="insights-list">
-                    ${analysis.insights.map(insight => `<span class="insight-item">${insight}</span>`).join('')}
+                    ${analysis.insights.map(insight => 
+                        `<span class="insight-item">${insight}</span>`
+                    ).join('')}
                 </div>
             </div>
-        `;
-    }
-    
-    // 预测部分
-    if (predictions && predictions.lastPredictedAt) {
-        html += `
+            
+            <!-- 支出预测 -->
             <div class="analysis-predictions">
-                <h5>🔮 下月预测</h5>
+                <h5>🔮 支出预测</h5>
                 <div class="prediction-main">
-                    <div class="prediction-total">¥${predictions.nextMonthExpense.toLocaleString()}</div>
-                    <div class="prediction-breakdown">
-                        固定 ¥${predictions.nextMonthBreakdown.fixed.toLocaleString()} + 
-                        变动 ¥${predictions.nextMonthBreakdown.variable.toLocaleString()}±${predictions.nextMonthBreakdown.variableRange.toLocaleString()}
+                    <div class="prediction-total">${currencySymbol}${Math.round(displayPrediction).toLocaleString()}</div>
+                    <div class="prediction-breakdown">预计下月支出</div>
+                </div>
+                ${analysis.predictions.specialReminders.length > 0 ? `
+                    <div class="special-reminders">
+                        ${analysis.predictions.specialReminders.map(reminder => 
+                            `<div class="reminder-item">⚠️ ${reminder}</div>`
+                        ).join('')}
                     </div>
-                </div>
-        `;
-        
-        // 特别提醒
-        if (predictions.specialReminders && predictions.specialReminders.length > 0) {
-            html += `
-                <div class="special-reminders">
-                    ${predictions.specialReminders.map(reminder => `<div class="reminder-item">${reminder}</div>`).join('')}
-                </div>
-            `;
-        }
-        
-        html += '</div>';
-    }
-    
-    html += `
-            <div class="analysis-actions">
-                <button class="btn btn-secondary" onclick="window.showResourceImportModal()">📥 更新数据</button>
-                <button class="btn btn-secondary" onclick="analyzeResourceData(); renderResourceAnalysis();">🔄 重新分析</button>
-                <small style="color: #888;">最后分析时间: ${new Date(analysis.lastAnalyzedAt).toLocaleString()}</small>
+                ` : ''}
             </div>
         </div>
     `;

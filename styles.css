@@ -1520,6 +1520,16 @@ dialog::backdrop {
     background: linear-gradient(135deg, #f0f8ff 0%, #f5f7ff 100%);
     border: 1px solid #e1ecf8;
     box-shadow: 0 4px 20px rgba(52, 152, 219, 0.08);
+    padding: 16px; /* 减少内边距 */
+}
+
+#resource-panel .panel-title {
+    font-size: 1.0em; /* 减小标题字体 */
+    margin-bottom: 12px; /* 减少标题底部间距 */
+}
+
+#resource-panel .resource-stats-section {
+    padding: 12px 0; /* 减少内容区域内边距 */
 }
 
 /* 删除重复的resource-breakdown样式，使用前面定义的简单样式 */
@@ -1809,6 +1819,26 @@ dialog::backdrop {
 /* 确保支出管理面板中的非金额文字正常显示 */
 #expenses-panel .expense-name,
 #expenses-panel .expense-meta {
+    -webkit-text-fill-color: initial !important;
+}
+
+/* 修复图标和按钮中的emoji显示问题 */
+.panel-title button,
+.resource-btn-edit,
+.currency-btn,
+.tab-btn,
+.comparison-category-item,
+.bills-summary-item,
+.resource-overview-card button,
+.check-btn,
+.complete-btn,
+.nav-btn,
+.time-btn,
+button,
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-danger {
     -webkit-text-fill-color: initial !important;
 }
 
@@ -2204,181 +2234,546 @@ input:checked + .slider:before {
 
 .tab-btn {
     padding: 6px 12px;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    color: #333;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 0.85em;
-    font-weight: 500;
     transition: all 0.2s ease;
 }
 
 .tab-btn:hover {
-    background: rgba(0,0,0,0.05);
-    color: var(--text-primary);
+    background: #e9ecef;
+    border-color: #3498db;
 }
 
 .tab-btn.active {
-    background: var(--primary-gradient);
+    background: #3498db;
+    border-color: #3498db;
     color: white;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .expense-tab-content {
-    margin-top: 16px;
+    margin-top: 15px;
 }
 
-/* 数据导入模态框样式 */
-.import-instructions {
-    background: #f8f9fa;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-    border-left: 4px solid #667eea;
-}
-
-.import-instructions h4 {
-    color: #667eea;
-    margin-bottom: 12px;
-    font-size: 1.1em;
-}
-
-.import-instructions ol {
-    margin: 12px 0;
-    padding-left: 20px;
-}
-
-.import-instructions ol li {
-    margin-bottom: 8px;
-    color: var(--text-secondary);
-}
-
-.import-example {
-    background: #2d3748;
-    color: #e2e8f0;
-    padding: 16px;
-    border-radius: 8px;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.85em;
-    line-height: 1.4;
-    overflow-x: auto;
-    margin: 12px 0;
-}
-
-.form-textarea {
-    width: 100%;
-    min-height: 200px;
-    padding: 12px;
-    border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.85em;
-    line-height: 1.4;
-    resize: vertical;
-    transition: border-color 0.2s ease;
-}
-
-.form-textarea:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.import-preview {
-    margin-top: 16px;
-    padding: 16px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-}
-
-.import-month-preview {
-    padding: 12px;
-    background: white;
-    border-radius: 6px;
-    margin-bottom: 8px;
-    border-left: 3px solid #667eea;
-}
-
-.import-summary {
-    background: #e8f5e9;
-    padding: 12px;
-    border-radius: 6px;
-    margin-top: 12px;
-    border-left: 3px solid #27ae60;
-}
-
-/* 支出记录面板提示 */
 .expense-import-hint {
     text-align: center;
-    padding: 40px 20px;
-    color: var(--text-secondary);
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    color: #666;
 }
 
 .expense-import-hint p {
-    margin-bottom: 12px;
+    margin: 8px 0;
+    font-size: 0.9em;
 }
 
-/* 智能分析面板样式 */
-.analysis-empty {
+.expense-import-hint button {
+    margin-top: 12px;
+}
+
+/* 资源管理面板样式 */
+.resource-tab-content {
+    margin-top: 15px;
+}
+
+.bills-import-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.bills-import-section button {
+    flex: 1;
+    max-width: 150px;
+}
+
+/* 资源总览样式 */
+.resource-overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.resource-overview-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
     text-align: center;
-    padding: 40px 20px;
-    color: var(--text-secondary);
 }
 
-.analysis-empty p {
-    margin-bottom: 12px;
+.resource-overview-card h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 0.9em;
 }
 
-.analysis-dashboard {
-    padding: 16px;
+.resource-overview-value {
+    font-size: 1.4em;
+    font-weight: bold;
+    margin-bottom: 5px;
 }
 
-/* 紧凑的核心指标布局 */
-.analysis-summary {
+.resource-overview-value.income {
+    color: #27ae60;
+}
+
+.resource-overview-value.expense {
+    color: #e74c3c;
+}
+
+.resource-overview-value.savings {
+    color: #d4a574; /* 降低饱和度的橙色 */
+}
+
+.resource-overview-value.prediction {
+    color: #b19cd9; /* 降低饱和度的紫色 */
+}
+
+.resource-overview-meta {
+    font-size: 0.8em;
+    color: #95a5a6;
+}
+
+/* 账单导入模态框样式 - 修复背景颜色问题 */
+#bills-import-modal .import-instructions {
+    background: #f8f9fa;
+    color: #333;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #3498db;
+}
+
+#bills-import-modal .import-instructions h4 {
+    margin-top: 0;
+    color: #3498db;
+}
+
+#bills-import-modal .import-instructions p {
+    margin: 5px 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+#bills-import-modal .import-example {
+    margin-bottom: 20px;
+}
+
+#bills-import-modal .import-example h4 {
+    color: #e67e22;
+    margin-bottom: 10px;
+}
+
+#bills-import-modal .import-example pre {
+    background: #f8f9fa;
+    color: #333;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    overflow-x: auto;
+    border-left: 4px solid #e67e22;
+    line-height: 1.4;
+}
+
+#bills-import-modal .import-input h4 {
+    color: #27ae60;
+    margin-bottom: 10px;
+}
+
+#bills-import-modal .import-input textarea {
+    background: #fff;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px;
+    resize: vertical;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    line-height: 1.4;
+}
+
+#bills-import-modal .import-input textarea:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+#bills-import-modal .import-input textarea::placeholder {
+    color: #999;
+}
+
+/* 数据预览样式 */
+.bills-preview-item {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border-left: 4px solid #3498db;
+}
+
+.bills-preview-month {
+    font-weight: bold;
+    color: #3498db;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+
+.bills-preview-summary {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #ecf0f1;
+}
+
+.bills-preview-expenses {
+    font-size: 0.85em;
+    color: #95a5a6;
+    padding-left: 10px;
+    line-height: 1.3;
+}
+
+/* 账单汇总样式 */
+.bills-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bills-summary-item {
+    background: #34495e;
+    border-radius: 8px;
+    padding: 15px;
+    border-left: 4px solid #3498db;
+}
+
+.bills-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2c3e50;
+}
+
+.bills-summary-month {
+    font-weight: bold;
+    color: #3498db;
+    font-size: 1.1em;
+}
+
+.bills-summary-balance {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.bills-summary-balance.positive {
+    color: #27ae60;
+}
+
+.bills-summary-balance.negative {
+    color: #e74c3c;
+}
+
+.bills-summary-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+    color: #bdc3c7;
+}
+
+.bills-summary-details span {
+    flex: 1;
+}
+
+/* 月度对比样式优化 - 更紧凑设计 */
+.monthly-comparison-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.comparison-month-card {
+    background: #34495e;
+    border-radius: 6px;
+    border-left: 4px solid #3498db;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.comparison-month-card:hover {
+    background: #3c5a78;
+    transform: translateX(2px);
+}
+
+.comparison-month-card.expanded {
+    border-left-color: #27ae60;
+}
+
+.comparison-month-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto auto;
+    gap: 15px;
+    align-items: center;
+    padding: 12px 15px;
+}
+
+.comparison-expand-icon {
+    color: #95a5a6;
+    font-size: 0.8em;
+    transition: transform 0.2s ease;
+}
+
+.comparison-month-card.expanded .comparison-expand-icon {
+    transform: rotate(90deg);
+}
+
+.comparison-month-title {
+    font-weight: bold;
+    color: #3498db;
+    font-size: 1em;
+}
+
+.comparison-income-value {
+    color: #27ae60;
+    font-weight: 500;
+    text-align: right;
+    min-width: 80px;
+}
+
+.comparison-expense-value {
+    color: #e74c3c;
+    font-weight: 500;
+    text-align: right;
+    min-width: 80px;
+}
+
+.comparison-balance-value {
+    font-weight: bold;
+    font-size: 1.1em;
+    text-align: right;
+    min-width: 100px;
+}
+
+.comparison-balance-value.positive {
+    color: #27ae60;
+}
+
+.comparison-balance-value.negative {
+    color: #e74c3c;
+}
+
+.comparison-details {
+    display: none;
+    padding: 0 15px 15px 15px;
+    border-top: 1px solid #2c3e50;
+    margin-top: 8px;
+    padding-top: 12px;
+}
+
+.comparison-month-card.expanded .comparison-details {
+    display: block;
+}
+
+.comparison-categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
+}
+
+.comparison-category-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.comparison-category-item:hover {
+    background: #e9ecef;
+    border-color: #3498db;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
+}
+
+.comparison-category-name {
+    color: #666;
+}
+
+.comparison-category-amount {
+    color: #333;
+    font-weight: 500;
+}
+
+.comparison-category-change {
+    font-size: 0.75em;
+    margin-left: 8px;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.comparison-category-change.increase {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+.comparison-category-change.decrease {
+    background: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+}
+
+.comparison-category-change.same {
+    background: rgba(149, 165, 166, 0.2);
+    color: #95a5a6;
+}
+
+/* 货币切换按钮样式 */
+.currency-switch {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 15px;
+    justify-content: center;
+}
+
+.currency-btn {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.currency-btn:hover {
+    border-color: #3498db;
+    background: #3498db;
+    color: white;
+}
+
+.currency-btn.active {
+    border-color: #3498db;
+    background: #3498db;
+    color: white;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+}
+
+.currency-flag {
+    width: 20px;
+    height: 15px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+.flag-cny {
+    background: linear-gradient(to bottom, #de2910 0%, #de2910 100%);
+    position: relative;
+}
+
+.flag-cny::before {
+    content: '★';
+    position: absolute;
+    color: #ffde00;
+    font-size: 8px;
+    left: 2px;
+    top: 1px;
+}
+
+.flag-aud {
+    background: linear-gradient(to bottom, #00008b 0%, #00008b 50%, #ffffff 50%, #ffffff 75%, #ff0000 75%, #ff0000 100%);
+    position: relative;
+}
+
+.flag-aud::before {
+    content: '★';
+    position: absolute;
+    color: white;
+    font-size: 6px;
+    left: 2px;
+    top: 2px;
+}
+
+/* 只对特定模态框应用样式 */
+#bills-import-modal .modal-content,
+#monthly-comparison-modal .modal-content {
+    background: #fff;
+    color: #333;
+}
+
+#bills-import-modal .modal-title,
+#monthly-comparison-modal .modal-title {
+    color: #3498db;
+}
+
+/* 详细分析页面样式 */
+.analysis-dashboard {
+    padding: 0;
+}
+
+.analysis-summary {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
     gap: 20px;
     padding: 20px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 16px;
+    border-radius: 12px;
     color: white;
     margin-bottom: 20px;
 }
 
 .primary-metric {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .metric-value {
-    font-size: 2.2em;
+    font-size: 2.5em;
     font-weight: bold;
     line-height: 1;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
 }
 
 .metric-label {
-    font-size: 0.9em;
+    font-size: 1em;
     opacity: 0.9;
 }
 
 .secondary-metrics {
-    display: flex;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
 }
 
 .metric-item {
     text-align: center;
     padding: 12px;
     background: rgba(255,255,255,0.15);
-    border-radius: 12px;
+    border-radius: 8px;
     backdrop-filter: blur(10px);
 }
 
 .metric-number {
     display: block;
-    font-size: 1.3em;
+    font-size: 1.4em;
     font-weight: bold;
     margin-bottom: 4px;
 }
@@ -2389,14 +2784,15 @@ input:checked + .slider:before {
 }
 
 .analysis-insights {
-    background: #fff9e6;
+    background: #f8f9fa;
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 16px;
+    border-left: 4px solid #f39c12;
 }
 
 .analysis-insights h5 {
-    color: #d68910;
+    color: #f39c12;
     margin-bottom: 12px;
     font-size: 1em;
     font-weight: 600;
@@ -2409,23 +2805,24 @@ input:checked + .slider:before {
 }
 
 .insight-item {
-    background: rgba(214, 137, 16, 0.1);
-    color: #d68910;
+    background: rgba(243, 156, 18, 0.2);
+    color: #f39c12;
     padding: 6px 12px;
     border-radius: 20px;
     font-size: 0.85em;
-    border: 1px solid rgba(214, 137, 16, 0.2);
+    border: 1px solid rgba(243, 156, 18, 0.3);
 }
 
 .analysis-predictions {
-    background: #f0f9f0;
+    background: #f8f9fa;
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 16px;
+    border-left: 4px solid #27ae60;
 }
 
 .analysis-predictions h5 {
-    color: #28a745;
+    color: #27ae60;
     margin-bottom: 12px;
     font-size: 1em;
     font-weight: 600;
@@ -2433,18 +2830,19 @@ input:checked + .slider:before {
 
 .prediction-main {
     text-align: center;
+    margin-bottom: 12px;
 }
 
 .prediction-total {
     font-size: 2em;
     font-weight: bold;
-    color: #28a745;
+    color: #27ae60;
     margin-bottom: 8px;
 }
 
 .prediction-breakdown {
-    font-size: 0.85em;
-    color: #6c757d;
+    font-size: 0.9em;
+    color: #95a5a6;
     line-height: 1.4;
 }
 
@@ -2453,12 +2851,12 @@ input:checked + .slider:before {
 }
 
 .reminder-item {
-    background: #fff3cd;
-    border: 1px solid #ffeaa7;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 6px;
-    color: #856404;
+    color: #e67e22;
     font-size: 0.9em;
     display: flex;
     align-items: center;
@@ -2467,44 +2865,4 @@ input:checked + .slider:before {
 
 .reminder-item:last-child {
     margin-bottom: 0;
-}
-
-.analysis-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    padding-top: 20px;
-    border-top: 1px solid #e2e8f0;
-}
-
-.analysis-actions small {
-    margin-left: auto;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-    .panel-tabs {
-        flex-direction: column;
-        gap: 4px;
-    }
-    
-    .tab-btn {
-        width: 100%;
-        text-align: center;
-    }
-    
-    .analysis-stats {
-        grid-template-columns: 1fr;
-    }
-    
-    .analysis-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .analysis-actions small {
-        margin-left: 0;
-        text-align: center;
-        margin-top: 8px;
-    }
 }
