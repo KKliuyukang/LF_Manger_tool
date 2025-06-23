@@ -2555,15 +2555,128 @@ function renderResourceStats() {
         return sum + Math.max(0, timeCost); // 确保不会是负数
     }, 0);
     
+    // 初始化每日目标数据结构
+    if (!gameData.dailyGoals) {
+        gameData.dailyGoals = {
+            lastResetDate: today,
+            goals: [
+                { text: '', completed: false },
+                { text: '', completed: false },
+                { text: '', completed: false }
+            ]
+        };
+    }
+    
+    // 检查是否需要重置每日目标
+    if (gameData.dailyGoals.lastResetDate !== today) {
+        gameData.dailyGoals.lastResetDate = today;
+        gameData.dailyGoals.goals = [
+            { text: '', completed: false },
+            { text: '', completed: false },
+            { text: '', completed: false }
+        ];
+        saveToCloud();
+    }
+    
     let html = '';
-    html += `<div class='resource-stats-section'>
-        <div class='resource-label'>今天主动用时 
-            <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情'>👁️</button>
+    
+    // 今日目标和今天主动用时在同一排
+    html += `<div class='daily-goals-section'>
+        <div class='daily-goals-header'>
+            <div class='daily-goals-title'>今日任务</div>
+            <div class='daily-time-stats'>
+                <div class='time-stats-row'>
+                    <span class='resource-label' style='font-size: 0.85em;'>今天主动用时</span>
+                    <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情' style='font-size: 0.8em; margin-left: 4px;'>👁️</button>
+                
+                <span class='resource-main-value' style='color:#27ae60; font-size: 1.2em;'>${todayActiveMins} <span style='font-size:0.6em;font-weight:normal;'>分钟</span></span>
+                </div>
+            </div>
         </div>
-        <div class='resource-main-value' style='color:#27ae60;'>${todayActiveMins} <span style='font-size:0.5em;font-weight:normal;'>分钟</span></div>
-    </div>`;
+        <div class='daily-goals-list'>`;
+    
+    gameData.dailyGoals.goals.forEach((goal, index) => {
+        html += `<div class='daily-goal-item'>
+            <div class='goal-checkbox ${goal.completed ? 'completed' : ''}' onclick='window.toggleGoal(${index})'>
+                ${goal.completed ? '✓' : ''}
+            </div>
+            <div class='goal-text ${goal.completed ? 'completed' : ''}' onclick='window.editGoal(${index})' 
+                 title='点击编辑目标' data-placeholder='点击设置目标${index + 1}'>
+                ${goal.text || ''}
+            </div>
+        </div>`;
+    });
+    
+    html += `</div></div>`;
     
     container.innerHTML = html;
+}
+
+// 新增：切换目标完成状态
+window.toggleGoal = function(index) {
+    if (!gameData.dailyGoals || !gameData.dailyGoals.goals[index]) return;
+    
+    gameData.dailyGoals.goals[index].completed = !gameData.dailyGoals.goals[index].completed;
+    saveToCloud();
+    renderResourceStats();
+}
+
+// 新增：编辑目标文本
+window.editGoal = function(index) {
+    if (!gameData.dailyGoals || !gameData.dailyGoals.goals[index]) return;
+    
+    const goal = gameData.dailyGoals.goals[index];
+    const currentText = goal.text || '';
+    
+    // 创建临时输入框
+    const goalElement = event.target;
+    const originalContent = goalElement.innerHTML;
+    
+    // 如果已经在编辑状态，直接返回
+    if (goalElement.querySelector('input')) return;
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentText;
+    input.className = 'goal-edit-input';
+    input.style.cssText = `
+        width: 100%;
+        border: none;
+        background: transparent;
+        outline: none;
+        font: inherit;
+        color: inherit;
+        padding: 0;
+        margin: 0;
+    `;
+    
+    goalElement.innerHTML = '';
+    goalElement.appendChild(input);
+    input.focus();
+    input.select();
+    
+    // 保存并退出编辑
+    const saveGoal = () => {
+        const newText = input.value.trim();
+        gameData.dailyGoals.goals[index].text = newText;
+        saveToCloud();
+        renderResourceStats();
+    };
+    
+    // 取消编辑
+    const cancelEdit = () => {
+        goalElement.innerHTML = originalContent;
+    };
+    
+    // 事件监听
+    input.addEventListener('blur', saveGoal);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            saveGoal();
+        } else if (e.key === 'Escape') {
+            cancelEdit();
+        }
+    });
 }
 
 // 清除用时记录
@@ -6102,45 +6215,6 @@ function testMonthlyComparisonUI() {
 
 window.testMonthlyComparisonUI = testMonthlyComparisonUI;
 
-// 测试表头对齐
-function testComparisonTableAlignment() {
-    console.log('📊 测试月度对比表头对齐...');
-    
-    const header = document.querySelector('.comparison-header-row');
-    const firstCard = document.querySelector('.comparison-month-header');
-    
-    if (header && firstCard) {
-        console.log('✅ 找到表头和第一个数据行');
-        
-        const headerStyles = window.getComputedStyle(header);
-        const cardStyles = window.getComputedStyle(firstCard);
-        
-        console.log('📊 表头样式:', {
-            gridTemplateColumns: headerStyles.gridTemplateColumns,
-            gap: headerStyles.gap,
-            padding: headerStyles.padding
-        });
-        
-        console.log('📊 数据行样式:', {
-            gridTemplateColumns: cardStyles.gridTemplateColumns,
-            gap: cardStyles.gap,
-            padding: cardStyles.padding
-        });
-        
-        if (headerStyles.gridTemplateColumns === cardStyles.gridTemplateColumns) {
-            console.log('✅ 表头与数据行列宽对齐');
-        } else {
-            console.log('❌ 表头与数据行列宽不对齐');
-        }
-    } else {
-        console.log('❌ 未找到表头或数据行');
-    }
-    
-    console.log('✨ 表头对齐测试完成');
-}
-
-window.testComparisonTableAlignment = testComparisonTableAlignment;
-
 // 测试账单管理界面
 function testCurrentMonthBills() {
     console.log('💰 测试当月账单管理界面...');
@@ -7274,319 +7348,6 @@ window.showTimeRecords = function(period) {
     container.innerHTML = html;
 }
 
-// 测试面板分离修复的问题
-window.testPanelSeparation = function() {
-    const testResults = [];
-    
-    // 测试备份列表面板
-    try {
-        const cloudBackupModal = document.getElementById('cloud-backup-modal');
-        const cloudBackupContent = document.getElementById('cloud-backup-content');
-        
-        if (cloudBackupModal && cloudBackupContent) {
-            testResults.push('✅ 云备份模态框和内容区域都存在');
-            
-            // 测试打开备份面板
-            cloudBackupContent.innerHTML = '<div style="padding:20px;">测试：云备份面板内容</div>';
-            cloudBackupModal.classList.add('show');
-            
-            setTimeout(() => {
-                cloudBackupModal.classList.remove('show');
-            }, 2000);
-            
-        } else {
-            testResults.push('❌ 云备份模态框元素缺失');
-        }
-    } catch (error) {
-        testResults.push('❌ 备份面板测试失败: ' + error.message);
-    }
-    
-    // 测试时间统计面板独立性
-    try {
-        const timeRecordsModal = document.getElementById('time-records-modal');
-        const timeRecordsContent = document.getElementById('time-records-content');
-        
-        if (timeRecordsModal && timeRecordsContent) {
-            testResults.push('✅ 时间统计模态框和内容区域都存在');
-            
-            // 测试打开时间统计面板
-            setTimeout(() => {
-                timeRecordsContent.innerHTML = '<div style="padding:20px;">测试：时间统计面板内容</div>';
-                timeRecordsModal.classList.add('show');
-                
-                setTimeout(() => {
-                    timeRecordsModal.classList.remove('show');
-                }, 2000);
-            }, 1000);
-            
-        } else {
-            testResults.push('❌ 时间统计模态框元素缺失');
-        }
-    } catch (error) {
-        testResults.push('❌ 时间统计面板测试失败: ' + error.message);
-    }
-    
-    alert('面板分离测试结果:\n\n' + testResults.join('\n') + '\n\n两个面板将依次显示2秒进行演示');
-};
-
-console.log('✅ 备份面板和时间统计面板分离修复完成');
-
-// 测试所有showCustomModal修复
-window.testShowCustomModalFixes = function() {
-    const testResults = [];
-    
-    try {
-        // 测试1：今日时间详情
-        console.log('测试今日时间详情功能...');
-        if (typeof window.showTodayTimeDetails === 'function') {
-            testResults.push('✅ showTodayTimeDetails 函数存在');
-        } else {
-            testResults.push('❌ showTodayTimeDetails 函数缺失');
-        }
-        
-        // 测试2：月支出详情
-        console.log('测试月支出详情功能...');
-        if (typeof window.showCategoryDetails === 'function') {
-            testResults.push('✅ showCategoryDetails 函数存在');
-        } else {
-            testResults.push('❌ showCategoryDetails 函数缺失');
-        }
-        
-        // 测试3：基本测试函数
-        console.log('测试基本测试功能...');
-        if (typeof window.testBasicFunctions === 'function') {
-            testResults.push('✅ testBasicFunctions 函数存在');
-        } else {
-            testResults.push('❌ testBasicFunctions 函数缺失');
-        }
-        
-        // 测试4：检查是否还有showCustomModal引用
-        console.log('检查代码中是否还有showCustomModal引用...');
-        const codeString = window.showTodayTimeDetails.toString() + 
-                          window.showCategoryDetails.toString() + 
-                          window.testBasicFunctions.toString();
-        
-        if (codeString.includes('showCustomModal')) {
-            testResults.push('❌ 代码中仍然存在showCustomModal引用');
-        } else {
-            testResults.push('✅ 所有showCustomModal引用已清理');
-        }
-        
-        testResults.push('');
-        testResults.push('🎯 测试完成！现在可以安全使用以下功能：');
-        testResults.push('- 点击今天用时按钮查看详情');
-        testResults.push('- 点击月支出分类查看详情');
-        testResults.push('- 使用基本测试功能');
-        
-    } catch (error) {
-        testResults.push('❌ 测试过程中出现错误: ' + error.message);
-    }
-    
-    alert('showCustomModal修复测试结果:\n\n' + testResults.join('\n'));
-    console.log('showCustomModal修复测试完成');
-};
-
-console.log('✅ 所有showCustomModal引用修复完成');
-
-// 测试所有模态框的独立性
-window.testAllModalsSeparation = function() {
-    const testResults = [];
-    
-    // 测试所有模态框元素是否存在
-    const modals = {
-        '时间统计模态框': 'time-records-modal',
-        '云备份模态框': 'cloud-backup-modal', 
-        '详情显示模态框': 'details-modal',
-        '信息展示模态框': 'info-modal',
-        '时间编辑模态框': 'time-edit-modal'
-    };
-    
-    testResults.push('📋 模态框存在性检查：');
-    Object.entries(modals).forEach(([name, id]) => {
-        const modal = document.getElementById(id);
-        if (modal) {
-            testResults.push(`✅ ${name} 存在`);
-        } else {
-            testResults.push(`❌ ${name} 缺失`);
-        }
-    });
-    
-    testResults.push('');
-    testResults.push('🎬 模态框功能演示（每个显示1.5秒）：');
-    
-    let delay = 0;
-    
-    // 1. 详情模态框
-    setTimeout(() => {
-        const detailsModal = document.getElementById('details-modal');
-        const detailsTitle = document.getElementById('details-modal-title');
-        const detailsContent = document.getElementById('details-modal-content');
-        if (detailsModal && detailsTitle && detailsContent) {
-            detailsTitle.textContent = '详情模态框测试';
-            detailsContent.innerHTML = '<p>这是详情模态框，用于显示今日时间详情、月支出详情等。</p>';
-            detailsModal.classList.add('show');
-            
-            setTimeout(() => {
-                detailsModal.classList.remove('show');
-            }, 1500);
-        }
-    }, delay);
-    delay += 2000;
-    
-    // 2. 信息模态框
-    setTimeout(() => {
-        const infoModal = document.getElementById('info-modal');
-        const infoTitle = document.getElementById('info-modal-title');
-        const infoContent = document.getElementById('info-modal-content');
-        if (infoModal && infoTitle && infoContent) {
-            infoTitle.textContent = '信息模态框测试';
-            infoContent.innerHTML = '<p>这是信息模态框，用于显示蓝图信息、测试信息等。</p>';
-            infoModal.classList.add('show');
-            
-            setTimeout(() => {
-                infoModal.classList.remove('show');
-            }, 1500);
-        }
-    }, delay);
-    delay += 2000;
-    
-    // 3. 云备份模态框
-    setTimeout(() => {
-        const cloudModal = document.getElementById('cloud-backup-modal');
-        const cloudContent = document.getElementById('cloud-backup-content');
-        if (cloudModal && cloudContent) {
-            cloudContent.innerHTML = '<p>这是云备份模态框，用于显示备份列表。</p>';
-            cloudModal.classList.add('show');
-            
-            setTimeout(() => {
-                cloudModal.classList.remove('show');
-            }, 1500);
-        }
-    }, delay);
-    delay += 2000;
-    
-    // 4. 时间统计模态框
-    setTimeout(() => {
-        const timeModal = document.getElementById('time-records-modal');
-        const timeContent = document.getElementById('time-records-content');
-        if (timeModal && timeContent) {
-            timeContent.innerHTML = '<p>这是时间统计模态框，专门用于时间记录统计功能。</p>';
-            timeModal.classList.add('show');
-            
-            setTimeout(() => {
-                timeModal.classList.remove('show');
-            }, 1500);
-        }
-    }, delay);
-    
-    testResults.push('');
-    testResults.push('🎯 现在每个功能都有独立的模态框：');
-    testResults.push('- 时间统计 → time-records-modal');
-    testResults.push('- 今日详情/支出详情 → details-modal');
-    testResults.push('- 蓝图信息/测试 → info-modal');
-    testResults.push('- 云备份列表 → cloud-backup-modal');
-    testResults.push('- 时间编辑 → time-edit-modal');
-    
-    alert('模态框独立性测试结果:\n\n' + testResults.join('\n') + '\n\n将依次演示各个模态框（总共约8秒）');
-};
-
-console.log('✅ 模态框完全分离修复完成 - 现在每个功能都有独立的模态框');
-
-// 测试所有模态框居中和显示
-window.testAllModalsDisplay = function() {
-    console.log('🧪 开始测试所有模态框的显示和居中...');
-    
-    const modalIds = [
-        'data-manage-modal',
-        'monthly-comparison-modal', 
-        'bills-import-modal',
-        'info-modal',
-        'time-edit-modal',
-        'blueprint-automation-modal',
-        'resource-import-modal'
-    ];
-    
-    let testIndex = 0;
-    
-    function testNextModal() {
-        if (testIndex >= modalIds.length) {
-            console.log('✅ 所有模态框测试完成');
-            alert('所有模态框测试完成！请检查每个模态框是否正确居中显示。');
-            return;
-        }
-        
-        const modalId = modalIds[testIndex];
-        const modal = document.getElementById(modalId);
-        
-        if (!modal) {
-            console.error(`❌ 模态框 ${modalId} 不存在`);
-            testIndex++;
-            testNextModal();
-            return;
-        }
-        
-        console.log(`🔍 测试模态框: ${modalId}`);
-        
-        // 显示模态框
-        modal.classList.add('show');
-        
-        // 检查居中
-        setTimeout(() => {
-            const modalContent = modal.querySelector('.modal-content');
-            if (modalContent) {
-                const rect = modalContent.getBoundingClientRect();
-                const isCenter = Math.abs(rect.left + rect.width/2 - window.innerWidth/2) < 50;
-                console.log(`${modalId} 居中检查:`, isCenter ? '✅ 正确居中' : '❌ 未居中', {
-                    modalCenter: rect.left + rect.width/2,
-                    windowCenter: window.innerWidth/2,
-                    position: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
-                });
-            }
-            
-            // 2秒后关闭并测试下一个
-            setTimeout(() => {
-                modal.classList.remove('show');
-                testIndex++;
-                setTimeout(testNextModal, 500);
-            }, 2000);
-        }, 100);
-    }
-    
-    testNextModal();
-}
-
-// 快速修复所有模态框居中问题的函数
-window.fixAllModalsCentering = function() {
-    console.log('🔧 修复所有模态框居中问题...');
-    
-    const allModals = document.querySelectorAll('.modal');
-    let fixedCount = 0;
-    
-    allModals.forEach(modal => {
-        const modalContent = modal.querySelector('.modal-content');
-        if (modalContent) {
-            // 移除可能的内联定位样式
-            modalContent.style.position = '';
-            modalContent.style.top = '';
-            modalContent.style.left = '';
-            modalContent.style.transform = '';
-            
-            // 确保模态框使用flex居中
-            if (!modal.classList.contains('show')) {
-                modal.style.display = 'flex';
-                modal.style.justifyContent = 'center';
-                modal.style.alignItems = 'center';
-                modal.style.display = 'none'; // 恢复隐藏状态
-            }
-            
-            fixedCount++;
-        }
-    });
-    
-    console.log(`✅ 已修复 ${fixedCount} 个模态框的居中问题`);
-    alert(`已修复 ${fixedCount} 个模态框的居中问题！`);
-}
-
 // 测试面板标题统一性
 function testPanelTitleUniformity() {
     console.log('=== 测试面板标题统一性 ===');
@@ -7630,123 +7391,3 @@ function testPanelTitleUniformity() {
 }
 
 window.testPanelTitleUniformity = testPanelTitleUniformity;
-
-// 测试数据管理面板优化
-function testDataManagePanelOptimization() {
-    console.log('=== 测试数据管理面板优化 ===');
-    
-    const dataManageModal = document.getElementById('data-manage-modal');
-    if (dataManageModal) {
-        const computedStyle = window.getComputedStyle(dataManageModal);
-        console.log('数据管理面板 z-index:', computedStyle.zIndex);
-        
-        // 检查是否移除了紧急恢复功能
-        const emergencySection = dataManageModal.querySelector('[style*="background:#f8d7da"]');
-        console.log('紧急恢复功能已移除:', !emergencySection);
-        
-        // 检查数据区块样式
-        const dataSections = dataManageModal.querySelectorAll('.data-section');
-        console.log(`找到 ${dataSections.length} 个数据区块`);
-        
-        dataSections.forEach((section, index) => {
-            const classes = Array.from(section.classList);
-            console.log(`数据区块 ${index + 1}:`, {
-                classes,
-                hasTitle: !!section.querySelector('.data-section-title'),
-                hasFlexContainer: !!section.querySelector('.data-flex-container')
-            });
-        });
-        
-        // 检查云备份模态框的z-index
-        const cloudBackupModal = document.getElementById('cloud-backup-modal');
-        if (cloudBackupModal) {
-            const cloudBackupStyle = window.getComputedStyle(cloudBackupModal);
-            console.log('云备份模态框 z-index:', cloudBackupStyle.zIndex);
-            console.log('层级是否正确:', parseInt(cloudBackupStyle.zIndex) > parseInt(computedStyle.zIndex));
-        }
-        
-        // 检查滚动行为
-        const modalContent = dataManageModal.querySelector('.modal-content');
-        if (modalContent) {
-            const contentStyle = window.getComputedStyle(modalContent);
-            console.log('模态框内容滚动设置:', {
-                overflowY: contentStyle.overflowY,
-                maxHeight: contentStyle.maxHeight,
-                display: contentStyle.display,
-                flexDirection: contentStyle.flexDirection
-            });
-            
-            // 检查数据区块是否有单独的滚动条
-            dataSections.forEach((section, index) => {
-                const sectionStyle = window.getComputedStyle(section);
-                console.log(`数据区块 ${index + 1} 滚动状态:`, {
-                    overflow: sectionStyle.overflow,
-                    overflowY: sectionStyle.overflowY,
-                    flexShrink: sectionStyle.flexShrink
-                });
-            });
-        }
-        
-    } else {
-        console.log('❌ 未找到数据管理面板');
-    }
-    
-    console.log('=== 测试完成 ===');
-}
-
-window.testDataManagePanelOptimization = testDataManagePanelOptimization;
-
-// 演示数据管理面板滚动行为
-function demoDataManagePanelScrolling() {
-    console.log('=== 演示数据管理面板滚动行为 ===');
-    
-    const dataManageModal = document.getElementById('data-manage-modal');
-    if (!dataManageModal) {
-        console.log('❌ 未找到数据管理面板');
-        return;
-    }
-    
-    // 显示面板
-    dataManageModal.classList.add('show');
-    
-    setTimeout(() => {
-        const modalContent = dataManageModal.querySelector('.modal-content');
-        if (modalContent) {
-            console.log('📏 面板尺寸信息:', {
-                scrollHeight: modalContent.scrollHeight,
-                clientHeight: modalContent.clientHeight,
-                scrollTop: modalContent.scrollTop,
-                hasVerticalScrollbar: modalContent.scrollHeight > modalContent.clientHeight
-            });
-            
-            if (modalContent.scrollHeight > modalContent.clientHeight) {
-                console.log('✅ 面板内容超出高度，可以整体滚动');
-                
-                // 演示滚动到底部
-                console.log('🔄 演示滚动到底部...');
-                modalContent.scrollTop = modalContent.scrollHeight;
-                
-                setTimeout(() => {
-                    console.log('📍 当前滚动位置:', modalContent.scrollTop);
-                    
-                    // 滚动回顶部
-                    console.log('🔄 滚动回顶部...');
-                    modalContent.scrollTop = 0;
-                    
-                    setTimeout(() => {
-                        dataManageModal.classList.remove('show');
-                        console.log('✅ 演示完成！面板整体滚动工作正常');
-                    }, 1500);
-                }, 1500);
-            } else {
-                console.log('ℹ️ 面板内容适合当前高度，无需滚动');
-                setTimeout(() => {
-                    dataManageModal.classList.remove('show');
-                }, 2000);
-            }
-        }
-    }, 500);
-}
-
-window.demoDataManagePanelScrolling = demoDataManagePanelScrolling;
-// 在控制台中运行：testDataManagePanelOptimization() 或 demoDataManagePanelScrolling()
