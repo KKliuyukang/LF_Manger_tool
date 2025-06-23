@@ -6917,7 +6917,7 @@ window.changeFamilyCode = function() {
         isCloudReady = false;
         cloudInitDone = false;
         
-        firebaseLoginAndSync();
+            firebaseLoginAndSync();
         updateDataStatus();
         
         alert('家庭码已更换，正在重新连接云端...');
