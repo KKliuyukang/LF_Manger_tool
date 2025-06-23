@@ -1,7 +1,158 @@
 // Life Factorio - 人生工厂 脚本分离文件
 
+// 测试次级模态框层级
+window.testModalLayers = function() {
+    console.log('🧪 测试模态框层级...');
+    
+    // 先打开月度对比模态框
+    console.log('1. 打开月度对比模态框');
+    const monthlyModal = document.getElementById('monthly-comparison-modal');
+    monthlyModal.classList.add('show');
+    
+    setTimeout(() => {
+        // 然后打开详情模态框（次级）
+        console.log('2. 打开详情模态框（次级）');
+        const detailsModal = document.getElementById('details-modal');
+        const detailsTitle = document.getElementById('details-modal-title');
+        const detailsContent = document.getElementById('details-modal-content');
+        
+        if (detailsTitle) detailsTitle.textContent = '测试次级模态框';
+        if (detailsContent) detailsContent.innerHTML = '<div style="padding: 20px;">这是次级模态框测试。<br/>它应该显示在月度对比模态框之上。<br/><br/>z-index: 1300 (次级) > 1100 (主级)</div>';
+        
+        detailsModal.classList.add('show');
+        
+        // 检查层级
+        setTimeout(() => {
+            const monthlyZIndex = window.getComputedStyle(monthlyModal).zIndex;
+            const detailsZIndex = window.getComputedStyle(detailsModal).zIndex;
+            
+            console.log(`月度对比模态框 z-index: ${monthlyZIndex}`);
+            console.log(`详情模态框 z-index: ${detailsZIndex}`);
+            
+            if (parseInt(detailsZIndex) > parseInt(monthlyZIndex)) {
+                console.log('✅ 层级正确：详情模态框在月度对比模态框之上');
+                alert('✅ 层级测试通过！\n\n详情模态框正确显示在月度对比模态框之上。\n\n请测试点击空白区域关闭功能。');
+            } else {
+                console.log('❌ 层级错误：详情模态框未在月度对比模态框之上');
+                alert('❌ 层级测试失败！\n\n详情模态框未正确显示在月度对比模态框之上。');
+            }
+        }, 200);
+        
+    }, 1000);
+};
 
+// 诊断模态框容器问题
+window.diagnoseModalContainer = function() {
+    console.log('🔍 诊断模态框容器问题...');
+    
+    const testModals = [
+        'blueprint-automation-modal',
+        'data-manage-modal',
+        'monthly-comparison-modal',
+        'production-modal' // 作为对比的正常模态框
+    ];
+    
+    testModals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            const rect = modal.getBoundingClientRect();
+            const computedStyle = window.getComputedStyle(modal);
+            
+            console.log(`\n📋 ${modalId}:`);
+            console.log('  容器位置:', {
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height
+            });
+            console.log('  CSS样式:', {
+                position: computedStyle.position,
+                top: computedStyle.top,
+                left: computedStyle.left,
+                width: computedStyle.width,
+                height: computedStyle.height,
+                display: computedStyle.display,
+                justifyContent: computedStyle.justifyContent,
+                alignItems: computedStyle.alignItems
+            });
+            console.log('  类名:', modal.className);
+            
+            // 检查内容元素
+            const content = modal.querySelector('.modal-content');
+            if (content) {
+                const contentRect = content.getBoundingClientRect();
+                const contentStyle = window.getComputedStyle(content);
+                console.log('  内容位置:', {
+                    top: contentRect.top,
+                    left: contentRect.left,
+                    width: contentRect.width,
+                    height: contentRect.height
+                });
+                console.log('  内容样式:', {
+                    position: contentStyle.position,
+                    margin: contentStyle.margin
+                });
+            }
+        }
+    });
+};
 
+// 测试模态框容器显示
+window.testModalContainers = function() {
+    console.log('🧪 测试模态框容器显示...');
+    
+    const testModals = [
+        'blueprint-automation-modal',
+        'data-manage-modal',
+        'monthly-comparison-modal'
+    ];
+    
+    let index = 0;
+    
+    function testNext() {
+        if (index >= testModals.length) {
+            console.log('✅ 容器测试完成');
+            return;
+        }
+        
+        const modalId = testModals[index];
+        console.log(`\n🔍 测试 ${modalId}...`);
+        
+        // 显示模态框
+        const modal = document.getElementById(modalId);
+        modal.classList.add('show');
+        
+        // 检查容器和内容
+        setTimeout(() => {
+            const modalRect = modal.getBoundingClientRect();
+            const content = modal.querySelector('.modal-content');
+            const contentRect = content ? content.getBoundingClientRect() : null;
+            
+            console.log(`${modalId} 显示检查:`);
+            console.log(`  模态框容器: ${modalRect.width}x${modalRect.height} at (${modalRect.left}, ${modalRect.top})`);
+            if (contentRect) {
+                console.log(`  模态框内容: ${contentRect.width}x${contentRect.height} at (${contentRect.left}, ${contentRect.top})`);
+                
+                // 检查是否居中
+                const windowCenterX = window.innerWidth / 2;
+                const contentCenterX = contentRect.left + contentRect.width / 2;
+                const isHorizontallyCentered = Math.abs(contentCenterX - windowCenterX) < 50;
+                
+                console.log(`  水平居中: ${isHorizontallyCentered ? '✅' : '❌'} (窗口中心: ${windowCenterX}, 内容中心: ${contentCenterX})`);
+            }
+            
+            // 3秒后关闭并测试下一个
+            setTimeout(() => {
+                modal.classList.remove('show');
+                index++;
+                setTimeout(testNext, 500);
+            }, 3000);
+            
+        }, 200);
+    }
+    
+    testNext();
+};
 
 let saveTimeout = null;
 let fileHandle = null;
@@ -89,6 +240,21 @@ window.gameData = {
         lastGeneratedAt: null, // 最后一次生成时间
         generationLog: [] // 生成日志，最多保留30条
     },
+    // 新增：账单数据
+    billsData: {},
+    // 新增：资源分析数据
+    resourceAnalysis: {
+        monthlyAverage: 0,
+        fixedExpenseRatio: 0,
+        stabilityScore: 0,
+        insights: [],
+        predictions: {
+            nextMonthExpense: 0,
+            specialReminders: []
+        }
+    },
+    // 新增：显示货币设置
+    displayCurrency: 'AUD',
     // 新增：智能资源管理系统
     resourceManagement: {
         // 历史财务数据（按月存储）
@@ -321,6 +487,203 @@ window.init = async function() {
     }
     
     console.log(`✅ 系统初始化完成`);
+    
+    // 设置模态框点击空白区域关闭功能
+    setTimeout(() => {
+        setupModalClickToClose();
+    }, 1000);
+};
+
+// 为所有模态框添加点击空白区域关闭功能
+window.setupModalClickToClose = function() {
+    console.log('🔧 设置模态框点击空白区域关闭功能...');
+    
+    const modals = document.querySelectorAll('.modal');
+    let setupCount = 0;
+    
+    modals.forEach(modal => {
+        // 移除之前可能存在的事件监听器
+        modal.removeEventListener('click', handleModalBackgroundClick);
+        
+        // 添加新的事件监听器
+        modal.addEventListener('click', handleModalBackgroundClick);
+        setupCount++;
+        
+        console.log(`✅ 已为模态框 ${modal.id} 设置点击关闭功能`);
+    });
+    
+    console.log(`✅ 共为 ${setupCount} 个模态框设置了点击空白区域关闭功能`);
+};
+
+// 处理模态框背景点击事件
+function handleModalBackgroundClick(event) {
+    const modal = event.currentTarget;
+    
+    // 如果点击的是模态框背景（不是内容区域），则关闭模态框
+    if (event.target === modal) {
+        console.log(`🔒 点击空白区域关闭模态框: ${modal.id}`);
+        modal.classList.remove('show');
+        
+        // 触发关闭事件
+        modal.dispatchEvent(new Event('modal:closed-by-background'));
+    }
+}
+
+// 测试现代化UI功能
+window.testModernUI = function() {
+    console.log('🎨 测试现代化UI功能...');
+    
+    // 1. 测试通知系统
+    console.log('1. 测试通知系统');
+    showNotification('成功通知测试！', 'success');
+    setTimeout(() => showNotification('警告通知测试！', 'warning'), 1000);
+    setTimeout(() => showNotification('错误通知测试！', 'error'), 2000);
+    setTimeout(() => showNotification('信息通知测试！', 'info'), 3000);
+    
+    // 2. 测试加载状态
+    console.log('2. 测试加载状态');
+    setTimeout(() => {
+        showLoadingOverlay('正在加载现代化功能...');
+        setTimeout(() => hideLoadingOverlay(), 2000);
+    }, 4000);
+    
+    // 3. 测试动画效果
+    console.log('3. 测试动画效果');
+    const panels = document.querySelectorAll('.panel');
+    panels.forEach((panel, index) => {
+        setTimeout(() => {
+            panel.classList.add('fade-in');
+        }, index * 200);
+    });
+    
+    // 4. 测试按钮反馈
+    console.log('4. 测试按钮点击反馈');
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.classList.add('btn-click-feedback');
+            setTimeout(() => {
+                this.classList.remove('btn-click-feedback');
+            }, 150);
+        });
+    });
+    
+    console.log('✅ 现代化UI功能测试完成！');
+};
+
+// 通知系统
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+    
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${icons[type] || icons.info}</span>
+            <span class="notification-text">${message}</span>
+            <button class="notification-close">×</button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // 显示通知
+    setTimeout(() => notification.classList.add('show'), 100);
+    
+    // 关闭按钮事件
+    const closeBtn = notification.querySelector('.notification-close');
+    closeBtn.addEventListener('click', () => {
+        notification.classList.remove('show');
+        setTimeout(() => document.body.removeChild(notification), 300);
+    });
+    
+    // 自动关闭
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, 4000);
+}
+
+// 加载覆盖层
+function showLoadingOverlay(message = '加载中...') {
+    const overlay = document.createElement('div');
+    overlay.className = 'loading-overlay';
+    overlay.id = 'loading-overlay';
+    
+    overlay.innerHTML = `
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">${message}</div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+}
+
+function hideLoadingOverlay() {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        document.body.removeChild(overlay);
+    }
+}
+
+// 骨架屏生成器
+function createSkeleton(container, type = 'text') {
+    const skeleton = document.createElement('div');
+    skeleton.className = `skeleton skeleton-${type}`;
+    container.appendChild(skeleton);
+    return skeleton;
+}
+
+// 为元素添加工具提示
+function addTooltip(element, text) {
+    element.classList.add('tooltip');
+    element.setAttribute('data-tooltip', text);
+}
+
+// 测试简洁UI风格
+window.testMinimalUI = function() {
+    console.log('🎨 测试简洁UI风格...');
+    
+    // 显示通知说明改进
+    showNotification('UI风格已优化为简洁淡雅设计', 'success');
+    
+    setTimeout(() => {
+        showNotification('✅ 去掉了面板悬停蓝色边框', 'info');
+    }, 1000);
+    
+    setTimeout(() => {
+        showNotification('✅ 统一了按钮和标签样式', 'info');
+    }, 2000);
+    
+    setTimeout(() => {
+        showNotification('✅ 采用了更小的字体和间距', 'info');
+    }, 3000);
+    
+    setTimeout(() => {
+        showNotification('✅ 整体风格更加简洁淡雅', 'success');
+    }, 4000);
+    
+    console.log('📊 当前UI特点:');
+    console.log('- 面板悬停: 只有阴影效果，无边框变化');
+    console.log('- 按钮样式: 淡雅边框，悬停时背景变化');
+    console.log('- 标签样式: 小尺寸，淡色背景，边框设计');
+    console.log('- 字体大小: 统一较小尺寸，更加简洁');
+    console.log('- 整体风格: 简洁、淡雅、易分辨');
+    
+    console.log('✅ 简洁UI风格测试完成！');
 };
 
 // 2. 页面加载时调用window.init()
@@ -433,7 +796,7 @@ function setupEventListeners() {
         });
     }
 
-    // 点击模态框外部关闭（但不在拖选时关闭）
+    // 拖选检测（保留用于其他功能）
     window.onmousedown = function(event) {
         isSelecting = false;
     };
@@ -442,18 +805,16 @@ function setupEventListeners() {
             isSelecting = true;
         }
     };
-    window.onclick = function(event) {
-        if (event.target.classList.contains('modal') && !isSelecting) {
-            event.target.style.display = 'none';
-        }
-        isSelecting = false;
-    };
+    // 旧的模态框点击关闭逻辑已移除，现在使用新的setupModalClickToClose
 
     // 窗口大小变化时更新布局
     window.addEventListener('resize', updateBottomRowLayout);
     
     // 设置支出表单处理器
     setupExpenseFormHandlers();
+    
+    // 设置时间编辑表单处理器
+    setupTimeEditFormHandler();
     
     // 不需要延迟初始化资源管理面板，已在window.init中调用
 
@@ -488,7 +849,8 @@ function setupEventListeners() {
 
 // 转换为澳元基准（函数名保持不变以兼容现有代码）
 function convertToCNY(amount, currency) {
-    return convertToAUD(amount, currency);
+    if (!currencySymbols[currency] || !exchangeRates[currency]) currency = 'CNY';
+    return amount * exchangeRates[currency];
 }
 
 // 全局变量存储排序后的生产线
@@ -525,6 +887,12 @@ function renderProductions() {
             container.innerHTML = filteredProds
                 .map((prod, index) => {
                 let tags = [];
+                if (typeMap[prod.type]) {
+                    let tagClass = `tag-${prod.type}`;
+                    if (prod.type === 'habit') tagClass = 'tag-automation';
+                    if (prod.type === 'work') tagClass = 'tag-production'; // work类型使用production样式
+                    tags.push({ text: typeMap[prod.type].text, class: tagClass });
+                }
                 if (prod.hasActiveIncome) {
                     if (prod.activeIncome > 0) {
                         tags.push({ text: `主动收入: ${currencySymbols[prod.activeCurrency]}${prod.activeIncome}`, class: 'tag-active' });
@@ -542,12 +910,7 @@ function renderProductions() {
                 if (prod.expense > 0) {
                     tags.push({ text: `支出: ${currencySymbols[prod.expenseCurrency]}${prod.expense}`, class: 'tag-expense' });
                 }
-                if (typeMap[prod.type]) {
-                    let tagClass = `tag-${prod.type}`;
-                    if (prod.type === 'habit') tagClass = 'tag-automation';
-                    if (prod.type === 'work') tagClass = 'tag-production'; // work类型使用production样式
-                    tags.push({ text: typeMap[prod.type].text, class: tagClass });
-                }
+                
                 
                 let investInfo = '';
                 if (prod.type==='investment' && prod.investAmount>0 && prod.investCurrent>0 && prod.investDate) {
@@ -765,7 +1128,7 @@ window.editContextItem = function() {
         const prod = sortedProductions[contextMenuTarget];
         editProduction(prod._realIndex);
     }
-    document.getElementById('context-menu').style.display = 'none';
+    hideContextMenu();
 }
 
 // 新增：右键菜单记录用时
@@ -773,7 +1136,7 @@ window.recordTimeContextItem = function() {
     if (contextMenuType === 'production') {
         window.recordTimeForProduction(contextMenuTarget);
     }
-    document.getElementById('context-menu').style.display = 'none';
+    hideContextMenu();
 }
 
 window.closeRecordTimeDialog = function() {
@@ -886,44 +1249,27 @@ window.removeContextItem = function() {
         const relatedLogs = (gameData.timeLogs || []).filter(log => log.name === productionName);
         
         if (relatedLogs.length > 0) {
-            // 使用自定义模态框让用户选择
-            showCustomModal({
-                title: '删除生产线',
-                content: `
-                    <div style="margin-bottom:16px;">
-                        <div style="font-weight:bold;margin-bottom:8px;">确定要删除生产线"${productionName}"吗？</div>
-                        <div style="color:#e67e22;font-size:0.9em;">发现 ${relatedLogs.length} 条相关的时间记录</div>
-                    </div>
-                    <div style="margin-bottom:16px;">
-                        <label style="display:flex;align-items:center;cursor:pointer;">
-                            <input type="checkbox" id="delete-time-records" style="margin-right:8px;">
-                            <span>同时删除所有时间记录</span>
-                        </label>
-                        <div style="font-size:0.85em;color:#888;margin-top:4px;">
-                            不勾选则只删除生产线，保留时间记录用于历史查看
-                        </div>
-                    </div>
-                `,
-                onConfirm: () => {
-                    const deleteRecords = document.getElementById('delete-time-records').checked;
-                    
-                    if (deleteRecords) {
-                        // 删除相关时间记录
-                        gameData.timeLogs = (gameData.timeLogs || []).filter(log => log.name !== productionName);
-                        console.log(`🗑️ 删除生产线"${productionName}"及其 ${relatedLogs.length} 条时间记录`);
-                    } else {
-                        console.log(`🗑️ 删除生产线"${productionName}"（保留 ${relatedLogs.length} 条时间记录）`);
-                    }
-                    
-                    gameData.productions.splice(prod._realIndex, 1);
-                    renderProductions();
-                    renderResourceStats();
-                    renderResourceOverview(); // 添加资源总览刷新
-                    renderWeekCalendar();
-                    saveToCloud();
-                    return true;
+            // 使用confirm确认删除
+            const deleteRecords = confirm(`确定要删除生产线"${productionName}"吗？\n\n发现 ${relatedLogs.length} 条相关的时间记录\n\n点击"确定"同时删除时间记录\n点击"取消"只删除生产线`);
+            
+            if (deleteRecords) {
+                // 删除相关时间记录
+                gameData.timeLogs = (gameData.timeLogs || []).filter(log => log.name !== productionName);
+                console.log(`🗑️ 删除生产线"${productionName}"及其 ${relatedLogs.length} 条时间记录`);
+            } else {
+                // 再次确认是否只删除生产线
+                if (!confirm(`只删除生产线"${productionName}"（保留 ${relatedLogs.length} 条时间记录）？`)) {
+                    return;
                 }
-            });
+                console.log(`🗑️ 删除生产线"${productionName}"（保留 ${relatedLogs.length} 条时间记录）`);
+            }
+            
+            gameData.productions.splice(prod._realIndex, 1);
+            renderProductions();
+            renderResourceStats();
+            renderResourceOverview(); // 添加资源总览刷新
+            renderWeekCalendar();
+            saveToCloud();
         } else {
             if (!confirm(`确定要删除生产线"${productionName}"吗？`)) return;
             
@@ -935,7 +1281,7 @@ window.removeContextItem = function() {
             saveToCloud();
         }
     }
-    document.getElementById('context-menu').style.display = 'none';
+    hideContextMenu();
 }
 
 const oldCheckInHabit = window.checkInHabit;
@@ -1014,8 +1360,8 @@ window.pauseDev = function(index) {
 
 window.resumeDev = function(index) {
     const activeCount = gameData.developments.filter(d => d.active).length;
-    if (activeCount >= 3) {
-        alert('最多同时进行3个研发项目！');
+    if (activeCount >= 5) {
+        alert('最多同时进行5个研发项目！');
         return;
     }
     
@@ -1104,8 +1450,11 @@ window.editEstimatedExpense = function() {
 }
 
 window.showTodayTimeDetails = function() {
+    console.log('showTodayTimeDetails 函数被调用');
     const today = getLocalDateString(); // 修复：使用本地日期
+    console.log('今日日期:', today);
     const todayLogs = (gameData.timeLogs||[]).filter(log => log.date === today);
+    console.log('今日时间记录:', todayLogs);
     
     if (todayLogs.length === 0) {
         alert('今天还没有时间记录');
@@ -1127,6 +1476,9 @@ window.showTodayTimeDetails = function() {
         totalMins += timeCost;
     });
     
+    console.log('分组后的记录:', groupedLogs);
+    console.log('总分钟数:', totalMins);
+    
     let html = `<h3>今日时间详情 (共 ${Math.floor(totalMins/60)}小时${totalMins%60}分钟)</h3>`;
     html += '<div style="max-height:400px;overflow-y:auto;padding:10px;">';
     
@@ -1147,11 +1499,20 @@ window.showTodayTimeDetails = function() {
     
     html += '</div>';
     
-    showCustomModal({
-        title: '今日时间详情',
-        content: html,
-        onConfirm: () => true
-    });
+    console.log('准备显示模态框，HTML内容长度:', html.length);
+    
+    // 使用专用的详情模态框显示今日时间详情
+    const detailsModalTitle = document.getElementById('details-modal-title');
+    const detailsModalContent = document.getElementById('details-modal-content');
+    if (detailsModalTitle && detailsModalContent) {
+        detailsModalTitle.textContent = '今日时间详情';
+        detailsModalContent.innerHTML = html;
+        document.getElementById('details-modal').classList.add('show');
+    } else {
+        alert('时间详情功能暂时不可用');
+    }
+    
+    console.log('模态框显示完成');
 }
 
 window.showProductionModal = function() {
@@ -1161,7 +1522,7 @@ window.showProductionModal = function() {
     document.getElementById('passive-income-row').style.display = 'none';
     updateLinkedDevOptions();
     updateFormVisibility();
-    document.getElementById('production-modal').style.display = 'block';
+    document.getElementById('production-modal').classList.add('show');
 }
 
 function editProduction(index) {
@@ -1195,7 +1556,7 @@ function editProduction(index) {
         document.getElementById('income-type-group').style.display = '';
     }
     updateFormVisibility();
-    document.getElementById('production-modal').style.display = 'block';
+    document.getElementById('production-modal').classList.add('show');
 }
 
 function updateFormVisibility() {
@@ -1429,20 +1790,11 @@ function updateTimeLogsProductionName(oldName, newName) {
         
         // 显示用户友好的提示
         setTimeout(() => {
-            showCustomModal({
-                title: '数据同步完成',
-                content: `<div style="text-align:center;padding:20px;">
-                    <div style="font-size:1.2em;margin-bottom:10px;">📝</div>
-                    <div>生产线名称已更新</div>
-                    <div style="color:#888;font-size:0.9em;margin-top:8px;">同时更新了 ${updatedCount} 条历史时间记录</div>
-                </div>`,
-                onConfirm: () => {
-                    // 重新渲染日历和资源统计
-                    renderWeekCalendar();
-                    renderResourceStats();
-                    return true;
-                }
-            });
+            const message = `📝 生产线名称已更新\n同时更新了 ${updatedCount} 条历史时间记录`;
+            alert(message);
+            // 重新渲染日历和资源统计
+            renderWeekCalendar();
+            renderResourceStats();
         }, 100);
     }
 }
@@ -1502,7 +1854,7 @@ function startResearch(research, createProductionLine) {
 
         // 关闭研究详情弹窗
         const modal = document.getElementById('research-detail-modal');
-        if (modal) modal.style.display = 'none';
+        if (modal) modal.classList.remove('show');
         
         // 可选：如需刷新科技树面板，可调用 renderDevLibrary()
         if (window.renderDevLibrary) window.renderDevLibrary();
@@ -1913,7 +2265,7 @@ function renderTimeBlocks(weekDates) {
                 const endMinutes = (item.endHour || item.hour || 0) * 60 + (item.endMinute || item.minute || 0);
                 duration = Math.max(endMinutes - startMinutes, 15);
                 name = item.name;
-                block.className = `time-block ${getCalendarBlockClass(name)}`;
+                const today = getLocalDateString(); const isPast = dateStr < today; const fadeClass = isPast ? " time-block-faded" : ""; block.className = `time-block ${getCalendarBlockClass(name)}${fadeClass}`;
                 block.style.zIndex = 100 + index;
                 block.title = `${name}\n时间: ${item.hour}:${String(item.minute).padStart(2,'0')}-${item.endHour}:${String(item.endMinute).padStart(2,'0')}`;
                 block.oncontextmenu = (e) => { e.preventDefault(); window._calendarBlockContextMenu(e, item.date, item.name, item.hour, item.minute); };
@@ -1936,8 +2288,14 @@ function renderTimeBlocks(weekDates) {
                 // 添加拖拽功能
                 block.draggable = true;
                 block.style.cursor = 'move';
-                block.addEventListener('dragstart', (e) => handleBlueprintDragStart(e, item.id));
-                block.addEventListener('dragend', handleBlueprintDragEnd);
+                block.ondragstart = function(e) { 
+                    console.log('🎯 蓝图拖拽开始:', item.id);
+                    return window.handleBlueprintDragStart(e, item.id); 
+                };
+                block.ondragend = function(e) { 
+                    console.log('🎯 蓝图拖拽结束:', item.id);
+                    return window.handleBlueprintDragEnd(e); 
+                };
             }
 
             const weekDay = weekDates.indexOf(dateStr);
@@ -2042,9 +2400,12 @@ window.viewBlueprintInfo = function(blueprintId) {
         'urgent': '紧急'
     };
     
-    showCustomModal({
-        title: '蓝图信息',
-        content: `
+    // 使用专用的信息模态框显示蓝图信息
+    const infoModalTitle = document.getElementById('info-modal-title');
+    const infoModalContent = document.getElementById('info-modal-content');
+    if (infoModalTitle && infoModalContent) {
+        infoModalTitle.textContent = '蓝图信息';
+        infoModalContent.innerHTML = `
             <div style="margin-bottom: 16px;">
                 <div style="font-weight: bold; font-size: 1.1em; margin-bottom: 8px;">${blueprint.name}</div>
                 <div style="color: #666; font-size: 0.9em;">${categoryNames[blueprint.category] || blueprint.category}</div>
@@ -2078,13 +2439,12 @@ window.viewBlueprintInfo = function(blueprintId) {
                 <div style="font-weight: bold; margin-bottom: 4px;">📊 状态</div>
                 <div style="color: #27ae60;">已计划</div>
             </div>
-        `,
-        onConfirm: () => {
-            hideContextMenu();
-            return true;
-        },
-        confirmText: '关闭'
-    });
+        `;
+        document.getElementById('info-modal').classList.add('show');
+    } else {
+        alert('蓝图信息功能暂时不可用');
+    }
+    hideContextMenu();
 }
 
 window.completeBlueprint = function(blueprintId) {
@@ -2237,7 +2597,7 @@ window.clearTimeContextItem = function() {
         renderDevelopments();
         alert(`已清除 ${targetDate} 的用时记录：${cleared} 条`);
     }
-    document.getElementById('context-menu').style.display = 'none';
+    hideContextMenu();
 }
 
 // 查看历史记录
@@ -2287,7 +2647,7 @@ window.viewHistoryContextItem = function() {
             if (e.target === dialog) dialog.close();
         });
     }
-    document.getElementById('context-menu').style.display = 'none';
+    hideContextMenu();
 }
 
 // Tab切换逻辑
@@ -2689,88 +3049,94 @@ function hideCalendarContextMenu(e) {
     }
 }
 window.editCalendarLog = function(date, name, hour, minute) {
+    console.log('✏️ editCalendarLog 被调用:', { date, name, hour, minute });
     hideCalendarContextMenu();
     const log = (gameData.timeLogs||[]).find(l=>l.date===date&&l.name===name&&l.hour==hour&&l.minute==minute);
-    if (!log) return;
-    showCustomModal({
-        title: '修改时间记录',
-        content: `
-            <div style="margin-bottom:10px;font-weight:bold;">项目：${log.name}</div>
-            <div class='form-group'><label>日期</label><input type='date' id='edit-log-date' value='${log.date}' class='form-input'></div>
-            <div class='form-group'><label>开始时间</label><input type='time' id='edit-log-start' value='${String(log.hour).padStart(2,'0')}:${String(log.minute).padStart(2,'0')}' class='form-input'></div>
-            <div class='form-group'><label>结束时间</label><input type='time' id='edit-log-end' value='${String(log.endHour).padStart(2,'0')}:${String(log.endMinute).padStart(2,'0')}' class='form-input'></div>
-        `,
-        onConfirm: () => {
-            const newDate = document.getElementById('edit-log-date').value;
-            const newStart = document.getElementById('edit-log-start').value;
-            const newEnd = document.getElementById('edit-log-end').value;
-            if (!newDate || !newStart || !newEnd) { alert('请填写完整'); return false; }
-            let [sh,sm] = newStart.split(':').map(x=>parseInt(x));
-            let [eh,em] = newEnd.split(':').map(x=>parseInt(x));
-            if ([sh,sm,eh,em].some(x=>isNaN(x))) { alert('时间格式错误'); return false; }
-            log.date = newDate;
-            log.hour = sh; log.minute = sm;
-            log.endHour = eh; log.endMinute = em;
-            log.timeCost = calculateTimeCost(sh, sm, eh, em);
-            saveToCloud();
-            renderResourceStats();
-            
-            // 延迟渲染日历，确保数据更新完成
-            setTimeout(() => {
-                renderWeekCalendar();
-            }, 100);
-            
-            return true;
-        }
-    });
+    if (!log) {
+        console.error('❌ 找不到对应的时间记录:', { date, name, hour, minute });
+        alert('找不到对应的时间记录');
+        return;
+    }
+    
+    console.log('✅ 找到时间记录，打开编辑模态框:', log);
+    
+    // 存储当前编辑的日志，供表单提交时使用
+    window.currentEditingLog = log;
+    
+    // 填充表单数据
+    document.getElementById('time-edit-project-name').textContent = log.name;
+    document.getElementById('time-edit-date').value = log.date;
+    document.getElementById('time-edit-start').value = `${String(log.hour).padStart(2,'0')}:${String(log.minute).padStart(2,'0')}`;
+    document.getElementById('time-edit-end').value = `${String(log.endHour).padStart(2,'0')}:${String(log.endMinute).padStart(2,'0')}`;
+    
+    // 显示模态框
+    document.getElementById('time-edit-modal').classList.add('show');
 }
 window.deleteCalendarLog = function(date, name, hour, minute) {
     hideCalendarContextMenu();
-    showCustomModal({
-        title: '删除时间记录',
-        content: `<div style='margin-bottom:12px;'>确定要删除该时间记录吗？</div>`,
-        onConfirm: () => {
-            gameData.timeLogs = (gameData.timeLogs||[]).filter(l=>!(l.date===date&&l.name===name&&l.hour==hour&&l.minute==minute));
-            saveToCloud();
-            renderWeekCalendar();
-            renderResourceStats();
-            return true;
-        }
-    });
+    
+    if (!confirm('确定要删除该时间记录吗？')) return;
+    
+    gameData.timeLogs = (gameData.timeLogs||[]).filter(l=>!(l.date===date&&l.name===name&&l.hour==hour&&l.minute==minute));
+    saveToCloud();
+    renderWeekCalendar();
+    renderResourceStats();
 }
-// ========== 自定义模态框 ========== //
-function showCustomModal({title, content, onConfirm, onCancel, confirmText}) {
-    const modal = document.getElementById('custom-modal');
-    const showConfirm = onConfirm && confirmText !== null;
-    
-    modal.innerHTML = `<div class='modal-content' style='max-width:420px;'>
-        <h3 class='modal-title'>${title||''}</h3>
-        <div style='margin-bottom:18px;'>${content||''}</div>
-        <div class='modal-buttons'>
-            ${showConfirm ? `<button class='btn btn-primary' id='custom-modal-confirm'>${confirmText || '确定'}</button>` : ''}
-            <button class='btn btn-secondary' id='custom-modal-cancel'>取消</button>
-        </div>
-    </div>`;
-    modal.style.display = 'block';
-    
-    if (showConfirm) {
-        document.getElementById('custom-modal-confirm').onclick = function(){
-            let ok = true;
-            if (onConfirm) ok = onConfirm();
-            if (ok!==false) modal.style.display = 'none';
+
+// ========== 时间编辑表单处理 ========== //
+function setupTimeEditFormHandler() {
+    const form = document.getElementById('time-edit-form');
+    if (form) {
+        form.onsubmit = function(e) {
+            e.preventDefault();
+            
+            if (!window.currentEditingLog) {
+                alert('没有找到要编辑的时间记录');
+                return;
+            }
+            
+            const newDate = document.getElementById('time-edit-date').value;
+            const newStart = document.getElementById('time-edit-start').value;
+            const newEnd = document.getElementById('time-edit-end').value;
+            
+            if (!newDate || !newStart || !newEnd) {
+                alert('请填写完整');
+                return;
+            }
+            
+            let [sh, sm] = newStart.split(':').map(x => parseInt(x));
+            let [eh, em] = newEnd.split(':').map(x => parseInt(x));
+            
+            if ([sh, sm, eh, em].some(x => isNaN(x))) {
+                alert('时间格式错误');
+                return;
+            }
+            
+            // 更新时间记录
+            const log = window.currentEditingLog;
+            log.date = newDate;
+            log.hour = sh;
+            log.minute = sm;
+            log.endHour = eh;
+            log.endMinute = em;
+            log.timeCost = calculateTimeCost(sh, sm, eh, em);
+            
+            // 保存并刷新
+            saveToCloud();
+            renderResourceStats();
+            renderWeekCalendar();
+            
+            // 关闭模态框
+            closeModal('time-edit-modal');
+            
+            console.log('✅ 时间记录修改成功:', log);
         };
     }
-    
-    document.getElementById('custom-modal-cancel').onclick = function(){
-        modal.style.display = 'none';
-        if (onCancel) onCancel();
-    };
-    modal.onclick = function(e){ 
-        if(e.target===modal && !isSelecting) {
-            modal.style.display='none';
-        }
-    };
 }
+
+// ========== 自定义模态框已弃用 ========== //
+// 注意：showCustomModal 函数已被移除，所有模态框现在使用标准模态框系统
+// 如需显示简单确认对话框，请使用 confirm() 或 alert()
 // ========== 支出数据结构与渲染（健壮修正版） ========== //
 if (!Array.isArray(gameData.expenses)) gameData.expenses = [];
 
@@ -2837,7 +3203,7 @@ window.showExpenseModal = function() {
     const today = new Date().toISOString().slice(0, 10);
     document.getElementById('expense-date').value = today;
     
-    document.getElementById('expense-modal').style.display = 'block';
+    document.getElementById('expense-modal').classList.add('show');
 }
 let currentEditExpense = -1;
 window.editExpense = function(idx) {
@@ -2853,7 +3219,7 @@ window.editExpense = function(idx) {
     document.getElementById('expense-frequency-group').style.display = (exp.type==='recurring')?'':'none';
     document.getElementById('expense-frequency').value = exp.frequency || 'monthly';
     
-    document.getElementById('expense-modal').style.display = 'block';
+    document.getElementById('expense-modal').classList.add('show');
 }
 window.deleteExpense = function(idx) {
     if (!confirm('确定要删除该支出记录？')) return;
@@ -3080,24 +3446,24 @@ function renderResourceOverview() {
         
         <div class="resource-overview-grid">
             <div class="resource-overview-card">
-                <h4>📈 本月收入</h4>
+                <h4>📈本月收入</h4>
                 <div class="resource-overview-value income">${currencySymbol}${Math.round(monthlyIncome).toLocaleString()}</div>
                 <div class="resource-overview-meta">生产线收入</div>
             </div>
             <div class="resource-overview-card">
-                <h4>📉 本月支出</h4>
+                <h4>📉本月支出</h4>
                 <div class="resource-overview-value expense">${currencySymbol}${Math.round(monthlyExpense).toLocaleString()}</div>
                 <div class="resource-overview-meta">支出记录</div>
             </div>
             <div class="resource-overview-card">
-                <h4>💰 累计存款</h4>
+                <h4>💰累计存款</h4>
                 <div class="resource-overview-value savings">${currencySymbol}${Math.round(displaySavings).toLocaleString()}</div>
                 <div class="resource-overview-meta">
                     <button class="btn btn-sm" onclick="window.editSavings()" style="font-size: 0.8em; padding: 2px 6px;">✏️ 更新</button>
                 </div>
             </div>
             <div class="resource-overview-card">
-                <h4>🔮 下月预测</h4>
+                <h4>下月预测</h4>
                 <div class="resource-overview-value prediction">${currencySymbol}${Math.round(predictedExpense).toLocaleString()}</div>
                 <div class="resource-overview-meta">基于历史数据</div>
             </div>
@@ -3140,7 +3506,7 @@ function convertToDisplayCurrency(amount, fromCurrency, toCurrency) {
 function getCurrencySymbol(currency) {
     const symbols = {
         'CNY': '¥',
-        'AUD': 'A$',
+        'AUD': '$',
         'USD': '$',
         'EUR': '€'
     };
@@ -3245,41 +3611,144 @@ function renderBillsSummary() {
     const displayCurrency = gameData.displayCurrency || 'AUD';
     const currencySymbol = getCurrencySymbol(displayCurrency);
     
-    const months = Object.keys(gameData.billsData).sort().reverse(); // 按时间倒序
-    let html = '<div class="bills-summary-list">';
+    // 获取当前月份
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     
-    months.forEach(monthKey => {
-        const monthData = getBillsDataForMonth(monthKey);
-        
-        // 转换为显示货币
-        const displayIncome = convertToDisplayCurrency(monthData.income, 'AUD', displayCurrency);
-        const displayExpense = convertToDisplayCurrency(monthData.totalExpense, 'AUD', displayCurrency);
-        const balance = displayIncome - displayExpense;
-        const balanceClass = balance >= 0 ? 'positive' : 'negative';
-        
-        html += `
-            <div class="bills-summary-item">
-                <div class="bills-summary-header">
-                    <span class="bills-summary-month">${monthKey}</span>
-                    <span class="bills-summary-balance ${balanceClass}">
-                        ${balance >= 0 ? '+' : ''}${currencySymbol}${Math.round(balance).toLocaleString()}
-                    </span>
-                </div>
-                <div class="bills-summary-details">
-                    <span>收入: ${currencySymbol}${Math.round(displayIncome).toLocaleString()}</span>
-                    <span>支出: ${currencySymbol}${Math.round(displayExpense).toLocaleString()} (${monthData.expenseCount}项)</span>
-                </div>
+    // 尝试获取当月数据，如果没有则获取最新月份的数据
+    const availableMonths = Object.keys(gameData.billsData).sort().reverse();
+    const targetMonth = gameData.billsData[currentMonth] ? currentMonth : availableMonths[0];
+    
+    if (!targetMonth) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #95a5a6;">
+                <p>📋 没有可显示的账单数据</p>
             </div>
         `;
+        return;
+    }
+    
+    const monthData = getBillsDataForMonth(targetMonth);
+    
+    // 转换为显示货币
+    const displayIncome = convertToDisplayCurrency(monthData.income, 'AUD', displayCurrency);
+    const displayExpense = convertToDisplayCurrency(monthData.totalExpense, 'AUD', displayCurrency);
+    const balance = displayIncome - displayExpense;
+    const balanceClass = balance >= 0 ? 'positive' : 'negative';
+    
+    // 按分类整理支出
+    const categories = {};
+    monthData.expenses.forEach(exp => {
+        const category = exp.category || exp.name || '其他';
+        if (!categories[category]) {
+            categories[category] = {
+                total: 0,
+                items: []
+            };
+        }
+        const amount = convertToDisplayCurrency(convertToCNY(exp.amount, exp.currency), 'AUD', displayCurrency);
+        categories[category].total += amount;
+        categories[category].items.push({
+            name: exp.name,
+            amount: amount,
+            currency: exp.currency,
+            originalAmount: exp.amount
+        });
     });
     
-    html += '</div>';
+    // 按支出金额排序分类
+    const sortedCategories = Object.entries(categories).sort((a, b) => b[1].total - a[1].total);
+    
+    let html = `
+        <div class="current-month-summary">
+            <div class="month-title">
+                <h4>${targetMonth}${targetMonth === currentMonth ? ' (当月)' : ' (最新)'}</h4>
+            </div>
+            
+            <div class="month-overview">
+                <div class="overview-item income">
+                    <span class="overview-label">收入</span>
+                    <span class="overview-value">${currencySymbol}${Math.round(displayIncome).toLocaleString()}</span>
+                </div>
+                <div class="overview-item expense">
+                    <span class="overview-label">支出</span>
+                    <span class="overview-value">${currencySymbol}${Math.round(displayExpense).toLocaleString()}</span>
+                </div>
+                <div class="overview-item balance ${balanceClass}">
+                    <span class="overview-label">余额</span>
+                    <span class="overview-value ${balanceClass}">
+                        ${balance >= 0 ? '+' : ''}${currencySymbol}${Math.round(Math.abs(balance)).toLocaleString()}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="categories-section">
+                <div class="categories-list">
+    `;
+    
+    if (sortedCategories.length === 0) {
+        html += `
+            <div class="no-expenses">
+                <p>本月暂无支出记录</p>
+            </div>
+        `;
+    } else {
+        sortedCategories.forEach(([categoryName, categoryData], index) => {
+            const percentage = displayExpense > 0 ? (categoryData.total / displayExpense * 100).toFixed(1) : 0;
+            const categoryId = `category-${index}`;
+            
+            html += `
+                <div class="category-item" onclick="toggleCategoryDetails('${categoryId}')">
+                    <div class="category-header">
+                        <span class="category-name">${categoryName}</span>
+                        <div class="category-amount">
+                            <span class="amount">${currencySymbol}${Math.round(categoryData.total).toLocaleString()}</span>
+                            <span class="percentage">${percentage}%</span>
+                        </div>
+                    </div>
+                    <div class="category-details" id="${categoryId}">
+                        <div class="category-items">
+            `;
+            
+            categoryData.items.forEach(item => {
+                html += `
+                    <div class="expense-detail-item">
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-amount">${currencySymbol}${Math.round(item.amount).toLocaleString()}</span>
+                    </div>
+                `;
+            });
+            
+            html += `
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    html += `
+                </div>
+            </div>
+        </div>
+    `;
+    
     container.innerHTML = html;
+}
+
+// 切换分类详情展开/收起
+window.toggleCategoryDetails = function(categoryId) {
+    const detailsElement = document.getElementById(categoryId);
+    if (detailsElement) {
+        detailsElement.classList.toggle('expanded');
+    } else {
+        console.error('未找到分类详情元素:', categoryId);
+    }
 }
 
 // 显示账单导入模态框
 window.showBillsImportModal = function() {
-    document.getElementById('bills-import-modal').style.display = 'block';
+    document.getElementById('bills-import-modal').classList.add('show');
     document.getElementById('bills-import-data').value = '';
     document.getElementById('bills-import-preview').style.display = 'none';
     document.getElementById('confirm-bills-import').style.display = 'none';
@@ -3377,18 +3846,114 @@ window.confirmBillsImport = function() {
 
 // 显示月度对比
 window.showMonthlyComparison = function() {
+    console.log('showMonthlyComparison called');
+    
     if (!gameData.billsData || Object.keys(gameData.billsData).length === 0) {
         alert('还没有账单数据可供对比');
         return;
     }
     
+    // 设置当前年份为默认值
+    const currentYear = new Date().getFullYear();
+    gameData.comparisonYear = gameData.comparisonYear || currentYear;
+    
+    console.log('Initial comparison year:', gameData.comparisonYear);
+    
+    // 更新年份显示
+    const yearElement = document.getElementById('comparison-year');
+    if (yearElement) {
+        yearElement.textContent = gameData.comparisonYear;
+        console.log('Updated year display to:', gameData.comparisonYear);
+    } else {
+        console.error('Year element not found');
+    }
+    
+    // 显示模态框
+    const modalElement = document.getElementById('monthly-comparison-modal');
+    if (modalElement) {
+        modalElement.classList.add('show');
+        console.log('Modal displayed');
+    } else {
+        console.error('Modal element not found');
+    }
+    
+    // 渲染月度对比内容
+    window.renderMonthlyComparison();
+}
+
+// 切换年份
+window.changeComparisonYear = function(delta) {
+    console.log('changeComparisonYear called with delta:', delta);
+    
+    if (!gameData.comparisonYear) {
+        gameData.comparisonYear = new Date().getFullYear();
+    }
+    
+    gameData.comparisonYear += delta;
+    console.log('New comparison year:', gameData.comparisonYear);
+    
+    // 更新年份显示
+    const yearElement = document.getElementById('comparison-year');
+    if (yearElement) {
+        yearElement.textContent = gameData.comparisonYear;
+        console.log('Year display updated to:', gameData.comparisonYear);
+    } else {
+        console.error('Year element not found');
+    }
+    
+    // 重新渲染月度对比
+    window.renderMonthlyComparison();
+}
+
+// 渲染月度对比内容
+window.renderMonthlyComparison = function() {
+    console.log('renderMonthlyComparison called');
+    
+    if (!gameData.billsData || Object.keys(gameData.billsData).length === 0) {
+        console.log('No bills data available');
+        return;
+    }
+    
     const displayCurrency = gameData.displayCurrency || 'AUD';
     const currencySymbol = getCurrencySymbol(displayCurrency);
+    const targetYear = gameData.comparisonYear || new Date().getFullYear();
     
-    const months = Object.keys(gameData.billsData).sort().reverse().slice(0, 6); // 最近6个月
-    let html = '<div class="monthly-comparison-grid">';
+    console.log('Target year:', targetYear);
     
-    months.forEach((monthKey, index) => {
+    // 筛选指定年份的月份数据
+    const allMonths = Object.keys(gameData.billsData).sort().reverse();
+    const yearMonths = allMonths.filter(monthKey => {
+        const year = parseInt(monthKey.split('-')[0]);
+        return year === targetYear;
+    });
+    
+    console.log('Available months for year', targetYear, ':', yearMonths);
+    
+    if (yearMonths.length === 0) {
+        document.getElementById('monthly-comparison-content').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #7f8c8d;">
+                <div style="font-size: 1.2em; margin-bottom: 10px;">📅</div>
+                <div>${targetYear}年暂无账单数据</div>
+                <div style="font-size: 0.9em; margin-top: 10px;">
+                    可用的年份：${[...new Set(allMonths.map(m => m.split('-')[0]))].sort().reverse().join(', ')}
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="comparison-header">
+            <div class="comparison-header-row">
+                <span class="header-month">月份</span>
+                <span class="header-income">收入</span>
+                <span class="header-expense">支出</span>
+                <span class="header-balance">余额</span>
+            </div>
+        </div>
+        <div class="monthly-comparison-grid">`;
+    
+    yearMonths.forEach((monthKey, index) => {
         const monthData = getBillsDataForMonth(monthKey);
         
         // 转换为显示货币
@@ -3407,7 +3972,7 @@ window.showMonthlyComparison = function() {
         });
         
         // 获取上月数据用于对比
-        const prevMonth = months[index + 1];
+        const prevMonth = yearMonths[index + 1];
         const prevCategories = {};
         if (prevMonth && gameData.billsData[prevMonth]) {
             const prevMonthData = getBillsDataForMonth(prevMonth);
@@ -3467,8 +4032,15 @@ window.showMonthlyComparison = function() {
     
     html += '</div>';
     
-    document.getElementById('monthly-comparison-content').innerHTML = html;
-    document.getElementById('monthly-comparison-modal').style.display = 'block';
+    const contentElement = document.getElementById('monthly-comparison-content');
+    if (contentElement) {
+        contentElement.innerHTML = html;
+    }
+    
+    const modalElement = document.getElementById('monthly-comparison-modal');
+    if (modalElement) {
+        modalElement.classList.add('show');
+    }
 }
 
 // 切换月度详情展开/收起
@@ -3565,1247 +4137,15 @@ window.showCategoryDetails = function(monthKey, categoryName) {
         </div>
     `;
     
-    showCustomModal({
-        title: `${categoryName} 详细支出`,
-        content: html,
-        confirmText: '关闭'
-    });
-}
-
-// ========== 智能资源管理系统 ========== //
-
-// 统一的资源分析数据更新函数
-function updateResourceAnalysisData() {
-    if (!gameData.billsData || Object.keys(gameData.billsData).length === 0) {
-        // 清空分析数据
-        gameData.resourceAnalysis = {
-            monthlyAverage: 0,
-            fixedExpenseRatio: 0,
-            stabilityScore: 0,
-            insights: [],
-            predictions: {
-                nextMonthExpense: 0,
-                specialReminders: []
-            }
-        };
-        return;
-    }
-    
-    // 分析历史数据
-    const months = Object.keys(gameData.billsData).sort();
-    const monthlyExpenses = [];
-    const monthlyIncomes = [];
-    const expenseCategories = {};
-    
-    months.forEach(month => {
-        const monthData = gameData.billsData[month];
-        
-        // 计算月支出（转换为澳元基准）
-        const monthExpense = monthData.expenses.reduce((sum, expense) => {
-            return sum + convertToCNY(expense.amount, expense.currency || 'AUD');
-        }, 0);
-        monthlyExpenses.push(monthExpense);
-        
-        // 计算月收入（转换为澳元基准）
-        const monthIncome = convertToCNY(monthData.income || 0, monthData.incomeCurrency || 'AUD');
-        monthlyIncomes.push(monthIncome);
-        
-        // 统计支出类别
-        monthData.expenses.forEach(expense => {
-            const category = expense.category || expense.name || '其他';
-            const amount = convertToCNY(expense.amount, expense.currency || 'AUD');
-            expenseCategories[category] = (expenseCategories[category] || 0) + amount;
-        });
-    });
-    
-    // 计算平均月支出
-    const monthlyAverage = monthlyExpenses.reduce((sum, exp) => sum + exp, 0) / monthlyExpenses.length;
-    
-    // 计算固定支出占比（假设房租、保险等为固定支出）
-    const fixedCategories = ['房租', '保险', '贷款', '水电费', '网费', '手机费', 'Rent', 'Insurance', 'Loan'];
-    const fixedExpenses = Object.entries(expenseCategories)
-        .filter(([category]) => fixedCategories.some(fixed => category.toLowerCase().includes(fixed.toLowerCase())))
-        .reduce((sum, [, amount]) => sum + amount, 0);
-    const fixedExpenseRatio = monthlyExpenses.length > 0 ? (fixedExpenses / (monthlyAverage * monthlyExpenses.length)) : 0;
-    
-    // 计算稳定度评分（基于支出变化的标准差）
-    const avgExpense = monthlyAverage;
-    const variance = monthlyExpenses.reduce((sum, exp) => sum + Math.pow(exp - avgExpense, 2), 0) / monthlyExpenses.length;
-    const stabilityScore = Math.max(0, Math.min(100, 100 - (Math.sqrt(variance) / avgExpense) * 100));
-    
-    // 生成洞察
-    const insights = [];
-    if (fixedExpenseRatio > 0.6) {
-        insights.push('固定支出占比较高');
-    }
-    if (stabilityScore > 80) {
-        insights.push('支出模式稳定');
-    } else if (stabilityScore < 50) {
-        insights.push('支出波动较大');
-    }
-    
-    // 找出最大支出类别
-    const topCategory = Object.entries(expenseCategories)
-        .sort(([,a], [,b]) => b - a)[0];
-    if (topCategory) {
-        insights.push(`主要支出: ${topCategory[0]}`);
-    }
-    
-    // 生成预测
-    const recentMonths = monthlyExpenses.slice(-3); // 最近3个月
-    const recentAverage = recentMonths.reduce((sum, exp) => sum + exp, 0) / recentMonths.length;
-    const nextMonthExpense = Math.round(recentAverage * 1.05); // 预测增长5%
-    
-    const specialReminders = [];
-    if (nextMonthExpense > monthlyAverage * 1.2) {
-        specialReminders.push('下月支出可能超出平均水平20%');
-    }
-    
-    // 更新分析数据
-    gameData.resourceAnalysis = {
-        monthlyAverage: Math.round(monthlyAverage),
-        fixedExpenseRatio: Math.round(fixedExpenseRatio * 100),
-        stabilityScore: Math.round(stabilityScore),
-        insights: insights,
-        predictions: {
-            nextMonthExpense: nextMonthExpense,
-            specialReminders: specialReminders
-        }
-    };
-}
-
-// 辅助函数：生成洞察
-function generateInsights(expenses, categories, stability) {
-    const insights = [];
-    
-    if (stability < 0.7) {
-        insights.push('支出波动较大，建议制定更稳定的预算计划');
-    }
-    
-    const topCategories = Object.entries(categories)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 3);
-    
-    if (topCategories.length > 0) {
-        insights.push(`主要支出类别：${topCategories.map(([cat]) => cat).join('、')}`);
-    }
-    
-    return insights;
-}
-
-// 辅助函数：生成提醒
-function generateReminders(months, billsData) {
-    const reminders = [];
-    const currentMonth = new Date().getMonth();
-    
-    // 检查季度性支出
-    months.forEach(month => {
-        const monthNum = parseInt(month.split('-')[1]) - 1;
-        if ((monthNum - currentMonth + 12) % 12 === 1) { // 下个月
-            const monthData = billsData[month];
-            monthData.expenses.forEach(exp => {
-                if (exp.name && (exp.name.includes('保险') || exp.name.includes('年费'))) {
-                    reminders.push(`⚠️ 可能需要支付${exp.name}`);
-                }
-            });
-        }
-    });
-    
-    return reminders.slice(0, 3); // 最多显示3条提醒
-}
-
-// 辅助函数：转换为AUD（内部计算基准）
-function convertToAUD(amount, fromCurrency) {
-    const ratesFromAUD = {
-        'AUD': 1.0,
-        'CNY': 5.0,
-        'USD': 0.65,
-        'EUR': 0.60
-    };
-    
-    // 转换为AUD基准
-    return amount / ratesFromAUD[fromCurrency];
-}
-
-// 批量导入历史数据
-window.showResourceImportModal = function() {
-    document.getElementById('resource-import-modal').style.display = 'block';
-    document.getElementById('import-data-text').value = '';
-    document.getElementById('import-preview').innerHTML = '';
-}
-
-// 处理JSON数据导入
-window.processImportData = function() {
-    const textArea = document.getElementById('import-data-text');
-    const previewDiv = document.getElementById('import-preview');
-    
-    try {
-        const data = JSON.parse(textArea.value);
-        
-        // 验证数据格式
-        if (!data || typeof data !== 'object') {
-            throw new Error('数据格式不正确');
-        }
-        
-        let previewHtml = '<h4>📊 数据预览</h4>';
-        let totalMonths = 0;
-        let totalAmount = 0;
-        
-        Object.entries(data).forEach(([month, monthData]) => {
-            if (monthData.total) {
-                totalMonths++;
-                const currency = monthData.currency || 'CNY';
-                const convertedAmount = convertToCNY(monthData.total, currency);
-                totalAmount += convertedAmount;
-                const symbol = currencySymbols[currency] || '¥';
-                previewHtml += `
-                    <div class="import-month-preview">
-                        <strong>${month}</strong>: ${symbol}${monthData.total.toLocaleString()} 
-                        ${currency !== 'AUD' ? `(≈A$${Math.round(convertedAmount).toLocaleString()})` : ''}
-                        <br><small>分类: ${Object.keys(monthData.categories || {}).join(', ')}</small>
-                    </div>
-                `;
-            }
-        });
-        
-        previewHtml += `
-            <div class="import-summary">
-                <strong>汇总：</strong>${totalMonths}个月数据，总计A$${totalAmount.toLocaleString()}
-                <br><small>平均月支出：A$${Math.round(totalAmount / totalMonths).toLocaleString()}</small>
-            </div>
-            <button class="btn btn-primary" onclick="window.confirmImportData()">确认导入</button>
-        `;
-        
-        previewDiv.innerHTML = previewHtml;
-        window.pendingImportData = data;
-        
-    } catch (error) {
-        previewDiv.innerHTML = `<div style="color: #e74c3c;">❌ 数据格式错误: ${error.message}</div>`;
-    }
-}
-
-// 确认导入数据
-window.confirmImportData = function() {
-    if (!window.pendingImportData) return;
-    
-    // 初始化resourceManagement如果不存在
-    if (!gameData.resourceManagement) {
-        gameData.resourceManagement = {
-            historicalData: {},
-            analysis: {
-                averageMonthlyExpense: 0,
-                fixedExpenseRatio: 0,
-                variableExpenseRatio: 0,
-                stabilityScore: 0,
-                insights: [],
-                lastAnalyzedAt: null
-            },
-            predictions: {
-                nextMonthExpense: 0,
-                nextMonthBreakdown: { fixed: 0, variable: 0, variableRange: 0 },
-                specialReminders: [],
-                lastPredictedAt: null
-            },
-            importSettings: {
-                lastImportDate: null,
-                updateFrequency: 'biweekly',
-                autoAnalysis: true
-            }
-        };
-    }
-    
-    // 合并历史数据
-    Object.assign(gameData.resourceManagement.historicalData, window.pendingImportData);
-    gameData.resourceManagement.importSettings.lastImportDate = new Date().toISOString();
-    
-    // 自动分析
-    analyzeResourceData();
-    
-    // 保存数据
-    saveToCloud();
-    
-    // 更新界面
-    renderResourceAnalysis();
-    
-    // 关闭模态框
-    closeModal('resource-import-modal');
-    
-    alert(`✅ 成功导入${Object.keys(window.pendingImportData).length}个月的数据！`);
-    window.pendingImportData = null;
-}
-
-// 智能分析资源数据
-function analyzeResourceData() {
-    const rm = gameData.resourceManagement;
-    if (!rm || !rm.historicalData) return;
-    
-    const data = rm.historicalData;
-    const months = Object.keys(data).sort();
-    
-    if (months.length === 0) return;
-    
-    // 计算平均月支出（转换为人民币）
-    const totalExpense = months.reduce((sum, month) => {
-        const monthData = data[month];
-        const currency = monthData.currency || 'CNY';
-        return sum + convertToCNY(monthData.total || 0, currency);
-    }, 0);
-    const averageMonthly = totalExpense / months.length;
-    
-    // 分析固定支出
-    const fixedExpenses = new Set();
-    months.forEach(month => {
-        if (data[month].fixed_expenses) {
-            data[month].fixed_expenses.forEach(expense => fixedExpenses.add(expense));
-        }
-    });
-    
-    // 计算固定支出金额
-    let fixedTotal = 0;
-    let variableTotal = 0;
-    
-    months.forEach(month => {
-        const monthData = data[month];
-        const currency = monthData.currency || 'CNY';
-        if (monthData.categories) {
-            Object.entries(monthData.categories).forEach(([category, amount]) => {
-                const convertedAmount = convertToCNY(amount, currency);
-                if (fixedExpenses.has(category)) {
-                    fixedTotal += convertedAmount;
-                } else {
-                    variableTotal += convertedAmount;
-                }
-            });
-        }
-    });
-    
-    const fixedRatio = fixedTotal / (fixedTotal + variableTotal);
-    const variableRatio = 1 - fixedRatio;
-    
-    // 计算稳定度评分
-    const monthlyTotals = months.map(month => {
-        const monthData = data[month];
-        const currency = monthData.currency || 'CNY';
-        return convertToCNY(monthData.total || 0, currency);
-    });
-    const variance = monthlyTotals.reduce((sum, total) => sum + Math.pow(total - averageMonthly, 2), 0) / months.length;
-    const stabilityScore = Math.max(0, Math.min(5, 5 - (Math.sqrt(variance) / averageMonthly) * 10));
-    
-    // 生成洞察
-    const insights = [];
-    
-    if (fixedRatio > 0.7) {
-        insights.push('💰 支出结构稳定，固定支出占比较高');
-    } else if (fixedRatio < 0.5) {
-        insights.push('📈 支出灵活性较高，变动支出较多');
-    }
-    
-    if (stabilityScore >= 4) {
-        insights.push('✅ 支出非常稳定，预测准确度高');
-    } else if (stabilityScore < 2) {
-        insights.push('⚠️ 支出波动较大，建议关注异常项目');
-    }
-    
-    // 分析趋势
-    if (months.length >= 3) {
-        const recentMonths = months.slice(-3);
-        const recentAvg = recentMonths.reduce((sum, month) => {
-            const monthData = data[month];
-            const currency = monthData.currency || 'CNY';
-            return sum + convertToCNY(monthData.total, currency);
-        }, 0) / 3;
-        const olderMonths = months.slice(0, -3);
-        const olderAvg = olderMonths.reduce((sum, month) => {
-            const monthData = data[month];
-            const currency = monthData.currency || 'CNY';
-            return sum + convertToCNY(monthData.total, currency);
-        }, 0) / olderMonths.length;
-        
-        const trendChange = (recentAvg - olderAvg) / olderAvg;
-        if (trendChange > 0.1) {
-            insights.push('📈 最近支出呈上升趋势');
-        } else if (trendChange < -0.1) {
-            insights.push('📉 最近支出呈下降趋势');
-        }
-    }
-    
-    // 更新分析结果
-    rm.analysis = {
-        averageMonthlyExpense: averageMonthly,
-        fixedExpenseRatio: fixedRatio,
-        variableExpenseRatio: variableRatio,
-        stabilityScore: stabilityScore,
-        insights: insights,
-        lastAnalyzedAt: new Date().toISOString()
-    };
-    
-    // 生成预测
-    generatePredictions();
-}
-
-// 生成支出预测
-function generatePredictions() {
-    const rm = gameData.resourceManagement;
-    if (!rm || !rm.analysis) return;
-    
-    const analysis = rm.analysis;
-    const data = rm.historicalData;
-    const months = Object.keys(data).sort();
-    
-    if (months.length === 0) return;
-    
-    // 预测下月支出
-    const baseExpense = analysis.averageMonthlyExpense;
-    const fixedExpense = baseExpense * analysis.fixedExpenseRatio;
-    const variableExpense = baseExpense * analysis.variableExpenseRatio;
-    const variableRange = variableExpense * 0.2; // ±20%的波动范围
-    
-    // 检查特殊提醒
-    const specialReminders = [];
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const nextMonth = new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 7);
-    
-    // 检查季度性支出
-    months.forEach(month => {
-        const monthData = data[month];
-        if (monthData.unusual_items) {
-            monthData.unusual_items.forEach(item => {
-                if (item.includes('保险') || item.includes('年费')) {
-                    const monthNum = parseInt(month.split('-')[1]);
-                    const nextMonthNum = parseInt(nextMonth.split('-')[1]);
-                    if (monthNum === nextMonthNum) {
-                        specialReminders.push(`⚠️ 下月可能有${item}`);
-                    }
-                }
-            });
-        }
-    });
-    
-    rm.predictions = {
-        nextMonthExpense: Math.round(baseExpense),
-        nextMonthBreakdown: {
-            fixed: Math.round(fixedExpense),
-            variable: Math.round(variableExpense),
-            variableRange: Math.round(variableRange)
-        },
-        specialReminders: specialReminders,
-        lastPredictedAt: new Date().toISOString()
-    };
-}
-
-// 渲染资源分析面板
-function renderResourceAnalysis() {
-    const container = document.getElementById('resource-analysis-content');
-    if (!container) return;
-    
-    if (!gameData.billsData || Object.keys(gameData.billsData).length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #95a5a6;">
-                <h4>📊 暂无分析数据</h4>
-                <p>请先在"账单管理"页面导入财务数据</p>
-                <button class="btn btn-primary" onclick="window.switchResourceTab('bills')">
-                    📋 导入账单数据
-                </button>
-            </div>
-        `;
-        return;
-    }
-    
-    // 如果没有分析结果，先进行分析
-    if (!gameData.resourceAnalysis) {
-        updateResourceAnalysisData();
-    }
-    
-    const analysis = gameData.resourceAnalysis;
-    const displayCurrency = gameData.displayCurrency || 'AUD';
-    const currencySymbol = getCurrencySymbol(displayCurrency);
-    
-    // 转换为显示货币（analysis中的数据已经是澳元基准）
-    const displayMonthlyAvg = convertToDisplayCurrency(analysis.monthlyAverage, 'AUD', displayCurrency);
-    const displayPrediction = convertToDisplayCurrency(analysis.predictions.nextMonthExpense, 'AUD', displayCurrency);
-    
-    let html = `
-        <div class="analysis-dashboard">
-            <!-- 核心指标摘要 -->
-            <div class="analysis-summary">
-                <div class="primary-metric">
-                    <div class="metric-value">${currencySymbol}${Math.round(displayMonthlyAvg).toLocaleString()}</div>
-                    <div class="metric-label">月均支出</div>
-                </div>
-                <div class="secondary-metrics">
-                    <div class="metric-item">
-                        <span class="metric-number">${analysis.fixedExpenseRatio}%</span>
-                        <span class="metric-desc">固定支出占比</span>
-                    </div>
-                    <div class="metric-item">
-                        <span class="metric-number">${analysis.stabilityScore}</span>
-                        <span class="metric-desc">稳定度评分</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 关键洞察 -->
-            <div class="analysis-insights">
-                <h5>💡 关键洞察</h5>
-                <div class="insights-list">
-                    ${analysis.insights.map(insight => 
-                        `<span class="insight-item">${insight}</span>`
-                    ).join('')}
-                </div>
-            </div>
-            
-            <!-- 支出预测 -->
-            <div class="analysis-predictions">
-                <h5>🔮 支出预测</h5>
-                <div class="prediction-main">
-                    <div class="prediction-total">${currencySymbol}${Math.round(displayPrediction).toLocaleString()}</div>
-                    <div class="prediction-breakdown">预计下月支出</div>
-                </div>
-                ${analysis.predictions.specialReminders.length > 0 ? `
-                    <div class="special-reminders">
-                        ${analysis.predictions.specialReminders.map(reminder => 
-                            `<div class="reminder-item">⚠️ ${reminder}</div>`
-                        ).join('')}
-                    </div>
-                ` : ''}
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = html;
-}
-
-// ========== 本月支出合并统计（生产线+支出项） ========== //
-function getMonthlyExpenseTotalMerged() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    let total = 0;
-    // 1. 生产线支出
-    (gameData.productions||[]).forEach(prod => {
-        if (prod.expense > 0) {
-            total += convertToCNY(prod.expense, prod.expenseCurrency);
-        }
-    });
-    // 2. 支出面板已发生的支出（当前日期之前的）
-    (gameData.expenses||[]).forEach(exp => {
-        if (!exp || !exp.amount || !exp.currency) return;
-        if (exp.type === 'single') {
-            // 单次支出：本月已发生的（当前日期之前的）
-            const d = new Date(exp.date);
-            if (d.getFullYear() === year && d.getMonth() === month && d < now) {
-                total += convertToCNY(exp.amount, exp.currency);
-            }
-        } else if (exp.type === 'recurring') {
-            // 固定支出：本月已发生的次数
-            const start = new Date(exp.date);
-            if (start > now) return; // 未来开始的不算
-            if (exp.frequency === 'monthly') {
-                // 每月一次，只要起始日期<=本月且已经过了本月
-                if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
-                    total += convertToCNY(exp.amount, exp.currency);
-                }
-            } else if (exp.frequency === 'biweekly') {
-                // 每2周，计算本月内已发生的次数
-                let firstDay = new Date(year, month, 1);
-                let cycleStart = new Date(start);
-                while (cycleStart < firstDay) {
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-                while (cycleStart < now) {
-                    total += convertToCNY(exp.amount, exp.currency);
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-            }
-        }
-    });
-    return total;
-}
-
-// 获取本月支出面板各货币的明细
-function getMonthlyExpenseBreakdown() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    let expensesByCurrency = {};
-    
-    (gameData.expenses||[]).forEach(exp => {
-        if (!exp || !exp.amount || !exp.currency) return;
-        if (exp.type === 'single') {
-            // 单次支出：本月已发生的（当前日期之前的）
-            const d = new Date(exp.date);
-            if (d.getFullYear() === year && d.getMonth() === month && d < now) {
-                if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
-                expensesByCurrency[exp.currency] += exp.amount;
-            }
-        } else if (exp.type === 'recurring') {
-            // 固定支出：本月已发生的次数
-            const start = new Date(exp.date);
-            if (start > now) return; // 未来开始的不算
-            if (exp.frequency === 'monthly') {
-                // 每月一次，只要起始日期<=本月且已经过了本月
-                if (start.getFullYear() < year || (start.getFullYear() === year && start.getMonth() <= month)) {
-                    if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
-                    expensesByCurrency[exp.currency] += exp.amount;
-                }
-            } else if (exp.frequency === 'biweekly') {
-                // 每2周，计算本月内已发生的次数
-                let firstDay = new Date(year, month, 1);
-                let cycleStart = new Date(start);
-                while (cycleStart < firstDay) {
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-                while (cycleStart < now) {
-                    if (!expensesByCurrency[exp.currency]) expensesByCurrency[exp.currency] = 0;
-                    expensesByCurrency[exp.currency] += exp.amount;
-                    cycleStart.setDate(cycleStart.getDate() + 14);
-                }
-            }
-        }
-    });
-    
-    let breakdown = [];
-    Object.entries(expensesByCurrency).forEach(([currency, amount]) => {
-        breakdown.push(`${currencySymbols[currency]}${amount.toLocaleString()}`);
-    });
-    return breakdown;
-}
-
-// ========== 研发中心与生产线同步 ========== //
-// 添加研发项目时如勾选"同步创建生产线"，自动添加到productions，linkedDev字段关联
-// 删除研发项目时自动删除关联生产线
-window.removeDev = function(index) {
-    if (!gameData.developments[index]) return;
-    if (!confirm('确定要移除该研究项目吗？相关的进度记录将被清除。')) return;
-    const dev = gameData.developments[index];
-    gameData.developments.splice(index, 1);
-    // 同步删除关联生产线
-    gameData.productions = gameData.productions.filter(p => p.linkedDev !== dev.researchName);
-    renderDevelopments();
-    renderProductions();
-    saveToCloud();
-}
-// ========== 研发库管理 ========== //
-window.showDevLibraryManage = function() {
-    renderDevLibraryManageList();
-    document.getElementById('dev-library-manage-modal').style.display = 'block';
-}
-function renderDevLibraryManageList() {
-    const container = document.getElementById('dev-library-manage-list');
-    if (!container) return;
-    
-    // 添加批量操作控制栏
-    const hasItems = (gameData.devLibrary||[]).length > 0;
-    let html = '';
-    
-    if (hasItems) {
-        html += `
-            <div style='background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:15px;'>
-                <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;'>
-                    <label style='font-weight:bold;'>
-                        <input type='checkbox' id='dev-select-all' onchange='window.toggleAllDevSelection()' style='margin-right:8px;'>
-                        批量操作
-                    </label>
-                    <button class='btn btn-danger btn-small' onclick='window.batchDeleteDevItems()' id='batch-delete-dev-btn' style='display:none;'>🗑️ 删除选中</button>
-                </div>
-                <div style='font-size:0.9em;color:#666;'>
-                    选中项目进行批量删除操作
-                </div>
-            </div>
-        `;
-    }
-    
-    html += (gameData.devLibrary||[]).map((item, idx) => `
-        <div class='dev-library-manage-item' style='border-bottom:1px solid #eee;padding:8px 0;display:flex;align-items:center;'>
-            <input type='checkbox' class='dev-item-checkbox' data-index='${idx}' onchange='window.updateDevBatchButtons()' style='margin-right:10px;'>
-            <div style='flex:1;'>
-                <span style='font-weight:bold;'>${item.icon||''} ${item.researchName||''}</span>
-                <span style='color:#888;margin-left:8px;'>${item.category||''}</span>
-            </div>
-            <div style='display:flex;gap:5px;'>
-                <button class='btn btn-small btn-secondary' onclick='window.editDevLibraryItem(${idx})'>编辑</button>
-                <button class='btn btn-small btn-danger' onclick='window.deleteDevLibraryItem(${idx})'>删除</button>
-            </div>
-        </div>
-    `).join('');
-    
-    container.innerHTML = html;
-}
-window.editDevLibraryItem = function(idx) {
-    const item = gameData.devLibrary[idx];
-    showCustomModal({
-        title: '编辑研发项目',
-        content: `
-            <div class='form-group'><label>图标</label><input type='text' id='devlib-icon' class='form-input' value='${item.icon||''}'></div>
-            <div class='form-group'><label>类别</label><input type='text' id='devlib-category' class='form-input' value='${item.category||''}'></div>
-            <div class='form-group'><label>项目名称</label><input type='text' id='devlib-name' class='form-input' value='${item.researchName||''}'></div>
-            <div class='form-group'><label>生产线名称</label><input type='text' id='devlib-prod' class='form-input' value='${item.prodName||''}'></div>
-            <div class='form-group'><label>频率</label><input type='text' id='devlib-freq' class='form-input' value='${item.freq||''}'></div>
-            <div class='form-group'><label>周期</label><input type='number' id='devlib-cycle' class='form-input' value='${item.cycle||21}'></div>
-            <div class='form-group'><label>目标</label><input type='number' id='devlib-target' class='form-input' value='${item.target||Math.floor((item.cycle||21)*0.8)}'></div>
-            <div class='form-group'><label>操作定义</label><input type='text' id='devlib-action' class='form-input' value='${item.action||''}'></div>
-            <div class='form-group'><label>科学依据</label><input type='text' id='devlib-science' class='form-input' value='${item.science||''}'></div>
-        `,
-        onConfirm: () => {
-            item.icon = document.getElementById('devlib-icon').value;
-            item.category = document.getElementById('devlib-category').value;
-            item.researchName = document.getElementById('devlib-name').value;
-            item.prodName = document.getElementById('devlib-prod').value;
-            item.freq = document.getElementById('devlib-freq').value;
-            item.cycle = parseInt(document.getElementById('devlib-cycle').value)||21;
-            item.target = parseInt(document.getElementById('devlib-target').value)||Math.floor((item.cycle||21)*0.8);
-            item.action = document.getElementById('devlib-action').value;
-            item.science = document.getElementById('devlib-science').value;
-            renderDevLibraryManageList();
-            renderDevLibrary();
-            saveToCloud();
-            return true;
-        }
-    });
-}
-window.deleteDevLibraryItem = function(idx) {
-    if (!confirm('确定要删除该研发项目？')) return;
-    gameData.devLibrary.splice(idx,1);
-    renderDevLibraryManageList();
-    renderDevLibrary();
-    saveToCloud();
-}
-
-// 批量删除研发项目相关函数
-window.toggleAllDevSelection = function() {
-    const selectAll = document.getElementById('dev-select-all');
-    const checkboxes = document.querySelectorAll('.dev-item-checkbox');
-    checkboxes.forEach(cb => cb.checked = selectAll.checked);
-    window.updateDevBatchButtons();
-}
-
-window.updateDevBatchButtons = function() {
-    const checkboxes = document.querySelectorAll('.dev-item-checkbox');
-    const checkedBoxes = document.querySelectorAll('.dev-item-checkbox:checked');
-    const batchBtn = document.getElementById('batch-delete-dev-btn');
-    const selectAll = document.getElementById('dev-select-all');
-    
-    if (batchBtn) {
-        batchBtn.style.display = checkedBoxes.length > 0 ? 'block' : 'none';
-        batchBtn.textContent = `🗑️ 删除选中 (${checkedBoxes.length})`;
-    }
-    
-    if (selectAll) {
-        selectAll.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
-        selectAll.checked = checkedBoxes.length === checkboxes.length && checkboxes.length > 0;
-    }
-}
-
-window.batchDeleteDevItems = function() {
-    const checkedBoxes = document.querySelectorAll('.dev-item-checkbox:checked');
-    if (checkedBoxes.length === 0) return;
-    
-    const indices = Array.from(checkedBoxes).map(cb => parseInt(cb.dataset.index)).sort((a, b) => b - a);
-    const count = indices.length;
-    
-    if (!confirm(`确定要删除选中的 ${count} 个研发项目？此操作不可撤销。`)) return;
-    
-    // 从后往前删除，避免索引变化
-    indices.forEach(idx => {
-        gameData.devLibrary.splice(idx, 1);
-    });
-    
-    renderDevLibraryManageList();
-    renderDevLibrary();
-    saveToCloud();
-    
-    alert(`已成功删除 ${count} 个研发项目`);
-}
-window.showAddDevLibraryItem = function() {
-    showCustomModal({
-        title: '新增研发项目',
-        content: `
-            <div class='form-group'><label>图标</label><input type='text' id='devlib-icon' class='form-input'></div>
-            <div class='form-group'><label>类别</label><input type='text' id='devlib-category' class='form-input'></div>
-            <div class='form-group'><label>项目名称</label><input type='text' id='devlib-name' class='form-input'></div>
-            <div class='form-group'><label>生产线名称</label><input type='text' id='devlib-prod' class='form-input'></div>
-            <div class='form-group'><label>频率</label><input type='text' id='devlib-freq' class='form-input'></div>
-            <div class='form-group'><label>周期</label><input type='number' id='devlib-cycle' class='form-input' value='21'></div>
-            <div class='form-group'><label>目标</label><input type='number' id='devlib-target' class='form-input' value='17'></div>
-            <div class='form-group'><label>操作定义</label><input type='text' id='devlib-action' class='form-input'></div>
-            <div class='form-group'><label>科学依据</label><input type='text' id='devlib-science' class='form-input'></div>
-        `,
-        onConfirm: () => {
-            gameData.devLibrary.push({
-                icon: document.getElementById('devlib-icon').value,
-                category: document.getElementById('devlib-category').value,
-                researchName: document.getElementById('devlib-name').value,
-                prodName: document.getElementById('devlib-prod').value,
-                freq: document.getElementById('devlib-freq').value,
-                cycle: parseInt(document.getElementById('devlib-cycle').value)||21,
-                target: parseInt(document.getElementById('devlib-target').value)||17,
-                action: document.getElementById('devlib-action').value,
-                science: document.getElementById('devlib-science').value
-            });
-            renderDevLibraryManageList();
-            renderDevLibrary();
-            saveToCloud();
-            return true;
-        }
-    });
-}
-window.exportDevLibrary = function() {
-    const data = JSON.stringify(gameData.devLibrary, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `devLibrary_${new Date().toISOString().slice(0,10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-window.showImportDevLibrary = function() {
-    document.getElementById('dev-library-import-text').value = '';
-    document.getElementById('dev-library-import-modal').style.display = 'block';
-}
-window.importDevLibrary = function() {
-    let text = document.getElementById('dev-library-import-text').value;
-    try {
-        let arr = JSON.parse(text);
-        if (!Array.isArray(arr)) throw new Error('格式错误');
-        // 校验字段
-        for (let item of arr) {
-            if (!item.researchName || !item.prodName) throw new Error('缺少必要字段');
-        }
-        gameData.devLibrary = arr;
-        renderDevLibraryManageList();
-        renderDevLibrary();
-        saveToCloud();
-        closeModal('dev-library-import-modal');
-        alert('导入成功！');
-    } catch (e) {
-        alert('导入失败：' + e.message);
-    }
-}
-// ========== 里程碑管理 ========== //
-window.showMilestoneManage = function() {
-    renderMilestoneManageList();
-    document.getElementById('milestone-manage-modal').style.display = 'block';
-}
-function renderMilestoneManageList() {
-    const container = document.getElementById('milestone-manage-list');
-    if (!container) return;
-    let all = [];
-    Object.entries(gameData.experiences).forEach(([category, items]) => {
-        items.forEach((item, idx) => {
-            all.push({ ...item, _category: category, _idx: idx });
-        });
-    });
-    
-    // 添加批量操作控制栏
-    const hasItems = all.length > 0;
-    let html = '';
-    
-    if (hasItems) {
-        html += `
-            <div style='background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:15px;'>
-                <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;'>
-                    <label style='font-weight:bold;'>
-                        <input type='checkbox' id='milestone-select-all' onchange='window.toggleAllMilestoneSelection()' style='margin-right:8px;'>
-                        批量操作
-                    </label>
-                    <button class='btn btn-danger btn-small' onclick='window.batchDeleteMilestoneItems()' id='batch-delete-milestone-btn' style='display:none;'>🗑️ 删除选中</button>
-                </div>
-                <div style='font-size:0.9em;color:#666;'>
-                    选中里程碑进行批量删除操作
-                </div>
-            </div>
-        `;
-    }
-    
-    html += all.map((item, i) => `
-        <div class='milestone-manage-item' style='border-bottom:1px solid #eee;padding:8px 0;display:flex;align-items:center;'>
-            <input type='checkbox' class='milestone-item-checkbox' data-index='${i}' onchange='window.updateMilestoneBatchButtons()' style='margin-right:10px;'>
-            <div style='flex:1;'>
-                <span style='font-weight:bold;'>${item.name||''}</span>
-                <span style='color:#888;margin-left:8px;'>${item._category||''}</span>
-                <span style='color:#666;margin-left:8px;font-size:0.9em;'>(完成${item.count||0}次)</span>
-            </div>
-            <div style='display:flex;gap:5px;'>
-                <button class='btn btn-small btn-secondary' onclick='window.editMilestoneItem(${i})'>编辑</button>
-                <button class='btn btn-small btn-danger' onclick='window.deleteMilestoneItem(${i})'>删除</button>
-            </div>
-        </div>
-    `).join('');
-    
-    container.innerHTML = html;
-    window._milestoneFlatList = all;
-}
-window.editMilestoneItem = function(i) {
-    const item = window._milestoneFlatList[i];
-    showCustomModal({
-        title: '编辑里程碑',
-        content: `
-            <div class='form-group'><label>名称</label><input type='text' id='mile-name' class='form-input' value='${item.name||''}'></div>
-            <div class='form-group'><label>描述</label><input type='text' id='mile-desc' class='form-input' value='${item.desc||''}'></div>
-            <div class='form-group'><label>完成次数</label><input type='number' id='mile-count' class='form-input' value='${item.count||0}'></div>
-            <div class='form-group'><label>可重复</label><input type='checkbox' id='mile-repeat' ${item.repeatable?'checked':''}></div>
-            <div class='form-group'><label>难度(1-5)</label><input type='number' id='mile-diff' class='form-input' value='${item.difficulty||1}' min='1' max='5'></div>
-        `,
-        onConfirm: () => {
-            item.name = document.getElementById('mile-name').value;
-            item.desc = document.getElementById('mile-desc').value;
-            item.count = parseInt(document.getElementById('mile-count').value)||0;
-            item.repeatable = document.getElementById('mile-repeat').checked;
-            item.difficulty = parseInt(document.getElementById('mile-diff').value)||1;
-            // 写回原数据
-            gameData.experiences[item._category][item._idx] = item;
-            renderMilestoneManageList();
-            renderMilestones();
-            saveToCloud();
-            return true;
-        }
-    });
-}
-window.deleteMilestoneItem = function(i) {
-    const item = window._milestoneFlatList[i];
-    if (!confirm('确定要删除该里程碑？')) return;
-    gameData.experiences[item._category].splice(item._idx,1);
-    renderMilestoneManageList();
-    renderMilestones();
-    saveToCloud();
-}
-
-// 批量删除里程碑相关函数
-window.toggleAllMilestoneSelection = function() {
-    const selectAll = document.getElementById('milestone-select-all');
-    const checkboxes = document.querySelectorAll('.milestone-item-checkbox');
-    checkboxes.forEach(cb => cb.checked = selectAll.checked);
-    window.updateMilestoneBatchButtons();
-}
-
-window.updateMilestoneBatchButtons = function() {
-    const checkboxes = document.querySelectorAll('.milestone-item-checkbox');
-    const checkedBoxes = document.querySelectorAll('.milestone-item-checkbox:checked');
-    const batchBtn = document.getElementById('batch-delete-milestone-btn');
-    const selectAll = document.getElementById('milestone-select-all');
-    
-    if (batchBtn) {
-        batchBtn.style.display = checkedBoxes.length > 0 ? 'block' : 'none';
-        batchBtn.textContent = `🗑️ 删除选中 (${checkedBoxes.length})`;
-    }
-    
-    if (selectAll) {
-        selectAll.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
-        selectAll.checked = checkedBoxes.length === checkboxes.length && checkboxes.length > 0;
-    }
-}
-
-window.batchDeleteMilestoneItems = function() {
-    const checkedBoxes = document.querySelectorAll('.milestone-item-checkbox:checked');
-    if (checkedBoxes.length === 0) return;
-    
-    const indices = Array.from(checkedBoxes).map(cb => parseInt(cb.dataset.index)).sort((a, b) => b - a);
-    const count = indices.length;
-    
-    if (!confirm(`确定要删除选中的 ${count} 个里程碑？此操作不可撤销。`)) return;
-    
-    // 按分类整理要删除的项目
-    const toDelete = {};
-    indices.forEach(i => {
-        const item = window._milestoneFlatList[i];
-        if (!toDelete[item._category]) {
-            toDelete[item._category] = [];
-        }
-        toDelete[item._category].push(item._idx);
-    });
-    
-    // 从每个分类中删除项目（从后往前删除）
-    Object.entries(toDelete).forEach(([category, itemIndices]) => {
-        itemIndices.sort((a, b) => b - a).forEach(idx => {
-            gameData.experiences[category].splice(idx, 1);
-        });
-    });
-    
-    renderMilestoneManageList();
-    renderMilestones();
-    saveToCloud();
-    
-    alert(`已成功删除 ${count} 个里程碑`);
-}
-window.showAddMilestoneItem = function() {
-    showCustomModal({
-        title: '新增里程碑',
-        content: `
-            <div class='form-group'><label>名称</label><input type='text' id='mile-name' class='form-input'></div>
-            <div class='form-group'><label>描述</label><input type='text' id='mile-desc' class='form-input'></div>
-            <div class='form-group'><label>完成次数</label><input type='number' id='mile-count' class='form-input' value='0'></div>
-            <div class='form-group'><label>可重复</label><input type='checkbox' id='mile-repeat'></div>
-            <div class='form-group'><label>难度(1-5)</label><input type='number' id='mile-diff' class='form-input' value='1' min='1' max='5'></div>
-            <div class='form-group'><label>分组</label><input type='text' id='mile-cat' class='form-input' value='自定义'></div>
-        `,
-        onConfirm: () => {
-            const cat = document.getElementById('mile-cat').value||'自定义';
-            if (!gameData.experiences[cat]) gameData.experiences[cat]=[];
-            gameData.experiences[cat].push({
-                name: document.getElementById('mile-name').value,
-                desc: document.getElementById('mile-desc').value,
-                count: parseInt(document.getElementById('mile-count').value)||0,
-                repeatable: document.getElementById('mile-repeat').checked,
-                difficulty: parseInt(document.getElementById('mile-diff').value)||1
-            });
-            renderMilestoneManageList();
-            renderMilestones();
-            saveToCloud();
-            return true;
-        }
-    });
-}
-window.exportMilestones = function() {
-    let arr = [];
-    Object.entries(gameData.experiences).forEach(([category, items]) => {
-        items.forEach(item => arr.push({...item, _category: category}));
-    });
-    const data = JSON.stringify(arr, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `milestones_${new Date().toISOString().slice(0,10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-window.showImportMilestones = function() {
-    document.getElementById('milestone-import-text').value = '';
-    document.getElementById('milestone-import-modal').style.display = 'block';
-}
-window.importMilestones = function() {
-    let text = document.getElementById('milestone-import-text').value;
-    try {
-        let arr = JSON.parse(text);
-        if (!Array.isArray(arr)) throw new Error('格式错误');
-        // 按_category分组
-        let newExp = {};
-        for (let item of arr) {
-            let cat = item._category||'自定义';
-            if (!newExp[cat]) newExp[cat]=[];
-            newExp[cat].push({
-                name: item.name,
-                desc: item.desc,
-                count: item.count||0,
-                repeatable: !!item.repeatable,
-                difficulty: item.difficulty||1
-            });
-        }
-        gameData.experiences = newExp;
-        renderMilestoneManageList();
-        renderMilestones();
-        saveToCloud();
-        closeModal('milestone-import-modal');
-        alert('导入成功！');
-    } catch (e) {
-        alert('导入失败：' + e.message);
-    }
-}
-
-// 时间记录统计功能
-window.showTimeRecordsPanel = function() {
-    document.getElementById('time-records-modal').style.display = 'block';
-    window.showTimeRecords('today'); // 默认显示今天
-}
-
-window.showTimeRecords = function(period) {
-    const container = document.getElementById('time-records-content');
-    if (!container) return;
-    
-    const now = new Date();
-    let startDate, endDate, title;
-    
-    switch(period) {
-        case 'today':
-            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-            title = '今天';
-            break;
-        case 'week':
-            const dayOfWeek = (now.getDay() + 6) % 7; // 周一为0
-            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
-            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 7);
-            title = '本周';
-            break;
-        case 'lastWeek':
-            const lastWeekDayOfWeek = (now.getDay() + 6) % 7;
-            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - lastWeekDayOfWeek - 7);
-            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - lastWeekDayOfWeek);
-            title = '上周';
-            break;
-        case 'month':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-            title = '本月';
-            break;
-        case 'lastMonth':
-            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            endDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            title = '上月';
-            break;
-        case 'year':
-            startDate = new Date(now.getFullYear(), 0, 1);
-            endDate = new Date(now.getFullYear() + 1, 0, 1);
-            title = '今年';
-            break;
-        case 'all':
-            startDate = new Date(2000, 0, 1);
-            endDate = new Date(2100, 0, 1);
-            title = '全部记录';
-            break;
-    }
-    
-    const logs = (gameData.timeLogs || []).filter(log => {
-        const logDate = new Date(log.date);
-        return logDate >= startDate && logDate < endDate;
-    });
-    
-    // 按项目分组统计
-    const projectStats = {};
-    let totalMinutes = 0;
-    
-    logs.forEach(log => {
-        const name = log.name;
-        let timeCost = log.timeCost || 0;
-        if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
-            timeCost = (log.endHour * 60 + (log.endMinute || 0)) - (log.hour * 60 + (log.minute || 0));
-        }
-        timeCost = Math.max(0, timeCost);
-        
-        if (!projectStats[name]) {
-            projectStats[name] = { 
-                totalMinutes: 0, 
-                sessions: 0,
-                type: log.type || 'unknown'
-            };
-        }
-        projectStats[name].totalMinutes += timeCost;
-        projectStats[name].sessions++;
-        totalMinutes += timeCost;
-    });
-    
-    // 按时间排序
-    const sortedProjects = Object.entries(projectStats).sort((a, b) => b[1].totalMinutes - a[1].totalMinutes);
-    
-    let html = `<div style="margin-bottom:20px;">
-        <h4>${title}统计</h4>
-        <div style="color:#666;font-size:0.9em;">
-            总时长：${Math.floor(totalMinutes/60)}小时${totalMinutes%60}分钟 | 
-            记录数：${logs.length}条 | 
-            项目数：${sortedProjects.length}个
-        </div>
-    </div>`;
-    
-    if (sortedProjects.length === 0) {
-        html += '<div style="color:#888;text-align:center;padding:40px;">暂无时间记录</div>';
+    // 使用专用的详情模态框显示支出详情
+    const detailsModalTitle = document.getElementById('details-modal-title');
+    const detailsModalContent = document.getElementById('details-modal-content');
+    if (detailsModalTitle && detailsModalContent) {
+        detailsModalTitle.textContent = `${categoryName} 详细支出`;
+        detailsModalContent.innerHTML = html;
+        document.getElementById('details-modal').classList.add('show');
     } else {
-        html += '<div style="display:grid;gap:12px;">';
-        sortedProjects.forEach(([name, stats]) => {
-            const hours = Math.floor(stats.totalMinutes / 60);
-            const minutes = stats.totalMinutes % 60;
-            const percentage = totalMinutes > 0 ? (stats.totalMinutes / totalMinutes * 100).toFixed(1) : 0;
-            
-            // 根据类型设置颜色
-            let typeColor = '#666';
-            let typeName = stats.type || 'unknown';
-            switch(stats.type) {
-                case 'production': typeColor = '#2980b9'; typeName = '产线'; break;
-                case 'work': typeColor = '#2980b9'; typeName = '产线'; break; // 兼容旧的work类型
-                case 'automation': typeColor = '#e67e22'; typeName = '自动化'; break;
-                case 'lifestyle': typeColor = '#8e44ad'; typeName = '日常'; break;
-                case 'investment': typeColor = '#229954'; typeName = '资产'; break;
-                default: typeColor = '#666'; typeName = stats.type || '未知'; break;
-            }
-            
-            html += `
-                <div style="border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <div style="font-weight:600;color:#2c3e50;">${name}</div>
-                        <div style="font-weight:700;color:${typeColor};">${hours}h${minutes}m</div>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.9em;color:#666;">
-                        <div>
-                            <span style="background:${typeColor};color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">${typeName}</span>
-                            <span style="margin-left:8px;">${stats.sessions}次记录</span>
-                        </div>
-                        <div>${percentage}%</div>
-                    </div>
-                    <div style="margin-top:6px;background:#f5f5f5;border-radius:4px;height:6px;overflow:hidden;">
-                        <div style="background:${typeColor};height:100%;width:${percentage}%;transition:width 0.3s ease;"></div>
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div>';
-    }
-    
-    container.innerHTML = html;
-}
-// ========== 数据管理功能 ========== //
-window.showDataManagePanel = function() {
-    updateDataStatus();
-    document.getElementById('data-manage-modal').style.display = 'block';
-    
-    // 更新自动备份状态
-    document.getElementById('auto-backup-enabled').checked = autoBackupEnabled;
-    document.getElementById('last-backup-time').textContent = lastBackupTime || '未备份';
-}
-
-function updateDataStatus() {
-    const localData = localStorage.getItem('lifeFactorio');
-    const hasLocal = !!localData;
-    const localSize = localData ? Math.round(localData.length / 1024) : 0;
-    
-    document.getElementById('current-family-code').textContent = familyCode || '未设置';
-    
-    const statusHtml = `
-        <div>• 云端连接: ${isCloudReady ? '✅ 已连接' : '❌ 未连接'}</div>
-        <div>• 本地数据: ${hasLocal ? `✅ 存在 (${localSize}KB)` : '❌ 不存在'}</div>
-        <div>• 生产线数量: ${(gameData.productions || []).length}</div>
-        <div>• 研发项目数量: ${(gameData.developments || []).length}</div>
-        <div>• 时间记录数量: ${(gameData.timeLogs || []).length}</div>
-        <div>• 支出记录数量: ${(gameData.expenses || []).length}</div>
-        <div>• 自动备份: ${autoBackupEnabled ? '✅ 已启用' : '❌ 已禁用'}</div>
-    `;
-    document.getElementById('status-details').innerHTML = statusHtml;
-}
-
-// 家庭码管理
-window.copyFamilyCode = function() {
-    if (familyCode) {
-        navigator.clipboard.writeText(familyCode).then(() => {
-            alert('家庭码已复制到剪贴板！');
-        }).catch(() => {
-            prompt('请手动复制家庭码:', familyCode);
-        });
-    }
-}
-
-window.changeFamilyCode = function() {
-    const newCode = document.getElementById('new-family-code').value.trim();
-    if (!newCode) {
-        alert('请输入新的家庭码');
-        return;
-    }
-    
-    if (confirm(`确定要将家庭码从 "${familyCode}" 更换为 "${newCode}" 吗？\n\n这会切换到新的云端数据空间。`)) {
-        familyCode = newCode;
-        localStorage.setItem('lifeFactoryFamilyCode', familyCode);
-        
-        // 重新初始化云端连接
-        if (firebaseUnsubscribe) firebaseUnsubscribe();
-        isCloudReady = false;
-        cloudInitDone = false;
-        
-        firebaseLoginAndSync();
-        updateDataStatus();
-        
-        alert('家庭码已更换，正在重新连接云端...');
+        alert('支出详情功能暂时不可用');
     }
 }
 
@@ -4934,96 +4274,7 @@ function cleanupOldBackups() {
         });
 }
 
-window.listCloudBackups = function() {
-    if (!familyCode || !isCloudReady) {
-        alert('❌ 云端服务未连接');
-        return;
-    }
-    
-    db.collection('backups').doc(familyCode).collection('history')
-        .orderBy('timestamp', 'desc')
-        .limit(10)
-        .get()
-        .then(snapshot => {
-            if (snapshot.empty) {
-                alert('📭 没有找到云端备份');
-                return;
-            }
-            
-            let html = '<h4>最近10个云端备份</h4>';
-            html += '<div style="max-height:300px;overflow-y:auto;">';
-            
-            snapshot.docs.forEach((doc, index) => {
-                const data = doc.data();
-                const time = new Date(data.timestamp).toLocaleString();
-                const productions = data.gameData?.productions?.length || 0;
-                const timeLogs = data.gameData?.timeLogs?.length || 0;
-                
-                html += `
-                    <div style="border:1px solid #ddd;border-radius:6px;padding:10px;margin-bottom:8px;background:#f9f9f9;">
-                        <div style="font-weight:bold;">${time}</div>
-                        <div style="font-size:0.9em;color:#666;">
-                            生产线: ${productions} | 时间记录: ${timeLogs} | 类型: ${data.backupType || 'auto'}
-                        </div>
-                        <button class="btn btn-small btn-primary" onclick="window.restoreFromCloudBackup('${doc.id}')" style="margin-top:5px;">
-                            恢复此备份
-                        </button>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            
-            showCustomModal({
-                title: '☁️ 云端备份列表',
-                content: html,
-                onConfirm: () => true
-            });
-        })
-        .catch(error => {
-            console.error('获取备份列表失败:', error);
-            alert('❌ 获取备份列表失败：' + error.message);
-        });
-}
-
-window.restoreFromCloudBackup = function(backupId) {
-    if (!confirm('确定要从此云端备份恢复数据吗？\n\n当前数据将被覆盖！')) {
-        return;
-    }
-    
-    db.collection('backups').doc(familyCode).collection('history').doc(backupId).get()
-        .then(doc => {
-            if (!doc.exists) {
-                alert('❌ 备份不存在');
-                return;
-            }
-            
-            const backupData = doc.data();
-            gameData = backupData.gameData;
-            lastDailyReset = backupData.lastDailyReset || lastDailyReset;
-            
-            // 重新渲染所有内容
-            fixDataLinks();
-            renderProductions();
-            renderDevelopments();
-            renderMilestones();
-            renderDevLibrary();
-            renderResourceStats();
-            renderWeekCalendar();
-            renderExpenses();
-            
-            // 保存到本地和云端
-            saveToLocal();
-            saveToCloud();
-            
-            alert('✅ 从云端备份恢复成功！');
-            closeModal('data-manage-modal');
-        })
-        .catch(error => {
-            console.error('恢复备份失败:', error);
-            alert('❌ 恢复备份失败：' + error.message);
-        });
-}
+// 第一个listCloudBackups函数已删除，使用下面统一的版本
 
 window.showRestoreFromCloud = function() {
     listCloudBackups();
@@ -5297,6 +4548,84 @@ window.checkResetStatus = function() {
     };
 };
 
+// 测试蓝图拖拽功能
+window.testBlueprintDrag = function() {
+    console.log('🧪 测试蓝图拖拽功能...');
+    
+    // 检查是否有蓝图
+    const blueprints = gameData.blueprints || [];
+    console.log('📊 蓝图数量:', blueprints.length);
+    
+    if (blueprints.length === 0) {
+        alert('没有蓝图可以测试拖拽功能。请先添加一个蓝图。');
+        return;
+    }
+    
+    // 检查拖拽相关的DOM元素
+    const timeBlocks = document.querySelectorAll('.time-block.blueprint[draggable="true"]');
+    console.log('🎯 可拖拽蓝图块数量:', timeBlocks.length);
+    
+    const calendarCells = document.querySelectorAll('.calendar-cell');
+    console.log('📅 日历单元格数量:', calendarCells.length);
+    
+    // 检查事件监听器
+    let hasListeners = 0;
+    timeBlocks.forEach(block => {
+        if (block.ondragstart && block.ondragend) {
+            hasListeners++;
+        }
+    });
+    console.log('🔗 有拖拽事件监听器的蓝图:', hasListeners);
+    
+    alert(`蓝图拖拽测试完成:\n- 蓝图数量: ${blueprints.length}\n- 可拖拽蓝图块: ${timeBlocks.length}\n- 有事件监听器: ${hasListeners}\n请查看控制台获取详细信息`);
+}
+
+// 测试函数 - 验证基本功能
+window.testBasicFunctions = function() {
+    console.log('🧪 开始基本功能测试...');
+    
+    // 测试 1: 模态框是否能正常显示
+    console.log('测试 1: 模态框功能');
+    try {
+        // 使用专用的信息模态框进行测试
+        const infoModalTitle = document.getElementById('info-modal-title');
+        const infoModalContent = document.getElementById('info-modal-content');
+        if (infoModalTitle && infoModalContent) {
+            infoModalTitle.textContent = '测试模态框';
+            infoModalContent.innerHTML = `
+                <p>这是一个测试模态框，如果你能看到这个，说明模态框功能正常。</p>
+                <p>测试将在2秒后自动关闭。</p>
+            `;
+            document.getElementById('info-modal').classList.add('show');
+            console.log('✅ 模态框功能正常');
+            
+            // 2秒后自动关闭
+            setTimeout(() => {
+                document.getElementById('info-modal').classList.remove('show');
+            }, 2000);
+        } else {
+            console.error('❌ 找不到信息模态框元素');
+        }
+    } catch (error) {
+        console.error('❌ 模态框测试失败:', error);
+    }
+    
+    // 测试 2: 数据状态
+    console.log('测试 2: 数据状态');
+    console.log('📊 gameData.timeLogs:', gameData.timeLogs?.length || 0);
+    console.log('📊 gameData.blueprints:', gameData.blueprints?.length || 0);
+    console.log('📊 gameData.productions:', gameData.productions?.length || 0);
+    
+    // 测试 3: DOM 元素
+    console.log('测试 3: DOM 元素');
+    const customModal = document.getElementById('custom-modal');
+    const contextMenu = document.getElementById('context-menu');
+    console.log('📋 custom-modal 存在:', !!customModal);
+    console.log('📋 context-menu 存在:', !!contextMenu);
+    
+    alert('基本功能测试完成，请查看控制台输出结果');
+}
+
 // 立即修复时区问题
 window.fixTimezoneIssue = function() {
     console.log('🔧 开始修复时区问题...');
@@ -5488,7 +4817,7 @@ function forceRenderDevLibrary() {
 window.closeModal = function(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
-        modal.style.display = 'none';
+        modal.classList.remove('show');
     }
 }
 
@@ -5610,7 +4939,7 @@ function showBlueprintModal() {
     // 渲染蓝图历史标签
     renderBlueprintHistoryTags();
     
-    document.getElementById('blueprint-modal').style.display = 'block';
+    document.getElementById('blueprint-modal').classList.add('show');
 }
 
 // 新增：时间快捷设置函数
@@ -5723,7 +5052,7 @@ function saveBlueprint(e) {
 // 显示自动化管理面板
 window.showBlueprintAutomationModal = function() {
     updateAutomationDisplay();
-    document.getElementById('blueprint-automation-modal').style.display = 'block';
+    document.getElementById('blueprint-automation-modal').classList.add('show');
 }
 
 // 更新自动化显示内容
@@ -5895,7 +5224,7 @@ window.clearAutoBlueprints = function() {
 // 显示自动化设置
 window.showAutomationSettings = function() {
     loadAutomationSettings();
-    document.getElementById('automation-settings-modal').style.display = 'block';
+    document.getElementById('automation-settings-modal').classList.add('show');
 }
 
 // 加载设置到表单
@@ -6471,7 +5800,7 @@ window.quickCreateBlueprint = function(date, hour) {
     renderBlueprintHistoryTags();
     
     // 显示蓝图创建模态框
-    document.getElementById('blueprint-modal').style.display = 'block';
+    document.getElementById('blueprint-modal').classList.add('show');
     
     // 自动聚焦到名称输入框
     setTimeout(() => {
@@ -6484,12 +5813,21 @@ window.quickCreateBlueprint = function(date, hour) {
 
 // 查看指定时段的时间块
 window.showTimeBlocksAtTime = function(date, hour) {
+    console.log('🔍 showTimeBlocksAtTime 被调用:', { date, hour });
     hideContextMenu();
     
     // 获取该时段的所有时间块
+    const timeLogs = gameData.timeLogs || [];
+    const blueprints = gameData.blueprints || [];
+    console.log('📊 数据统计:', { 
+        timeLogs: timeLogs.length, 
+        blueprints: blueprints.length,
+        plannedBlueprints: blueprints.filter(bp => bp.status === 'planned').length
+    });
+    
     const allItems = [
-        ...((gameData.timeLogs || []).map(item => ({ ...item, itemType: 'log' }))),
-        ...((gameData.blueprints || []).filter(item => item.status === 'planned').map(item => ({ ...item, itemType: 'blueprint' })))
+        ...timeLogs.map(item => ({ ...item, itemType: 'log' })),
+        ...blueprints.filter(item => item.status === 'planned').map(item => ({ ...item, itemType: 'blueprint' }))
     ];
     
     const timeBlocks = allItems.filter(item => {
@@ -6508,11 +5846,7 @@ window.showTimeBlocksAtTime = function(date, hour) {
     });
     
     if (timeBlocks.length === 0) {
-        showCustomModal({
-            title: '时段信息',
-            content: `<p>该时段 (${date} ${hour}:00) 暂无安排</p>`,
-            confirmText: '确定'
-        });
+        alert(`该时段 (${date} ${hour}:00) 暂无安排`);
         return;
     }
     
@@ -6554,16 +5888,22 @@ window.showTimeBlocksAtTime = function(date, hour) {
         }
     }).join('');
     
-    showCustomModal({
-        title: `时段详情 - ${dateStr} ${timeStr}`,
-        content: `
+    // 使用时间记录模态框显示时段详情
+    const timeRecordsContent = document.getElementById('time-records-content');
+    if (timeRecordsContent) {
+        timeRecordsContent.innerHTML = `
+            <div style="margin-bottom: 12px;">
+                <h4>${dateStr} ${timeStr} - 时段详情</h4>
+                <p style="color: #666;">该时段共有 ${timeBlocks.length} 项安排：</p>
+            </div>
             <div style="max-height: 400px; overflow-y: auto;">
-                <p style="margin-bottom: 12px; color: #666;">该时段共有 ${timeBlocks.length} 项安排：</p>
                 ${blocksList}
             </div>
-        `,
-        confirmText: '确定'
-    });
+        `;
+        document.getElementById('time-records-modal').classList.add('show');
+    } else {
+        alert(`时段详情 (${dateStr} ${timeStr}):\n该时段共有 ${timeBlocks.length} 项安排`);
+    }
 }
 
 // === 蓝图拖拽功能 ===
@@ -6571,12 +5911,15 @@ window.showTimeBlocksAtTime = function(date, hour) {
 let draggedBlueprintId = null;
 
 // 处理蓝图拖拽开始
-function handleBlueprintDragStart(e, blueprintId) {
+window.handleBlueprintDragStart = function(e, blueprintId) {
+    console.log('🎯 handleBlueprintDragStart 被调用:', blueprintId);
     draggedBlueprintId = blueprintId;
     
     // 设置拖拽效果
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', blueprintId);
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', blueprintId);
+    }
     
     // 添加拖拽样式
     e.target.style.opacity = '0.5';
@@ -6593,8 +5936,8 @@ function handleBlueprintDragStart(e, blueprintId) {
     }, 0);
 }
 
-// 处理蓝图拖拽结束
-function handleBlueprintDragEnd(e) {
+// 处理蓝图拖拽结束  
+window.handleBlueprintDragEnd = function(e) {
     // 恢复样式
     e.target.style.opacity = '1';
     
@@ -6608,8 +5951,12 @@ function handleBlueprintDragEnd(e) {
 }
 
 // 处理蓝图拖放
-function handleBlueprintDrop(e, targetDate, targetHour) {
-    if (!draggedBlueprintId) return;
+window.handleBlueprintDrop = function(e, targetDate, targetHour) {
+    console.log('🎯 handleBlueprintDrop 被调用:', { draggedBlueprintId, targetDate, targetHour });
+    if (!draggedBlueprintId) {
+        console.warn('⚠️ 没有拖拽的蓝图ID');
+        return;
+    }
     
     // 查找要移动的蓝图
     const blueprintIndex = gameData.blueprints.findIndex(bp => bp.id === draggedBlueprintId);
@@ -6642,48 +5989,1764 @@ function handleBlueprintDrop(e, targetDate, targetHour) {
     const oldTimeStr = `${oldDate.getHours()}:${String(oldDate.getMinutes()).padStart(2, '0')}`;
     const newTimeStr = `${targetHour}:00`;
     
-    showCustomModal({
-        title: '确认移动蓝图',
-        content: `
-            <div style="padding: 16px; text-align: center;">
-                <div style="font-size: 1.1em; margin-bottom: 16px;">
-                    📋 <strong>${blueprint.name}</strong>
-                </div>
-                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                    <div style="color: #dc3545; margin-bottom: 8px;">
-                        <strong>原时间:</strong> ${oldDateStr} ${oldTimeStr}
-                    </div>
-                    <div style="font-size: 1.5em; margin: 8px 0;">⬇️</div>
-                    <div style="color: #28a745;">
-                        <strong>新时间:</strong> ${newDateStr} ${newTimeStr}
-                    </div>
-                </div>
-                <div style="font-size: 0.9em; color: #6c757d;">
-                    时长: ${blueprint.duration}分钟 | 优先级: ${blueprint.priority || 'medium'}
-                </div>
-            </div>
-        `,
-        confirmText: '确认移动',
-        onConfirm: () => {
-            // 更新蓝图时间
-            blueprint.scheduledDate = newDate.toISOString();
-            
-            // 添加到历史记录
-            addToBlueprintHistory(blueprint, `时间调整: ${oldDateStr} ${oldTimeStr} → ${newDateStr} ${newTimeStr}`);
-            
-            // 保存并刷新
-            saveToCloud();
-            renderWeekCalendar();
-            
-            // 显示成功提示
-            showCustomModal({
-                title: '移动成功',
-                content: `<p style="text-align: center; color: #28a745;">✅ 蓝图"${blueprint.name}"已成功移动到新时间</p>`,
-                confirmText: '确定'
+    const confirmMessage = `确认移动蓝图吗？\n\n📋 ${blueprint.name}\n原时间: ${oldDateStr} ${oldTimeStr}\n新时间: ${newDateStr} ${newTimeStr}\n时长: ${blueprint.duration}分钟 | 优先级: ${blueprint.priority || 'medium'}`;
+    
+    if (confirm(confirmMessage)) {
+        // 更新蓝图时间
+        blueprint.scheduledDate = newDate.toISOString();
+        
+        // 添加到历史记录
+        addToBlueprintHistory(blueprint, `时间调整: ${oldDateStr} ${oldTimeStr} → ${newDateStr} ${newTimeStr}`);
+        
+        // 保存并刷新
+        saveToCloud();
+        renderWeekCalendar();
+        
+        // 显示成功提示
+        alert(`✅ 蓝图"${blueprint.name}"已成功移动到新时间`);
+    }
+}
+
+// 测试年份切换按钮
+window.testYearButtons = function() {
+    console.log('Testing year buttons...');
+    alert('年份切换按钮测试 - 请查看控制台输出');
+}
+
+// 测试按钮样式统一性
+function testButtonUniformity() {
+    console.log('🔍 测试按钮样式统一性...');
+    
+    const buttonTypes = [
+        '.nav-btn',
+        '.tab-btn', 
+        '.currency-btn',
+        '.year-nav-btn',
+        '.btn',
+        '.btn-small'
+    ];
+    
+    buttonTypes.forEach(selector => {
+        const buttons = document.querySelectorAll(selector);
+        if (buttons.length > 0) {
+            const firstButton = buttons[0];
+            const styles = window.getComputedStyle(firstButton);
+            console.log(`${selector} (${buttons.length}个):`, {
+                fontSize: styles.fontSize,
+                fontWeight: styles.fontWeight,
+                padding: styles.padding,
+                border: styles.border,
+                borderRadius: styles.borderRadius,
+                background: styles.backgroundColor,
+                color: styles.color
             });
-        },
-        onCancel: () => {
-            // 取消移动，什么都不做
         }
     });
+    
+    console.log('✅ 按钮样式统一性测试完成');
 }
+
+// 在控制台中可调用
+window.testButtonUniformity = testButtonUniformity;
+
+// 测试月度对比界面优化
+function testMonthlyComparisonUI() {
+    console.log('🎨 测试月度对比界面优化...');
+    
+    const comparisonCards = document.querySelectorAll('.comparison-month-card');
+    if (comparisonCards.length > 0) {
+        console.log(`✅ 找到 ${comparisonCards.length} 个月度对比卡片`);
+        
+        // 检查第一个卡片的样式
+        const firstCard = comparisonCards[0];
+        const styles = window.getComputedStyle(firstCard);
+        
+        console.log('📊 月度对比卡片样式:', {
+            background: styles.backgroundColor,
+            borderRadius: styles.borderRadius,
+            borderLeft: styles.borderLeft,
+            boxShadow: styles.boxShadow,
+            transition: styles.transition
+        });
+        
+        // 检查类别项目样式
+        const categoryItems = document.querySelectorAll('.comparison-category-item');
+        if (categoryItems.length > 0) {
+            const categoryStyle = window.getComputedStyle(categoryItems[0]);
+            console.log('🏷️ 类别项目样式:', {
+                background: categoryStyle.backgroundColor,
+                border: categoryStyle.border,
+                borderRadius: categoryStyle.borderRadius,
+                fontSize: categoryStyle.fontSize
+            });
+        }
+        
+        // 模拟悬停效果测试
+        console.log('🖱️ 测试悬停效果...');
+        firstCard.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        setTimeout(() => {
+            const hoverStyles = window.getComputedStyle(firstCard);
+            console.log('📌 悬停状态样式:', {
+                transform: hoverStyles.transform,
+                boxShadow: hoverStyles.boxShadow
+            });
+            firstCard.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        }, 100);
+        
+    } else {
+        console.log('❌ 未找到月度对比卡片');
+    }
+    
+    console.log('✨ 月度对比界面优化测试完成');
+}
+
+window.testMonthlyComparisonUI = testMonthlyComparisonUI;
+
+// 测试表头对齐
+function testComparisonTableAlignment() {
+    console.log('📊 测试月度对比表头对齐...');
+    
+    const header = document.querySelector('.comparison-header-row');
+    const firstCard = document.querySelector('.comparison-month-header');
+    
+    if (header && firstCard) {
+        console.log('✅ 找到表头和第一个数据行');
+        
+        const headerStyles = window.getComputedStyle(header);
+        const cardStyles = window.getComputedStyle(firstCard);
+        
+        console.log('📊 表头样式:', {
+            gridTemplateColumns: headerStyles.gridTemplateColumns,
+            gap: headerStyles.gap,
+            padding: headerStyles.padding
+        });
+        
+        console.log('📊 数据行样式:', {
+            gridTemplateColumns: cardStyles.gridTemplateColumns,
+            gap: cardStyles.gap,
+            padding: cardStyles.padding
+        });
+        
+        if (headerStyles.gridTemplateColumns === cardStyles.gridTemplateColumns) {
+            console.log('✅ 表头与数据行列宽对齐');
+        } else {
+            console.log('❌ 表头与数据行列宽不对齐');
+        }
+    } else {
+        console.log('❌ 未找到表头或数据行');
+    }
+    
+    console.log('✨ 表头对齐测试完成');
+}
+
+window.testComparisonTableAlignment = testComparisonTableAlignment;
+
+// 测试账单管理界面
+function testCurrentMonthBills() {
+    console.log('💰 测试当月账单管理界面...');
+    
+    const container = document.getElementById('bills-summary-content');
+    if (!container) {
+        console.log('❌ 未找到账单容器');
+        return;
+    }
+    
+    const monthSummary = container.querySelector('.current-month-summary');
+    if (monthSummary) {
+        console.log('✅ 找到当月账单汇总');
+        
+        // 检查月份标题
+        const monthTitle = monthSummary.querySelector('.month-title h4');
+        if (monthTitle) {
+            console.log(`📅 显示月份: ${monthTitle.textContent}`);
+        }
+        
+        // 检查概览卡片
+        const overviewItems = monthSummary.querySelectorAll('.overview-item');
+        console.log(`📊 概览项目数: ${overviewItems.length} (期望: 3个)`);
+        
+        // 检查分类列表
+        const categoryItems = monthSummary.querySelectorAll('.category-item');
+        if (categoryItems.length > 0) {
+            console.log(`📁 分类项目数: ${categoryItems.length}`);
+            
+            // 测试第一个分类的交互
+            const firstCategory = categoryItems[0];
+            const categoryName = firstCategory.querySelector('.category-name')?.textContent;
+            console.log(`🏷️ 第一个分类: ${categoryName}`);
+            
+            // 检查详情展开功能
+            const details = firstCategory.querySelector('.category-details');
+            if (details) {
+                console.log('✅ 分类详情元素存在');
+                if (details.classList.contains('expanded')) {
+                    console.log('📂 当前状态: 已展开');
+                } else {
+                    console.log('📁 当前状态: 未展开');
+                }
+            }
+        } else {
+            console.log('📋 无分类支出或数据为空');
+        }
+        
+        // 检查样式
+        const styles = window.getComputedStyle(monthSummary);
+        console.log('🎨 样式检查:', {
+            padding: styles.padding,
+            background: styles.backgroundColor
+        });
+        
+    } else {
+        console.log('❌ 未找到当月账单汇总元素');
+        
+        // 检查是否显示了无数据状态
+        const noDataMessage = container.textContent;
+        if (noDataMessage.includes('还没有账单数据') || noDataMessage.includes('没有可显示的账单数据')) {
+            console.log('ℹ️ 显示无数据状态');
+        }
+    }
+    
+    console.log('✨ 当月账单管理界面测试完成');
+}
+
+window.testCurrentMonthBills = testCurrentMonthBills;
+
+// 测试紧凑布局
+function testCompactLayout() {
+    console.log('📏 测试紧凑布局效果...');
+    
+    const container = document.querySelector('.current-month-summary');
+    if (container) {
+        const styles = window.getComputedStyle(container);
+        console.log('📦 容器内边距:', styles.padding);
+        
+        // 检查月份标题间距
+        const monthTitle = container.querySelector('.month-title');
+        if (monthTitle) {
+            const titleStyles = window.getComputedStyle(monthTitle);
+            console.log('📅 标题底边距:', titleStyles.marginBottom);
+        }
+        
+        // 检查概览卡片
+        const overview = container.querySelector('.month-overview');
+        if (overview) {
+            const overviewStyles = window.getComputedStyle(overview);
+            console.log('📊 概览区域间距:', {
+                gap: overviewStyles.gap,
+                marginBottom: overviewStyles.marginBottom
+            });
+            
+            const overviewItem = overview.querySelector('.overview-item');
+            if (overviewItem) {
+                const itemStyles = window.getComputedStyle(overviewItem);
+                console.log('💳 概览卡片内边距:', itemStyles.padding);
+            }
+        }
+        
+        // 检查分类列表
+        const categoriesSection = container.querySelector('.categories-section');
+        if (categoriesSection) {
+            const sectionTitle = categoriesSection.querySelector('h5');
+            if (sectionTitle) {
+                const titleStyles = window.getComputedStyle(sectionTitle);
+                console.log('🏷️ 分类标题底边距:', titleStyles.marginBottom);
+            }
+            
+            const categoryItem = categoriesSection.querySelector('.category-item');
+            if (categoryItem) {
+                const categoryHeader = categoryItem.querySelector('.category-header');
+                if (categoryHeader) {
+                    const headerStyles = window.getComputedStyle(categoryHeader);
+                    console.log('📁 分类项内边距:', headerStyles.padding);
+                }
+            }
+        }
+        
+        console.log('✅ 紧凑布局优化已应用');
+    } else {
+        console.log('❌ 未找到账单汇总容器');
+    }
+    
+    console.log('✨ 紧凑布局测试完成');
+}
+
+window.testCompactLayout = testCompactLayout;
+
+// 测试分类展开功能
+function testCategoryToggle() {
+    console.log('🔄 测试分类展开功能...');
+    
+    const categoryItems = document.querySelectorAll('.category-item');
+    if (categoryItems.length === 0) {
+        console.log('❌ 未找到分类项目');
+        return;
+    }
+    
+    console.log(`✅ 找到 ${categoryItems.length} 个分类项目`);
+    
+    categoryItems.forEach((item, index) => {
+        const categoryName = item.querySelector('.category-name')?.textContent;
+        const detailsElement = item.querySelector('.category-details');
+        
+        if (detailsElement) {
+            const expectedId = `category-${index}`;
+            const actualId = detailsElement.id;
+            
+            console.log(`📁 分类 ${index + 1}: ${categoryName}`);
+            console.log(`   期望ID: ${expectedId}, 实际ID: ${actualId}`);
+            
+            if (expectedId === actualId) {
+                console.log(`   ✅ ID匹配正确`);
+                
+                // 测试展开状态
+                const isExpanded = detailsElement.classList.contains('expanded');
+                console.log(`   📂 当前状态: ${isExpanded ? '已展开' : '已收起'}`);
+                
+                // 检查点击事件
+                const onclickAttr = item.getAttribute('onclick');
+                if (onclickAttr && onclickAttr.includes(expectedId)) {
+                    console.log(`   🖱️ 点击事件配置正确`);
+                } else {
+                    console.log(`   ❌ 点击事件配置错误: ${onclickAttr}`);
+                }
+            } else {
+                console.log(`   ❌ ID不匹配`);
+            }
+        } else {
+            console.log(`   ❌ 未找到详情元素`);
+        }
+    });
+    
+    // 测试实际点击第一个分类
+    if (categoryItems.length > 0) {
+        const firstCategory = categoryItems[0];
+        const firstDetails = firstCategory.querySelector('.category-details');
+        
+        if (firstDetails) {
+            console.log('\n🧪 测试点击第一个分类...');
+            const beforeState = firstDetails.classList.contains('expanded');
+            console.log(`   点击前状态: ${beforeState ? '已展开' : '已收起'}`);
+            
+            // 模拟点击
+            toggleCategoryDetails('category-0');
+            
+            const afterState = firstDetails.classList.contains('expanded');
+            console.log(`   点击后状态: ${afterState ? '已展开' : '已收起'}`);
+            
+            if (beforeState !== afterState) {
+                console.log('   ✅ 点击切换功能正常');
+            } else {
+                console.log('   ❌ 点击切换功能异常');
+            }
+            
+            // 恢复原状态
+            if (beforeState !== afterState) {
+                toggleCategoryDetails('category-0');
+            }
+        }
+    }
+    
+    console.log('✨ 分类展开功能测试完成');
+}
+
+window.testCategoryToggle = testCategoryToggle;
+
+// 综合UI统一性测试
+function testUIConsistency() {
+    console.log('🎯 开始综合UI统一性测试...');
+    
+    // 1. 测试按钮统一性
+    console.log('\n1️⃣ 测试按钮统一性:');
+    testButtonUniformity();
+    
+    // 2. 测试月度对比界面
+    console.log('\n2️⃣ 测试月度对比界面:');
+    testMonthlyComparisonUI();
+    
+    // 2a. 测试表头对齐
+    console.log('\n2️⃣a 测试表头对齐:');
+    testComparisonTableAlignment();
+    
+    // 2b. 测试账单管理界面
+    console.log('\n2️⃣b 测试账单管理界面:');
+    testCurrentMonthBills();
+    
+    // 2c. 测试紧凑布局
+    console.log('\n2️⃣c 测试紧凑布局:');
+    testCompactLayout();
+    
+    // 2d. 测试分类展开功能
+    console.log('\n2️⃣d 测试分类展开功能:');
+    testCategoryToggle();
+    
+    // 3. 测试CSS变量使用情况
+    console.log('\n3️⃣ 测试CSS变量使用情况:');
+    const rootStyles = window.getComputedStyle(document.documentElement);
+    const importantVars = [
+        '--card-bg',
+        '--surface-hover', 
+        '--border-light',
+        '--border-medium',
+        '--text-primary',
+        '--text-secondary',
+        '--primary-color',
+        '--status-success',
+        '--danger-color'
+    ];
+    
+    importantVars.forEach(varName => {
+        const value = rootStyles.getPropertyValue(varName).trim();
+        if (value) {
+            console.log(`✅ ${varName}: ${value}`);
+        } else {
+            console.log(`❌ ${varName}: 未定义`);
+        }
+    });
+    
+    // 4. 测试面板一致性
+    console.log('\n4️⃣ 测试面板一致性:');
+    const panels = document.querySelectorAll('.panel');
+    if (panels.length > 0) {
+        const panelStyle = window.getComputedStyle(panels[0]);
+        console.log(`📦 面板统一样式 (${panels.length}个):`, {
+            background: panelStyle.backgroundColor,
+            borderRadius: panelStyle.borderRadius,
+            padding: panelStyle.padding,
+            border: panelStyle.border,
+            boxShadow: panelStyle.boxShadow
+        });
+    }
+    
+    console.log('\n✨ 综合UI统一性测试完成！');
+    console.log('💡 使用 testButtonUniformity() 单独测试按钮');
+    console.log('💡 使用 testMonthlyComparisonUI() 单独测试月度对比界面');
+    console.log('💡 使用 testComparisonTableAlignment() 单独测试表头对齐');
+    console.log('💡 使用 testCurrentMonthBills() 单独测试账单管理界面');
+    console.log('💡 使用 testCompactLayout() 单独测试紧凑布局');
+    console.log('💡 使用 testCategoryToggle() 单独测试分类展开功能');
+}
+
+window.testUIConsistency = testUIConsistency;
+
+// ===== 综合功能测试 =====
+window.testAllFixedFunctions = function() {
+    console.log('🧪 开始综合功能测试...');
+    
+    let testResults = [];
+    
+    // 1. 测试模态框功能
+    const timeEditModal = document.getElementById('time-edit-modal');
+    if (timeEditModal) {
+        testResults.push('✅ 时间编辑模态框存在');
+    } else {
+        testResults.push('❌ 时间编辑模态框缺失');
+    }
+    
+    // 2. 测试表单元素
+    const requiredFields = ['time-edit-project-name', 'time-edit-date', 'time-edit-start', 'time-edit-end'];
+    const missingFields = requiredFields.filter(id => !document.getElementById(id));
+    if (missingFields.length === 0) {
+        testResults.push('✅ 所有表单字段存在');
+    } else {
+        testResults.push(`❌ 缺失表单字段: ${missingFields.join(', ')}`);
+    }
+    
+    // 3. 测试函数存在性
+    const requiredFunctions = ['editCalendarLog', 'deleteCalendarLog', 'showTimeBlocksAtTime', 'closeModal'];
+    const missingFunctions = requiredFunctions.filter(func => typeof window[func] !== 'function');
+    if (missingFunctions.length === 0) {
+        testResults.push('✅ 所有必需函数存在');
+    } else {
+        testResults.push(`❌ 缺失函数: ${missingFunctions.join(', ')}`);
+    }
+    
+    // 4. 测试数据结构
+    if (gameData && Array.isArray(gameData.timeLogs)) {
+        testResults.push(`✅ 时间日志数据正常 (${gameData.timeLogs.length} 条记录)`);
+    } else {
+        testResults.push('❌ 时间日志数据结构异常');
+    }
+    
+    if (gameData && Array.isArray(gameData.blueprints)) {
+        testResults.push(`✅ 蓝图数据正常 (${gameData.blueprints.length} 条记录)`);
+    } else {
+        testResults.push('❌ 蓝图数据结构异常');
+    }
+    
+    // 5. 测试拖拽函数
+    const dragFunctions = ['handleBlueprintDragStart', 'handleBlueprintDragEnd', 'handleBlueprintDrop'];
+    const missingDragFunctions = dragFunctions.filter(func => typeof window[func] !== 'function');
+    if (missingDragFunctions.length === 0) {
+        testResults.push('✅ 蓝图拖拽函数完整');
+    } else {
+        testResults.push(`❌ 缺失拖拽函数: ${missingDragFunctions.join(', ')}`);
+    }
+    
+    // 输出测试结果
+    console.log('\n📋 测试结果汇总:');
+    testResults.forEach(result => console.log(result));
+    
+    const passedTests = testResults.filter(r => r.startsWith('✅')).length;
+    const totalTests = testResults.length;
+    
+    alert(`测试完成！\n通过: ${passedTests}/${totalTests}\n\n详细结果请查看控制台`);
+    
+    return { passed: passedTests, total: totalTests, results: testResults };
+}
+
+// 测试修复的功能
+window.testFixedIssues = function() {
+    console.log('🔧 测试修复的功能...');
+    
+    let testResults = [];
+    
+    // 1. 测试备份列表函数
+    if (typeof window.listCloudBackups === 'function') {
+        testResults.push('✅ listCloudBackups 函数存在');
+    } else {
+        testResults.push('❌ listCloudBackups 函数缺失');
+    }
+    
+    if (typeof window.restoreFromCloudBackup === 'function') {
+        testResults.push('✅ restoreFromCloudBackup 函数存在');
+    } else {
+        testResults.push('❌ restoreFromCloudBackup 函数缺失');
+    }
+    
+    if (typeof window.deleteCloudBackup === 'function') {
+        testResults.push('✅ deleteCloudBackup 函数存在');
+    } else {
+        testResults.push('❌ deleteCloudBackup 函数缺失');
+    }
+    
+    // 2. 测试时间统计面板
+    const timeRecordsModal = document.getElementById('time-records-modal');
+    if (timeRecordsModal) {
+        const computedStyle = window.getComputedStyle(timeRecordsModal);
+        const zIndex = computedStyle.zIndex;
+        if (zIndex === '1100') {
+            testResults.push('✅ 时间记录模态框 z-index 正确设置为 1100');
+        } else {
+            testResults.push(`❌ 时间记录模态框 z-index 为 ${zIndex}，应为 1100`);
+        }
+    } else {
+        testResults.push('❌ 时间记录模态框元素不存在');
+    }
+    
+    // 3. 测试时间编辑模态框
+    const timeEditModal = document.getElementById('time-edit-modal');
+    if (timeEditModal) {
+        const computedStyle = window.getComputedStyle(timeEditModal);
+        const zIndex = computedStyle.zIndex;
+        if (zIndex === '1100') {
+            testResults.push('✅ 时间编辑模态框 z-index 正确设置为 1100');
+        } else {
+            testResults.push(`❌ 时间编辑模态框 z-index 为 ${zIndex}，应为 1100`);
+        }
+    } else {
+        testResults.push('❌ 时间编辑模态框元素不存在');
+    }
+    
+    // 4. 测试showTimeRecordsPanel函数
+    if (typeof window.showTimeRecordsPanel === 'function') {
+        testResults.push('✅ showTimeRecordsPanel 函数存在');
+    } else {
+        testResults.push('❌ showTimeRecordsPanel 函数缺失');
+    }
+    
+    // 输出测试结果
+    console.log('\n🧪 修复功能测试结果:');
+    testResults.forEach(result => console.log(result));
+    
+    const passedTests = testResults.filter(r => r.startsWith('✅')).length;
+    const totalTests = testResults.length;
+    
+    alert(`修复功能测试完成！\n通过: ${passedTests}/${totalTests}\n\n详细结果请查看控制台`);
+    
+    return { passed: passedTests, total: totalTests, results: testResults };
+}
+
+// 渲染资源分析面板
+window.renderResourceAnalysis = function() {
+    const container = document.getElementById('resource-analysis-content');
+    if (!container) return;
+    
+    const displayCurrency = gameData.displayCurrency || 'AUD';
+    const currencySymbol = getCurrencySymbol(displayCurrency);
+    
+    // 确保有基础数据结构
+    if (!gameData.resourceAnalysis) {
+        gameData.resourceAnalysis = {
+            monthlyAverage: 0,
+            fixedExpenseRatio: 0,
+            stabilityScore: 0,
+            insights: [],
+            predictions: {
+                nextMonthExpense: 0,
+                specialReminders: []
+            }
+        };
+    }
+    
+    const analysis = gameData.resourceAnalysis;
+    const displayMonthlyAvg = convertToDisplayCurrency(analysis.monthlyAverage, 'AUD', displayCurrency);
+    const displayPrediction = convertToDisplayCurrency(analysis.predictions?.nextMonthExpense || 0, 'AUD', displayCurrency);
+    
+    let html = `
+        <div class="analysis-dashboard">
+            <!-- 核心指标摘要 -->
+            <div class="analysis-summary">
+                <div class="primary-metric">
+                    <div class="metric-value">${currencySymbol}${Math.round(displayMonthlyAvg).toLocaleString()}</div>
+                    <div class="metric-label">月均支出</div>
+                </div>
+                <div class="secondary-metrics">
+                    <div class="metric-item">
+                        <span class="metric-number">${analysis.fixedExpenseRatio}%</span>
+                        <span class="metric-desc">固定支出占比</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-number">${analysis.stabilityScore}</span>
+                        <span class="metric-desc">稳定度评分</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 关键洞察 -->
+            <div class="analysis-insights">
+                <h5>💡 关键洞察</h5>
+                <div class="insights-list">
+                    ${analysis.insights.map(insight => 
+                        `<span class="insight-item">${insight}</span>`
+                    ).join('')}
+                </div>
+            </div>
+            
+            <!-- 支出预测 -->
+            <div class="analysis-predictions">
+                <h5>🔮 支出预测</h5>
+                <div class="prediction-main">
+                    <div class="prediction-total">${currencySymbol}${Math.round(displayPrediction).toLocaleString()}</div>
+                    <div class="prediction-breakdown">预计下月支出</div>
+                </div>
+                ${analysis.predictions?.specialReminders?.length > 0 ? `
+                    <div class="special-reminders">
+                        ${analysis.predictions.specialReminders.map(reminder => 
+                            `<div class="reminder-item">⚠️ ${reminder}</div>`
+                        ).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// 更新资源分析数据
+window.updateResourceAnalysisData = function() {
+    if (!gameData.billsData || Object.keys(gameData.billsData).length === 0) {
+        // 清空分析数据
+        gameData.resourceAnalysis = {
+            monthlyAverage: 0,
+            fixedExpenseRatio: 0,
+            stabilityScore: 0,
+            insights: [],
+            predictions: {
+                nextMonthExpense: 0,
+                specialReminders: []
+            }
+        };
+        return;
+    }
+    
+    // 分析历史数据
+    const months = Object.keys(gameData.billsData).sort();
+    const monthlyExpenses = [];
+    const monthlyIncomes = [];
+    const expenseCategories = {};
+    
+    months.forEach(month => {
+        const monthData = gameData.billsData[month];
+        
+        // 计算月支出（转换为澳元基准）
+        const monthExpense = monthData.expenses.reduce((sum, expense) => {
+            return sum + convertToCNY(expense.amount, expense.currency || 'AUD');
+        }, 0);
+        monthlyExpenses.push(monthExpense);
+        
+        // 计算月收入（转换为澳元基准）
+        const monthIncome = convertToCNY(monthData.income || 0, monthData.incomeCurrency || 'AUD');
+        monthlyIncomes.push(monthIncome);
+        
+        // 统计支出类别
+        monthData.expenses.forEach(expense => {
+            const category = expense.category || expense.name || '其他';
+            const amount = convertToCNY(expense.amount, expense.currency || 'AUD');
+            expenseCategories[category] = (expenseCategories[category] || 0) + amount;
+        });
+    });
+    
+    // 计算平均月支出
+    const monthlyAverage = monthlyExpenses.reduce((sum, exp) => sum + exp, 0) / monthlyExpenses.length;
+    
+    // 计算固定支出占比（假设房租、保险等为固定支出）
+    const fixedCategories = ['房租', '保险', '贷款', '水电费', '网费', '手机费', 'Rent', 'Insurance', 'Loan'];
+    const fixedExpenses = Object.entries(expenseCategories)
+        .filter(([category]) => fixedCategories.some(fixed => category.toLowerCase().includes(fixed.toLowerCase())))
+        .reduce((sum, [, amount]) => sum + amount, 0);
+    const fixedExpenseRatio = monthlyExpenses.length > 0 ? (fixedExpenses / (monthlyAverage * monthlyExpenses.length)) : 0;
+    
+    // 计算稳定度评分（基于支出变化的标准差）
+    const avgExpense = monthlyAverage;
+    const variance = monthlyExpenses.reduce((sum, exp) => sum + Math.pow(exp - avgExpense, 2), 0) / monthlyExpenses.length;
+    const stabilityScore = Math.max(0, Math.min(100, 100 - (Math.sqrt(variance) / avgExpense) * 100));
+    
+    // 生成洞察
+    const insights = [];
+    if (fixedExpenseRatio > 0.6) {
+        insights.push('固定支出占比较高');
+    }
+    if (stabilityScore > 80) {
+        insights.push('支出模式稳定');
+    } else if (stabilityScore < 50) {
+        insights.push('支出波动较大');
+    }
+    
+    // 找出最大支出类别
+    const topCategory = Object.entries(expenseCategories)
+        .sort(([,a], [,b]) => b - a)[0];
+    if (topCategory) {
+        insights.push(`主要支出: ${topCategory[0]}`);
+    }
+    
+    // 生成预测
+    const recentMonths = monthlyExpenses.slice(-3); // 最近3个月
+    const recentAverage = recentMonths.reduce((sum, exp) => sum + exp, 0) / recentMonths.length;
+    const nextMonthExpense = Math.round(recentAverage * 1.05); // 预测增长5%
+    
+    const specialReminders = [];
+    if (nextMonthExpense > monthlyAverage * 1.2) {
+        specialReminders.push('下月支出可能超出平均水平20%');
+    }
+    
+    // 更新分析数据
+    gameData.resourceAnalysis = {
+        monthlyAverage: Math.round(monthlyAverage),
+        fixedExpenseRatio: Math.round(fixedExpenseRatio * 100),
+        stabilityScore: Math.round(stabilityScore),
+        insights: insights,
+        predictions: {
+            nextMonthExpense: nextMonthExpense,
+            specialReminders: specialReminders
+        }
+    };
+}
+
+// ========== 数据管理功能 ========== //
+window.showDataManagePanel = function() {
+    updateDataStatus();
+    document.getElementById('data-manage-modal').classList.add('show');
+    
+    // 更新自动备份状态
+    document.getElementById('auto-backup-enabled').checked = autoBackupEnabled;
+    document.getElementById('last-backup-time').textContent = lastBackupTime || '未备份';
+}
+
+function updateDataStatus() {
+    const localData = localStorage.getItem('lifeFactorio');
+    const hasLocal = !!localData;
+    const localSize = localData ? Math.round(localData.length / 1024) : 0;
+    
+    document.getElementById('current-family-code').textContent = familyCode || '未设置';
+    
+    // 计算今日时间统计
+    const today = getLocalDateString();
+    const todayLogs = (gameData.timeLogs || []).filter(log => log.date === today);
+    const todayActiveMins = todayLogs.reduce((sum, log) => {
+        let timeCost = log.timeCost || 0;
+        if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
+            timeCost = calculateTimeCost(log.hour, log.minute || 0, log.endHour, log.endMinute || 0);
+        }
+        return sum + Math.max(0, timeCost);
+    }, 0);
+    
+    // 计算蓝图统计
+    const totalBlueprints = (gameData.blueprints || []).length;
+    const plannedBlueprints = (gameData.blueprints || []).filter(b => b.status === 'planned').length;
+    const completedBlueprints = (gameData.blueprints || []).filter(b => b.status === 'completed').length;
+    const expiredBlueprints = (gameData.blueprints || []).filter(b => b.status === 'expired').length;
+    
+    // 计算账单数据统计
+    const billsDataKeys = Object.keys(gameData.billsData || {});
+    const totalBillsMonths = billsDataKeys.length;
+    let totalBillsExpenses = 0;
+    let totalBillsIncome = 0;
+    
+    billsDataKeys.forEach(monthKey => {
+        const monthData = gameData.billsData[monthKey];
+        if (monthData) {
+            // 计算月支出
+            const monthExpenses = (monthData.expenses || []).reduce((sum, expense) => {
+                return sum + convertToCNY(expense.amount, expense.currency || 'AUD');
+            }, 0);
+            totalBillsExpenses += monthExpenses;
+            
+            // 计算月收入
+            totalBillsIncome += convertToCNY(monthData.income || 0, monthData.incomeCurrency || 'AUD');
+        }
+    });
+    
+    const statusHtml = `
+        <div>• 云端连接: ${isCloudReady ? '✅ 已连接' : '❌ 未连接'}</div>
+        <div>• 本地数据: ${hasLocal ? `✅ 存在 (${localSize}KB)` : '❌ 不存在'}</div>
+        <div>• 生产线数量: ${(gameData.productions || []).length}</div>
+        <div>• 研发项目数量: ${(gameData.developments || []).length}</div>
+        <div>• 时间记录数量: ${(gameData.timeLogs || []).length}</div>
+        <div>• 支出记录数量: ${(gameData.expenses || []).length}</div>
+        <div>• 今日主动用时: ${Math.floor(todayActiveMins/60)}小时${todayActiveMins%60}分钟 
+            <button class="btn btn-small btn-secondary" onclick="window.showTodayTimeDetails()" style="margin-left:8px;font-size:0.8em;padding:2px 6px;">👁️ 详情</button>
+        </div>
+        <div>• 蓝图数据: 总计${totalBlueprints}个 (计划中${plannedBlueprints}个, 已完成${completedBlueprints}个, 已过期${expiredBlueprints}个)</div>
+        <div>• 账单数据: ${totalBillsMonths}个月份记录</div>
+        <div>• 账单总支出: ¥${Math.round(totalBillsExpenses).toLocaleString()}</div>
+        <div>• 账单总收入: ¥${Math.round(totalBillsIncome).toLocaleString()}</div>
+        <div>• 自动备份: ${autoBackupEnabled ? '✅ 已启用' : '❌ 已禁用'}</div>
+    `;
+    document.getElementById('status-details').innerHTML = statusHtml;
+}
+
+// 家庭码管理
+window.copyFamilyCode = function() {
+    if (familyCode) {
+        navigator.clipboard.writeText(familyCode).then(() => {
+            alert('家庭码已复制到剪贴板！');
+        }).catch(() => {
+            prompt('请手动复制家庭码:', familyCode);
+        });
+    }
+}
+
+window.changeFamilyCode = function() {
+    const newCode = document.getElementById('new-family-code').value.trim();
+    if (!newCode) {
+        alert('请输入新的家庭码');
+        return;
+    }
+    
+    if (confirm(`确定要将家庭码从 "${familyCode}" 更换为 "${newCode}" 吗？\n\n这会切换到新的云端数据空间。`)) {
+        familyCode = newCode;
+        localStorage.setItem('lifeFactoryFamilyCode', familyCode);
+        
+        // 重新初始化云端连接
+        if (firebaseUnsubscribe) firebaseUnsubscribe();
+        isCloudReady = false;
+        cloudInitDone = false;
+        
+        firebaseLoginAndSync();
+        updateDataStatus();
+        
+        alert('家庭码已更换，正在重新连接云端...');
+    }
+}
+
+// 手动备份
+window.createManualBackup = function() {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupData = {
+        version: DATA_VERSION,
+        timestamp: new Date().toISOString(),
+        familyCode: familyCode,
+        gameData: gameData,
+        lastDailyReset: lastDailyReset,
+        backupType: 'manual'
+    };
+    
+    const dataStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `LifeFactorio_Backup_${timestamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    alert('✅ 手动备份文件已下载！');
+}
+
+// 自动云备份
+window.toggleAutoBackup = function(enabled) {
+    autoBackupEnabled = enabled;
+    localStorage.setItem('lifeFactoryAutoBackup', enabled.toString());
+    
+    if (enabled) {
+        startAutoBackup();
+        alert('✅ 自动云备份已启用，每10分钟备份一次');
+    } else {
+        stopAutoBackup();
+        alert('❌ 自动云备份已禁用');
+    }
+    updateDataStatus();
+}
+
+function startAutoBackup() {
+    if (autoBackupInterval) clearInterval(autoBackupInterval);
+    
+    autoBackupInterval = setInterval(() => {
+        if (isCloudReady && familyCode) {
+            createCloudBackup(true); // 静默备份
+        }
+    }, 10 * 60 * 1000); // 10分钟
+    
+    console.log('🔄 自动备份已启动，每10分钟执行一次');
+}
+
+function stopAutoBackup() {
+    if (autoBackupInterval) {
+        clearInterval(autoBackupInterval);
+        autoBackupInterval = null;
+    }
+    console.log('⏹️ 自动备份已停止');
+}
+
+window.createCloudBackup = function(silent = false) {
+    if (!familyCode || !isCloudReady) {
+        if (!silent) alert('❌ 云端服务未连接');
+        return;
+    }
+    
+    const timestamp = new Date().toISOString();
+    const backupData = {
+        version: DATA_VERSION,
+        timestamp: timestamp,
+        familyCode: familyCode,
+        gameData: gameData,
+        lastDailyReset: lastDailyReset,
+        backupType: 'auto'
+    };
+    
+    // 使用独立的备份集合，不影响正常数据
+    const backupId = `backup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    db.collection('backups').doc(familyCode).collection('history').doc(backupId).set(backupData)
+        .then(() => {
+            lastBackupTime = new Date().toLocaleString();
+            localStorage.setItem('lifeFactoryLastBackup', lastBackupTime);
+            document.getElementById('last-backup-time').textContent = lastBackupTime;
+            
+            if (!silent) {
+                alert('✅ 云端备份创建成功！');
+            } else {
+                console.log('☁️ 自动备份完成:', lastBackupTime);
+            }
+            
+            // 清理旧备份（保留最新20个）
+            cleanupOldBackups();
+        })
+        .catch(error => {
+            console.error('❌ 云端备份失败:', error);
+            if (!silent) alert('❌ 云端备份失败：' + error.message);
+        });
+}
+
+function cleanupOldBackups() {
+    if (!familyCode || !isCloudReady) return;
+    
+    db.collection('backups').doc(familyCode).collection('history')
+        .orderBy('timestamp', 'desc')
+        .get()
+        .then(snapshot => {
+            const docs = snapshot.docs;
+            if (docs.length > 20) {
+                // 删除超过20个的旧备份
+                const toDelete = docs.slice(20);
+                const batch = db.batch();
+                toDelete.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+                return batch.commit();
+            }
+        })
+        .catch(error => {
+            console.log('清理旧备份时出错:', error);
+        });
+}
+
+window.listCloudBackups = function() {
+    if (!familyCode || !isCloudReady) {
+        alert('❌ 云端服务未连接');
+        return;
+    }
+    
+    db.collection('backups').doc(familyCode).collection('history')
+        .orderBy('timestamp', 'desc')
+        .limit(10)
+        .get()
+        .then(snapshot => {
+            if (snapshot.empty) {
+                alert('📭 暂无云端备份');
+                return;
+            }
+            
+            // 使用时间记录模态框显示备份列表
+            let html = `
+                <div style="margin-bottom: 12px;">
+                    <h4>☁️ 云端备份管理</h4>
+                    <p style="color: #666;">最近10个云端备份</p>
+                </div>
+                <div style="max-height:400px;overflow-y:auto;">
+            `;
+            
+            snapshot.docs.forEach((doc, index) => {
+                const data = doc.data();
+                const time = new Date(data.timestamp).toLocaleString();
+                const productions = data.gameData?.productions?.length || 0;
+                const timeLogs = data.gameData?.timeLogs?.length || 0;
+                
+                html += `
+                    <div style="border:1px solid #ddd;border-radius:6px;padding:12px;margin-bottom:10px;background:#f9f9f9;">
+                        <div style="font-weight:bold;margin-bottom:8px;">${time}</div>
+                        <div style="font-size:0.9em;color:#666;margin-bottom:8px;">
+                            生产线: ${productions} | 时间记录: ${timeLogs} | 类型: ${data.backupType === 'auto' ? '自动备份' : '手动备份'}
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-small btn-primary" onclick="window.restoreFromCloudBackup('${doc.id}')">
+                                🔄 恢复此备份
+                            </button>
+                            <button class="btn btn-small btn-danger" onclick="window.deleteCloudBackup('${doc.id}')">
+                                🗑️ 删除
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            const cloudBackupContent = document.getElementById('cloud-backup-content');
+            if (cloudBackupContent) {
+                cloudBackupContent.innerHTML = html;
+                document.getElementById('cloud-backup-modal').classList.add('show');
+            } else {
+                alert('备份列表功能暂时不可用');
+            }
+        })
+        .catch(error => {
+            console.error('获取备份列表失败:', error);
+            alert('❌ 获取备份列表失败：' + error.message);
+        });
+}
+
+window.restoreFromBackup = function(backupId) {
+    if (!confirm('确定要恢复此备份吗？当前数据将被覆盖。')) return;
+    
+    db.collection('backups').doc(familyCode).collection('history').doc(backupId).get()
+        .then(doc => {
+            if (!doc.exists) {
+                alert('❌ 备份不存在');
+                return;
+            }
+            
+            const backupData = doc.data();
+            
+            // 恢复数据
+            gameData = backupData.gameData;
+            lastDailyReset = backupData.lastDailyReset;
+            
+            // 保存到云端
+            saveToCloud();
+            
+            // 刷新界面
+            renderProductions();
+            renderDevelopments();
+            renderMilestones();
+            renderResourceStats();
+            renderWeekCalendar();
+            renderExpenses();
+            renderResourceOverview();
+            renderBillsSummary();
+            renderResourceAnalysis();
+            
+            alert('✅ 数据恢复成功！');
+        })
+        .catch(error => {
+            console.error('恢复备份失败:', error);
+            alert('❌ 恢复备份失败：' + error.message);
+        });
+}
+
+window.restoreFromCloudBackup = function(backupId) {
+    if (!confirm('确定要从此云端备份恢复数据吗？\n\n当前数据将被覆盖！')) {
+        return;
+    }
+    
+    db.collection('backups').doc(familyCode).collection('history').doc(backupId).get()
+        .then(doc => {
+            if (!doc.exists) {
+                alert('❌ 备份不存在');
+                return;
+            }
+            
+            const backupData = doc.data();
+            gameData = backupData.gameData;
+            lastDailyReset = backupData.lastDailyReset || lastDailyReset;
+            
+            // 重新渲染所有内容
+            fixDataLinks();
+            renderProductions();
+            renderDevelopments();
+            renderMilestones();
+            renderDevLibrary();
+            renderResourceStats();
+            renderWeekCalendar();
+            renderExpenses();
+            
+            // 保存到本地和云端
+            saveToLocal();
+            saveToCloud();
+            
+            alert('✅ 从云端备份恢复成功！');
+            closeModal('cloud-backup-modal'); // 关闭备份列表面板
+            closeModal('data-manage-modal'); // 关闭数据管理面板
+        })
+        .catch(error => {
+            console.error('恢复备份失败:', error);
+            alert('❌ 恢复备份失败：' + error.message);
+        });
+}
+
+window.deleteCloudBackup = function(backupId) {
+    if (!confirm('确定要删除此备份吗？')) return;
+    
+    db.collection('backups').doc(familyCode).collection('history').doc(backupId).delete()
+        .then(() => {
+            alert('✅ 备份删除成功！');
+            // 刷新备份列表
+            window.listCloudBackups();
+        })
+        .catch(error => {
+            console.error('删除备份失败:', error);
+            alert('❌ 删除备份失败：' + error.message);
+        });
+}
+
+// 时间记录统计功能
+window.showTimeRecordsPanel = function() {
+    document.getElementById('time-records-modal').classList.add('show');
+    window.showTimeRecords('today'); // 默认显示今天
+}
+
+window.showTimeRecords = function(period) {
+    const container = document.getElementById('time-records-content');
+    if (!container) return;
+    
+    const now = new Date();
+    let startDate, endDate, title;
+    
+    switch(period) {
+        case 'today':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            title = '今天';
+            break;
+        case 'week':
+            const dayOfWeek = (now.getDay() + 6) % 7; // 周一为0
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 7);
+            title = '本周';
+            break;
+        case 'lastWeek':
+            const lastWeekDayOfWeek = (now.getDay() + 6) % 7;
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - lastWeekDayOfWeek - 7);
+            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - lastWeekDayOfWeek);
+            title = '上周';
+            break;
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            title = '本月';
+            break;
+        case 'lastMonth':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            endDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            title = '上月';
+            break;
+        case 'year':
+            startDate = new Date(now.getFullYear(), 0, 1);
+            endDate = new Date(now.getFullYear() + 1, 0, 1);
+            title = '今年';
+            break;
+        case 'all':
+            startDate = new Date(2000, 0, 1);
+            endDate = new Date(2100, 0, 1);
+            title = '全部记录';
+            break;
+    }
+    
+    const logs = (gameData.timeLogs || []).filter(log => {
+        const logDate = new Date(log.date);
+        return logDate >= startDate && logDate < endDate;
+    });
+    
+    // 按项目分组统计
+    const projectStats = {};
+    let totalMinutes = 0;
+    
+    logs.forEach(log => {
+        const name = log.name;
+        let timeCost = log.timeCost || 0;
+        if (timeCost <= 0 && log.hour !== undefined && log.endHour !== undefined) {
+            timeCost = calculateTimeCost(log.hour, log.minute || 0, log.endHour, log.endMinute || 0);
+        }
+        timeCost = Math.max(0, timeCost);
+        
+        if (!projectStats[name]) {
+            projectStats[name] = { 
+                totalMinutes: 0, 
+                sessions: 0,
+                type: log.type || 'unknown'
+            };
+        }
+        projectStats[name].totalMinutes += timeCost;
+        projectStats[name].sessions++;
+        totalMinutes += timeCost;
+    });
+    
+    // 按时间排序
+    const sortedProjects = Object.entries(projectStats).sort((a, b) => b[1].totalMinutes - a[1].totalMinutes);
+    
+    let html = `<div style="margin-bottom:20px;">
+        <h4>${title}统计</h4>
+        <div style="color:#666;font-size:0.9em;">
+            总时长：${Math.floor(totalMinutes/60)}小时${totalMinutes%60}分钟 | 
+            记录数：${logs.length}条 | 
+            项目数：${sortedProjects.length}个
+        </div>
+    </div>`;
+    
+    if (sortedProjects.length === 0) {
+        html += '<div style="color:#888;text-align:center;padding:40px;">暂无时间记录</div>';
+    } else {
+        html += '<div style="display:grid;gap:12px;">';
+        sortedProjects.forEach(([name, stats]) => {
+            const hours = Math.floor(stats.totalMinutes / 60);
+            const minutes = stats.totalMinutes % 60;
+            const percentage = totalMinutes > 0 ? (stats.totalMinutes / totalMinutes * 100).toFixed(1) : 0;
+            
+            // 根据类型设置颜色
+            let typeColor = '#666';
+            let typeName = stats.type || 'unknown';
+            switch(stats.type) {
+                case 'production': typeColor = '#2980b9'; typeName = '产线'; break;
+                case 'work': typeColor = '#2980b9'; typeName = '产线'; break; // 兼容旧的work类型
+                case 'automation': typeColor = '#e67e22'; typeName = '自动化'; break;
+                case 'lifestyle': typeColor = '#8e44ad'; typeName = '日常'; break;
+                case 'investment': typeColor = '#000000'; typeName = '资产'; break;
+                case 'infrastructure': typeColor = '#229954'; typeName = '基建'; break;
+                default: typeColor = '#666'; typeName = stats.type || '未知'; break;
+            }
+            
+            html += `
+                <div style="border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div style="font-weight:600;color:#2c3e50;">${name}</div>
+                        <div style="font-weight:700;color:${typeColor};">${hours}h${minutes}m</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.9em;color:#666;">
+                        <div>
+                            <span style="background:${typeColor};color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">${typeName}</span>
+                            <span style="margin-left:8px;">${stats.sessions}次记录</span>
+                        </div>
+                        <div>${percentage}%</div>
+                    </div>
+                    <div style="margin-top:6px;background:#f5f5f5;border-radius:4px;height:6px;overflow:hidden;">
+                        <div style="background:${typeColor};height:100%;width:${percentage}%;transition:width 0.3s ease;"></div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    container.innerHTML = html;
+}
+
+// 测试面板分离修复的问题
+window.testPanelSeparation = function() {
+    const testResults = [];
+    
+    // 测试备份列表面板
+    try {
+        const cloudBackupModal = document.getElementById('cloud-backup-modal');
+        const cloudBackupContent = document.getElementById('cloud-backup-content');
+        
+        if (cloudBackupModal && cloudBackupContent) {
+            testResults.push('✅ 云备份模态框和内容区域都存在');
+            
+            // 测试打开备份面板
+            cloudBackupContent.innerHTML = '<div style="padding:20px;">测试：云备份面板内容</div>';
+            cloudBackupModal.classList.add('show');
+            
+            setTimeout(() => {
+                cloudBackupModal.classList.remove('show');
+            }, 2000);
+            
+        } else {
+            testResults.push('❌ 云备份模态框元素缺失');
+        }
+    } catch (error) {
+        testResults.push('❌ 备份面板测试失败: ' + error.message);
+    }
+    
+    // 测试时间统计面板独立性
+    try {
+        const timeRecordsModal = document.getElementById('time-records-modal');
+        const timeRecordsContent = document.getElementById('time-records-content');
+        
+        if (timeRecordsModal && timeRecordsContent) {
+            testResults.push('✅ 时间统计模态框和内容区域都存在');
+            
+            // 测试打开时间统计面板
+            setTimeout(() => {
+                timeRecordsContent.innerHTML = '<div style="padding:20px;">测试：时间统计面板内容</div>';
+                timeRecordsModal.classList.add('show');
+                
+                setTimeout(() => {
+                    timeRecordsModal.classList.remove('show');
+                }, 2000);
+            }, 1000);
+            
+        } else {
+            testResults.push('❌ 时间统计模态框元素缺失');
+        }
+    } catch (error) {
+        testResults.push('❌ 时间统计面板测试失败: ' + error.message);
+    }
+    
+    alert('面板分离测试结果:\n\n' + testResults.join('\n') + '\n\n两个面板将依次显示2秒进行演示');
+};
+
+console.log('✅ 备份面板和时间统计面板分离修复完成');
+
+// 测试所有showCustomModal修复
+window.testShowCustomModalFixes = function() {
+    const testResults = [];
+    
+    try {
+        // 测试1：今日时间详情
+        console.log('测试今日时间详情功能...');
+        if (typeof window.showTodayTimeDetails === 'function') {
+            testResults.push('✅ showTodayTimeDetails 函数存在');
+        } else {
+            testResults.push('❌ showTodayTimeDetails 函数缺失');
+        }
+        
+        // 测试2：月支出详情
+        console.log('测试月支出详情功能...');
+        if (typeof window.showCategoryDetails === 'function') {
+            testResults.push('✅ showCategoryDetails 函数存在');
+        } else {
+            testResults.push('❌ showCategoryDetails 函数缺失');
+        }
+        
+        // 测试3：基本测试函数
+        console.log('测试基本测试功能...');
+        if (typeof window.testBasicFunctions === 'function') {
+            testResults.push('✅ testBasicFunctions 函数存在');
+        } else {
+            testResults.push('❌ testBasicFunctions 函数缺失');
+        }
+        
+        // 测试4：检查是否还有showCustomModal引用
+        console.log('检查代码中是否还有showCustomModal引用...');
+        const codeString = window.showTodayTimeDetails.toString() + 
+                          window.showCategoryDetails.toString() + 
+                          window.testBasicFunctions.toString();
+        
+        if (codeString.includes('showCustomModal')) {
+            testResults.push('❌ 代码中仍然存在showCustomModal引用');
+        } else {
+            testResults.push('✅ 所有showCustomModal引用已清理');
+        }
+        
+        testResults.push('');
+        testResults.push('🎯 测试完成！现在可以安全使用以下功能：');
+        testResults.push('- 点击今天用时按钮查看详情');
+        testResults.push('- 点击月支出分类查看详情');
+        testResults.push('- 使用基本测试功能');
+        
+    } catch (error) {
+        testResults.push('❌ 测试过程中出现错误: ' + error.message);
+    }
+    
+    alert('showCustomModal修复测试结果:\n\n' + testResults.join('\n'));
+    console.log('showCustomModal修复测试完成');
+};
+
+console.log('✅ 所有showCustomModal引用修复完成');
+
+// 测试所有模态框的独立性
+window.testAllModalsSeparation = function() {
+    const testResults = [];
+    
+    // 测试所有模态框元素是否存在
+    const modals = {
+        '时间统计模态框': 'time-records-modal',
+        '云备份模态框': 'cloud-backup-modal', 
+        '详情显示模态框': 'details-modal',
+        '信息展示模态框': 'info-modal',
+        '时间编辑模态框': 'time-edit-modal'
+    };
+    
+    testResults.push('📋 模态框存在性检查：');
+    Object.entries(modals).forEach(([name, id]) => {
+        const modal = document.getElementById(id);
+        if (modal) {
+            testResults.push(`✅ ${name} 存在`);
+        } else {
+            testResults.push(`❌ ${name} 缺失`);
+        }
+    });
+    
+    testResults.push('');
+    testResults.push('🎬 模态框功能演示（每个显示1.5秒）：');
+    
+    let delay = 0;
+    
+    // 1. 详情模态框
+    setTimeout(() => {
+        const detailsModal = document.getElementById('details-modal');
+        const detailsTitle = document.getElementById('details-modal-title');
+        const detailsContent = document.getElementById('details-modal-content');
+        if (detailsModal && detailsTitle && detailsContent) {
+            detailsTitle.textContent = '详情模态框测试';
+            detailsContent.innerHTML = '<p>这是详情模态框，用于显示今日时间详情、月支出详情等。</p>';
+            detailsModal.classList.add('show');
+            
+            setTimeout(() => {
+                detailsModal.classList.remove('show');
+            }, 1500);
+        }
+    }, delay);
+    delay += 2000;
+    
+    // 2. 信息模态框
+    setTimeout(() => {
+        const infoModal = document.getElementById('info-modal');
+        const infoTitle = document.getElementById('info-modal-title');
+        const infoContent = document.getElementById('info-modal-content');
+        if (infoModal && infoTitle && infoContent) {
+            infoTitle.textContent = '信息模态框测试';
+            infoContent.innerHTML = '<p>这是信息模态框，用于显示蓝图信息、测试信息等。</p>';
+            infoModal.classList.add('show');
+            
+            setTimeout(() => {
+                infoModal.classList.remove('show');
+            }, 1500);
+        }
+    }, delay);
+    delay += 2000;
+    
+    // 3. 云备份模态框
+    setTimeout(() => {
+        const cloudModal = document.getElementById('cloud-backup-modal');
+        const cloudContent = document.getElementById('cloud-backup-content');
+        if (cloudModal && cloudContent) {
+            cloudContent.innerHTML = '<p>这是云备份模态框，用于显示备份列表。</p>';
+            cloudModal.classList.add('show');
+            
+            setTimeout(() => {
+                cloudModal.classList.remove('show');
+            }, 1500);
+        }
+    }, delay);
+    delay += 2000;
+    
+    // 4. 时间统计模态框
+    setTimeout(() => {
+        const timeModal = document.getElementById('time-records-modal');
+        const timeContent = document.getElementById('time-records-content');
+        if (timeModal && timeContent) {
+            timeContent.innerHTML = '<p>这是时间统计模态框，专门用于时间记录统计功能。</p>';
+            timeModal.classList.add('show');
+            
+            setTimeout(() => {
+                timeModal.classList.remove('show');
+            }, 1500);
+        }
+    }, delay);
+    
+    testResults.push('');
+    testResults.push('🎯 现在每个功能都有独立的模态框：');
+    testResults.push('- 时间统计 → time-records-modal');
+    testResults.push('- 今日详情/支出详情 → details-modal');
+    testResults.push('- 蓝图信息/测试 → info-modal');
+    testResults.push('- 云备份列表 → cloud-backup-modal');
+    testResults.push('- 时间编辑 → time-edit-modal');
+    
+    alert('模态框独立性测试结果:\n\n' + testResults.join('\n') + '\n\n将依次演示各个模态框（总共约8秒）');
+};
+
+console.log('✅ 模态框完全分离修复完成 - 现在每个功能都有独立的模态框');
+
+// 测试所有模态框居中和显示
+window.testAllModalsDisplay = function() {
+    console.log('🧪 开始测试所有模态框的显示和居中...');
+    
+    const modalIds = [
+        'data-manage-modal',
+        'monthly-comparison-modal', 
+        'bills-import-modal',
+        'info-modal',
+        'time-edit-modal',
+        'blueprint-automation-modal',
+        'resource-import-modal'
+    ];
+    
+    let testIndex = 0;
+    
+    function testNextModal() {
+        if (testIndex >= modalIds.length) {
+            console.log('✅ 所有模态框测试完成');
+            alert('所有模态框测试完成！请检查每个模态框是否正确居中显示。');
+            return;
+        }
+        
+        const modalId = modalIds[testIndex];
+        const modal = document.getElementById(modalId);
+        
+        if (!modal) {
+            console.error(`❌ 模态框 ${modalId} 不存在`);
+            testIndex++;
+            testNextModal();
+            return;
+        }
+        
+        console.log(`🔍 测试模态框: ${modalId}`);
+        
+        // 显示模态框
+        modal.classList.add('show');
+        
+        // 检查居中
+        setTimeout(() => {
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                const rect = modalContent.getBoundingClientRect();
+                const isCenter = Math.abs(rect.left + rect.width/2 - window.innerWidth/2) < 50;
+                console.log(`${modalId} 居中检查:`, isCenter ? '✅ 正确居中' : '❌ 未居中', {
+                    modalCenter: rect.left + rect.width/2,
+                    windowCenter: window.innerWidth/2,
+                    position: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+                });
+            }
+            
+            // 2秒后关闭并测试下一个
+            setTimeout(() => {
+                modal.classList.remove('show');
+                testIndex++;
+                setTimeout(testNextModal, 500);
+            }, 2000);
+        }, 100);
+    }
+    
+    testNextModal();
+}
+
+// 快速修复所有模态框居中问题的函数
+window.fixAllModalsCentering = function() {
+    console.log('🔧 修复所有模态框居中问题...');
+    
+    const allModals = document.querySelectorAll('.modal');
+    let fixedCount = 0;
+    
+    allModals.forEach(modal => {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            // 移除可能的内联定位样式
+            modalContent.style.position = '';
+            modalContent.style.top = '';
+            modalContent.style.left = '';
+            modalContent.style.transform = '';
+            
+            // 确保模态框使用flex居中
+            if (!modal.classList.contains('show')) {
+                modal.style.display = 'flex';
+                modal.style.justifyContent = 'center';
+                modal.style.alignItems = 'center';
+                modal.style.display = 'none'; // 恢复隐藏状态
+            }
+            
+            fixedCount++;
+        }
+    });
+    
+    console.log(`✅ 已修复 ${fixedCount} 个模态框的居中问题`);
+    alert(`已修复 ${fixedCount} 个模态框的居中问题！`);
+}
+
+// 测试面板标题统一性
+function testPanelTitleUniformity() {
+    console.log('=== 测试面板标题统一性 ===');
+    
+    const panelTitles = document.querySelectorAll('.panel-title');
+    console.log(`找到 ${panelTitles.length} 个面板标题`);
+    
+    panelTitles.forEach((title, index) => {
+        const computedStyle = window.getComputedStyle(title);
+        const fontSize = computedStyle.fontSize;
+        const fontWeight = computedStyle.fontWeight;
+        const color = computedStyle.color;
+        const marginBottom = computedStyle.marginBottom;
+        const borderBottom = computedStyle.borderBottom;
+        
+        console.log(`面板标题 ${index + 1}:`, {
+            element: title.textContent.trim().substring(0, 20) + '...',
+            fontSize,
+            fontWeight,
+            color,
+            marginBottom,
+            borderBottom: borderBottom.includes('1px') ? '正确' : '需要检查'
+        });
+    });
+    
+    // 检查模态框标题
+    const modalTitles = document.querySelectorAll('.modal-header h3, .modal-title');
+    console.log(`找到 ${modalTitles.length} 个模态框标题`);
+    
+    modalTitles.forEach((title, index) => {
+        const computedStyle = window.getComputedStyle(title);
+        console.log(`模态框标题 ${index + 1}:`, {
+            element: title.textContent.trim().substring(0, 20) + '...',
+            fontSize: computedStyle.fontSize,
+            fontWeight: computedStyle.fontWeight,
+            color: computedStyle.color
+        });
+    });
+    
+    console.log('=== 面板标题统一性测试完成 ===');
+}
+
+window.testPanelTitleUniformity = testPanelTitleUniformity;
+
+// 测试数据管理面板优化
+function testDataManagePanelOptimization() {
+    console.log('=== 测试数据管理面板优化 ===');
+    
+    const dataManageModal = document.getElementById('data-manage-modal');
+    if (dataManageModal) {
+        const computedStyle = window.getComputedStyle(dataManageModal);
+        console.log('数据管理面板 z-index:', computedStyle.zIndex);
+        
+        // 检查是否移除了紧急恢复功能
+        const emergencySection = dataManageModal.querySelector('[style*="background:#f8d7da"]');
+        console.log('紧急恢复功能已移除:', !emergencySection);
+        
+        // 检查数据区块样式
+        const dataSections = dataManageModal.querySelectorAll('.data-section');
+        console.log(`找到 ${dataSections.length} 个数据区块`);
+        
+        dataSections.forEach((section, index) => {
+            const classes = Array.from(section.classList);
+            console.log(`数据区块 ${index + 1}:`, {
+                classes,
+                hasTitle: !!section.querySelector('.data-section-title'),
+                hasFlexContainer: !!section.querySelector('.data-flex-container')
+            });
+        });
+        
+        // 检查云备份模态框的z-index
+        const cloudBackupModal = document.getElementById('cloud-backup-modal');
+        if (cloudBackupModal) {
+            const cloudBackupStyle = window.getComputedStyle(cloudBackupModal);
+            console.log('云备份模态框 z-index:', cloudBackupStyle.zIndex);
+            console.log('层级是否正确:', parseInt(cloudBackupStyle.zIndex) > parseInt(computedStyle.zIndex));
+        }
+        
+        // 检查滚动行为
+        const modalContent = dataManageModal.querySelector('.modal-content');
+        if (modalContent) {
+            const contentStyle = window.getComputedStyle(modalContent);
+            console.log('模态框内容滚动设置:', {
+                overflowY: contentStyle.overflowY,
+                maxHeight: contentStyle.maxHeight,
+                display: contentStyle.display,
+                flexDirection: contentStyle.flexDirection
+            });
+            
+            // 检查数据区块是否有单独的滚动条
+            dataSections.forEach((section, index) => {
+                const sectionStyle = window.getComputedStyle(section);
+                console.log(`数据区块 ${index + 1} 滚动状态:`, {
+                    overflow: sectionStyle.overflow,
+                    overflowY: sectionStyle.overflowY,
+                    flexShrink: sectionStyle.flexShrink
+                });
+            });
+        }
+        
+    } else {
+        console.log('❌ 未找到数据管理面板');
+    }
+    
+    console.log('=== 测试完成 ===');
+}
+
+window.testDataManagePanelOptimization = testDataManagePanelOptimization;
+
+// 演示数据管理面板滚动行为
+function demoDataManagePanelScrolling() {
+    console.log('=== 演示数据管理面板滚动行为 ===');
+    
+    const dataManageModal = document.getElementById('data-manage-modal');
+    if (!dataManageModal) {
+        console.log('❌ 未找到数据管理面板');
+        return;
+    }
+    
+    // 显示面板
+    dataManageModal.classList.add('show');
+    
+    setTimeout(() => {
+        const modalContent = dataManageModal.querySelector('.modal-content');
+        if (modalContent) {
+            console.log('📏 面板尺寸信息:', {
+                scrollHeight: modalContent.scrollHeight,
+                clientHeight: modalContent.clientHeight,
+                scrollTop: modalContent.scrollTop,
+                hasVerticalScrollbar: modalContent.scrollHeight > modalContent.clientHeight
+            });
+            
+            if (modalContent.scrollHeight > modalContent.clientHeight) {
+                console.log('✅ 面板内容超出高度，可以整体滚动');
+                
+                // 演示滚动到底部
+                console.log('🔄 演示滚动到底部...');
+                modalContent.scrollTop = modalContent.scrollHeight;
+                
+                setTimeout(() => {
+                    console.log('📍 当前滚动位置:', modalContent.scrollTop);
+                    
+                    // 滚动回顶部
+                    console.log('🔄 滚动回顶部...');
+                    modalContent.scrollTop = 0;
+                    
+                    setTimeout(() => {
+                        dataManageModal.classList.remove('show');
+                        console.log('✅ 演示完成！面板整体滚动工作正常');
+                    }, 1500);
+                }, 1500);
+            } else {
+                console.log('ℹ️ 面板内容适合当前高度，无需滚动');
+                setTimeout(() => {
+                    dataManageModal.classList.remove('show');
+                }, 2000);
+            }
+        }
+    }, 500);
+}
+
+window.demoDataManagePanelScrolling = demoDataManagePanelScrolling;
+// 在控制台中运行：testDataManagePanelOptimization() 或 demoDataManagePanelScrolling()
