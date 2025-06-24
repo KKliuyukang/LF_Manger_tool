@@ -2200,8 +2200,40 @@ function renderWeekCalendar() {
         });
         
         renderTimeBlocks(weekDates);
+        
+        // 移动端日历自动滚动到当前日期
+        if (window.innerWidth <= 768) {
+            setTimeout(() => {
+                scrollCalendarToToday(weekDates);
+            }, 100);
+        }
     }, 50);
 }
+
+// 移动端日历滚动到当前日期
+function scrollCalendarToToday(weekDates) {
+    const calendarContainer = document.querySelector('.week-calendar-container');
+    if (!calendarContainer || !weekDates) return;
+    
+    const today = formatDateLocal(new Date());
+    const todayIndex = weekDates.indexOf(today);
+    
+    if (todayIndex >= 0) {
+        const table = calendarContainer.querySelector('table');
+        if (table) {
+            // 计算滚动位置：让当前日期显示在容器中央
+            const cellWidth = table.offsetWidth / 7;
+            const containerWidth = calendarContainer.offsetWidth;
+            const scrollLeft = (todayIndex * cellWidth) - (containerWidth / 2) + (cellWidth / 2);
+            
+            calendarContainer.scrollTo({
+                left: Math.max(0, scrollLeft),
+                behavior: 'smooth'
+            });
+        }
+    }
+}
+
 function renderTimeBlocks(weekDates) {
     const overlay = document.getElementById('calendar-overlay');
     const container = document.getElementById('calendar-container');
@@ -2583,12 +2615,11 @@ function renderResourceStats() {
     // 今日目标和今天主动用时在同一排
     html += `<div class='daily-goals-section'>
         <div class='daily-goals-header'>
-            <div class='daily-goals-title'>今日任务</div>
+            <div class='daily-goals-title'>今日目标</div>
             <div class='daily-time-stats'>
                 <div class='time-stats-row'>
                     <span class='resource-label' style='font-size: 0.85em;'>今天主动用时</span>
                     <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情' style='font-size: 0.8em; margin-left: 4px;'>👁️</button>
-                
                 <span class='resource-main-value' style='color:#27ae60; font-size: 1.2em;'>${todayActiveMins} <span style='font-size:0.6em;font-weight:normal;'>分钟</span></span>
                 </div>
             </div>
@@ -6917,7 +6948,7 @@ window.changeFamilyCode = function() {
         isCloudReady = false;
         cloudInitDone = false;
         
-            firebaseLoginAndSync();
+        firebaseLoginAndSync();
         updateDataStatus();
         
         alert('家庭码已更换，正在重新连接云端...');
@@ -7391,3 +7422,381 @@ function testPanelTitleUniformity() {
 }
 
 window.testPanelTitleUniformity = testPanelTitleUniformity;
+
+// 测试移动端布局优化
+function testMobileLayout() {
+    console.log('=== 移动端布局测试 ===');
+    
+    const isMobile = window.innerWidth <= 768;
+    console.log('当前屏幕宽度:', window.innerWidth, isMobile ? '(移动端)' : '(桌面端)');
+    
+    // 检查面板排序
+    const panels = [
+        { selector: '#resource-panel', name: 'Resource Panel', expectedOrder: 1 },
+        { selector: '.panel[style*="grid-area: production"]', name: 'Production Panel', expectedOrder: 2 },
+        { selector: '#week-calendar', name: 'Calendar Panel', expectedOrder: 3 },
+        { selector: '#expenses-panel', name: 'Expenses Panel', expectedOrder: 4 },
+        { selector: '.panel:last-child', name: 'Milestones Panel', expectedOrder: 5 },
+        { selector: '.research-panel', name: 'Research Panel', expectedOrder: 6 }
+    ];
+    
+    console.log('面板排序检查:');
+    panels.forEach(panel => {
+        const element = document.querySelector(panel.selector);
+        if (element) {
+            const computedStyle = getComputedStyle(element);
+            const actualOrder = computedStyle.order || 'auto';
+            const isCorrect = isMobile ? (actualOrder == panel.expectedOrder) : true;
+            console.log(`${panel.name}: 期望order=${panel.expectedOrder}, 实际order=${actualOrder} ${isCorrect ? '✅' : '❌'}`);
+            
+            // 检查宽度
+            const width = computedStyle.width;
+            const maxWidth = computedStyle.maxWidth;
+            console.log(`  - 宽度: ${width}, 最大宽度: ${maxWidth}`);
+        } else {
+            console.log(`${panel.name}: ❌ 元素未找到`);
+        }
+    });
+    
+    // 检查日历滚动功能
+    console.log('\n日历滚动检查:');
+    const calendarContainer = document.querySelector('.week-calendar-container');
+    if (calendarContainer) {
+        const containerStyle = getComputedStyle(calendarContainer);
+        console.log('日历容器滚动设置:', {
+            overflowX: containerStyle.overflowX,
+            overflowY: containerStyle.overflowY,
+            width: containerStyle.width,
+            maxWidth: containerStyle.maxWidth
+        });
+        
+        const table = calendarContainer.querySelector('table');
+        if (table) {
+            const tableStyle = getComputedStyle(table);
+            console.log('日历表格设置:', {
+                minWidth: tableStyle.minWidth,
+                width: tableStyle.width
+            });
+            
+            // 测试滚动到今天
+            if (isMobile && typeof scrollCalendarToToday === 'function') {
+                console.log('测试滚动到今天...');
+                const mockWeekDates = generateWeekDates(); // 需要实现这个函数或使用现有的
+                // scrollCalendarToToday(mockWeekDates);
+            }
+        }
+    } else {
+        console.log('❌ 日历容器未找到');
+    }
+    
+    // 检查模态框优化
+    console.log('\n模态框优化检查:');
+    const modals = document.querySelectorAll('.modal');
+    console.log(`找到 ${modals.length} 个模态框`);
+    
+    if (modals.length > 0 && isMobile) {
+        const modal = modals[0];
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            const contentStyle = getComputedStyle(modalContent);
+            console.log('模态框内容样式:', {
+                width: contentStyle.width,
+                maxWidth: contentStyle.maxWidth,
+                maxHeight: contentStyle.maxHeight
+            });
+        }
+    }
+    
+    console.log('=== 移动端布局测试完成 ===');
+}
+
+// 导出测试函数
+window.testMobileLayout = testMobileLayout;
+
+// 测试移动端面板排序
+function testMobilePanelOrder() {
+    console.log('=== 移动端面板排序测试 ===');
+    
+    const isMobile = window.innerWidth <= 768;
+    console.log('当前屏幕宽度:', window.innerWidth, isMobile ? '(移动端)' : '(桌面端)');
+    
+    // 获取所有面板元素
+    const resourcePanel = document.getElementById('resource-panel');
+    const productionPanel = document.querySelector('.panel[style*="grid-area: production"]');
+    const calendarPanel = document.getElementById('week-calendar');
+    const expensesPanel = document.getElementById('expenses-panel');
+    const milestonesPanel = document.getElementById('milestones-panel');
+    const researchPanel = document.querySelector('.research-panel');
+    
+    // 检查每个面板的order值
+    const panels = [
+        { name: '资源面板 (Resource Panel)', element: resourcePanel, expectedOrder: 1 },
+        { name: '生产线面板 (Production Panel)', element: productionPanel, expectedOrder: 2 },
+        { name: '日历面板 (Calendar Panel)', element: calendarPanel, expectedOrder: 3 },
+        { name: '资源管理面板 (Expenses Panel)', element: expensesPanel, expectedOrder: 4 },
+        { name: '里程碑面板 (Milestones Panel)', element: milestonesPanel, expectedOrder: 5 },
+        { name: '研发中心面板 (Research Panel)', element: researchPanel, expectedOrder: 6 }
+    ];
+    
+    console.log('检查面板排序:');
+    panels.forEach(panel => {
+        if (panel.element) {
+            const computedStyle = window.getComputedStyle(panel.element);
+            const order = computedStyle.order || 'auto';
+            const isCorrect = isMobile ? (order == panel.expectedOrder || (order === 'auto' && panel.expectedOrder === 0)) : true;
+            
+            console.log(`${panel.name}: order=${order} (期望=${panel.expectedOrder}) ${isCorrect ? '✅' : '❌'}`);
+            
+            // 获取面板标题
+            const titleElement = panel.element.querySelector('.panel-title, h2');
+            if (titleElement) {
+                console.log(`  标题: "${titleElement.textContent.trim()}"`);
+            }
+            
+            // 检查宽度设置
+            if (isMobile) {
+                const width = computedStyle.width;
+                const maxWidth = computedStyle.maxWidth;
+                console.log(`  宽度: ${width}, 最大宽度: ${maxWidth}`);
+            }
+        } else {
+            console.log(`${panel.name}: ❌ 元素未找到`);
+        }
+    });
+    
+    // 检查面板实际显示顺序
+    if (isMobile) {
+        console.log('\n实际显示顺序验证:');
+        const mainGrid = document.querySelector('.main-grid');
+        if (mainGrid) {
+            const allPanels = Array.from(mainGrid.querySelectorAll('.panel')).filter(p => {
+                const display = window.getComputedStyle(p).display;
+                return display !== 'none';
+            });
+            
+            // 按order值排序
+            allPanels.sort((a, b) => {
+                const orderA = parseInt(window.getComputedStyle(a).order) || 0;
+                const orderB = parseInt(window.getComputedStyle(b).order) || 0;
+                return orderA - orderB;
+            });
+            
+            allPanels.forEach((panel, index) => {
+                const order = window.getComputedStyle(panel).order || 'auto';
+                const titleElement = panel.querySelector('.panel-title, h2');
+                const title = titleElement ? titleElement.textContent.trim() : '无标题';
+                console.log(`${index + 1}. order=${order} - ${title}`);
+            });
+        }
+    }
+    
+    console.log('=== 测试完成 ===');
+}
+
+// 导出函数
+window.testMobilePanelOrder = testMobilePanelOrder;
+
+// 快速测试面板排序
+function quickTestPanelOrder() {
+    console.log('=== 快速面板排序测试 ===');
+    
+    const panels = [
+        'resource-panel',
+        '.panel[style*="grid-area: production"]', 
+        'week-calendar',
+        'expenses-panel',
+        'milestones-panel',
+        '.research-panel'
+    ];
+    
+    panels.forEach((selector, index) => {
+        const element = selector.startsWith('.') ? document.querySelector(selector) : document.getElementById(selector);
+        if (element) {
+            const order = getComputedStyle(element).order;
+            const expectedOrder = index + 1;
+            console.log(`${selector}: order=${order} (期望=${expectedOrder}) ${order == expectedOrder ? '✅' : '❌'}`);
+        } else {
+            console.log(`${selector}: ❌ 未找到`);
+        }
+    });
+    
+    console.log('=== 快速测试完成 ===');
+}
+
+window.quickTestPanelOrder = quickTestPanelOrder;
+
+// 验证面板分离修复
+function testPanelSeparation() {
+    console.log('=== 验证面板分离修复 ===');
+    
+    // 检查是否还有嵌套的status容器
+    const statusContainer = document.querySelector('div[style*="grid-area: status"]');
+    if (statusContainer) {
+        const isResourcePanel = statusContainer.id === 'resource-panel';
+        console.log('Status容器状态:', isResourcePanel ? '✅ 现在是resource-panel本身' : '❌ 仍然是嵌套容器');
+        
+        if (isResourcePanel) {
+            console.log('Resource面板正确设置为status grid-area');
+        }
+    } else {
+        console.log('❌ 未找到status grid-area');
+    }
+    
+    // 检查三个面板是否都是独立的
+    const panels = ['resource-panel', 'expenses-panel', 'milestones-panel'];
+    panels.forEach(id => {
+        const panel = document.getElementById(id);
+        if (panel) {
+            const parent = panel.parentElement;
+            const parentClasses = parent ? parent.className : 'N/A';
+            const parentId = parent ? parent.id : 'N/A';
+            console.log(`${id}: 父容器class="${parentClasses}", id="${parentId}"`);
+            
+            // 检查是否是main-grid的直接子元素
+            const isDirectChild = parent && (parent.classList.contains('main-grid') || parent.querySelector('.main-grid'));
+            console.log(`  - 是否为main-grid的子元素: ${isDirectChild ? '✅' : '❌'}`);
+        } else {
+            console.log(`❌ 未找到面板: ${id}`);
+        }
+    });
+    
+    console.log('=== 验证完成 ===');
+}
+
+window.testPanelSeparation = testPanelSeparation;
+
+// 最终验证函数
+function finalPanelTest() {
+    console.log('=== 最终面板验证 ===');
+    
+    const isMobile = window.innerWidth <= 768;
+    console.log(`当前视口: ${isMobile ? '移动端' : '桌面端'} (${window.innerWidth}px)`);
+    
+    // 检查所有面板的存在性和基本属性
+    const panels = [
+        { id: 'resource-panel', name: '资源面板', expectedOrder: 1, expectedGridArea: 'status' },
+        { selector: '.panel[style*="grid-area: production"]', name: '生产线面板', expectedOrder: 2, expectedGridArea: 'production' },
+        { id: 'week-calendar', name: '日历面板', expectedOrder: 3, expectedGridArea: 'middle-column' },
+        { id: 'expenses-panel', name: '资源管理面板', expectedOrder: 4, expectedGridArea: 'expenses' },
+        { id: 'milestones-panel', name: '里程碑面板', expectedOrder: 5, expectedGridArea: 'milestones' },
+        { selector: '.research-panel', name: '研发中心面板', expectedOrder: 6, expectedGridArea: 'middle-column' }
+    ];
+    
+    panels.forEach(panel => {
+        const element = panel.id ? document.getElementById(panel.id) : document.querySelector(panel.selector);
+        
+        if (element) {
+            const computedStyle = getComputedStyle(element);
+            const order = computedStyle.order;
+            const gridArea = computedStyle.gridArea;
+            
+            console.log(`\n${panel.name}:`);
+            console.log(`  - 找到元素: ✅`);
+            console.log(`  - Order: ${order} (期望: ${panel.expectedOrder}) ${order == panel.expectedOrder ? '✅' : '❌'}`);
+            
+            if (isMobile) {
+                console.log(`  - 移动端Grid Area: ${gridArea} (应该被unset)`);
+            } else {
+                console.log(`  - 桌面端Grid Area: ${gridArea} (期望: ${panel.expectedGridArea})`);
+            }
+            
+            const parent = element.parentElement;
+            console.log(`  - 父容器: ${parent ? parent.className || parent.tagName : '无'}`);
+            
+        } else {
+            console.log(`\n${panel.name}: ❌ 未找到`);
+        }
+    });
+    
+    // 检查移动端布局
+    if (isMobile) {
+        console.log('\n移动端特殊检查:');
+        const mainGrid = document.querySelector('.main-grid');
+        if (mainGrid) {
+            const mainGridStyle = getComputedStyle(mainGrid);
+            console.log(`- Main Grid Display: ${mainGridStyle.display}`);
+            console.log(`- Main Grid Flex Direction: ${mainGridStyle.flexDirection}`);
+        }
+    }
+    
+    console.log('\n=== 验证完成 ===');
+}
+
+window.finalPanelTest = finalPanelTest;
+
+// 测试面板高度自适应 - 只测试resource-panel和expenses-panel
+function testPanelHeights() {
+    console.log('=== Resource Panel & Expenses Panel 高度自适应测试 ===');
+    
+    const isMobile = window.innerWidth <= 768;
+    console.log(`当前视口: ${isMobile ? '移动端' : '桌面端'} (${window.innerWidth}px)`);
+    
+    const targetPanels = ['resource-panel', 'expenses-panel'];
+    
+    targetPanels.forEach(id => {
+        const panel = document.getElementById(id);
+        if (panel) {
+            const computedStyle = getComputedStyle(panel);
+            const height = computedStyle.height;
+            const minHeight = computedStyle.minHeight;
+            const maxHeight = computedStyle.maxHeight;
+            const flexGrow = computedStyle.flexGrow;
+            
+            console.log(`${id}:`);
+            console.log(`  计算高度: ${height}`);
+            console.log(`  最小高度: ${minHeight}`);
+            console.log(`  最大高度: ${maxHeight}`);
+            console.log(`  flex-grow: ${flexGrow}`);
+            console.log(`  实际内容高度: ${panel.scrollHeight}px`);
+            const heightDiff = Math.abs(panel.clientHeight - panel.scrollHeight);
+            console.log(`  客户端高度: ${panel.clientHeight}px`);
+            console.log(`  高度差异: ${heightDiff}px`);
+            console.log(`  是否内容自适应: ${heightDiff <= 2 ? '✅' : '❌'} (允许2px误差)`);
+            console.log('---');
+        } else {
+            console.log(`${id}: ❌ 未找到`);
+        }
+    });
+    
+    console.log('=== 测试完成 ===');
+}
+
+window.testPanelHeights = testPanelHeights;
+
+// 测试桌面端右侧面板间隔
+function testDesktopRightPanels() {
+    console.log('=== 桌面端右侧面板间隔测试 ===');
+    
+    const statusColumn = document.querySelector('.status-column');
+    if (statusColumn) {
+        const computedStyle = getComputedStyle(statusColumn);
+        console.log('Status Column:');
+        console.log(`  display: ${computedStyle.display}`);
+        console.log(`  flex-direction: ${computedStyle.flexDirection}`);
+        console.log(`  gap: ${computedStyle.gap}`);
+        console.log('---');
+        
+        const panels = ['resource-panel', 'expenses-panel', 'milestones-panel'];
+        panels.forEach((id, index) => {
+            const panel = document.getElementById(id);
+            if (panel) {
+                const rect = panel.getBoundingClientRect();
+                console.log(`${id}:`);
+                console.log(`  位置: top=${rect.top.toFixed(1)}, height=${rect.height.toFixed(1)}`);
+                if (index > 0) {
+                    const prevPanel = document.getElementById(panels[index - 1]);
+                    if (prevPanel) {
+                        const prevRect = prevPanel.getBoundingClientRect();
+                        const gap = rect.top - (prevRect.top + prevRect.height);
+                        console.log(`  与上一个面板间隔: ${gap.toFixed(1)}px`);
+                    }
+                }
+                console.log('---');
+            }
+        });
+    } else {
+        console.log('❌ 未找到status-column');
+    }
+}
+
+window.testDesktopRightPanels = testDesktopRightPanels;

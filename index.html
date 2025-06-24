@@ -55,8 +55,8 @@
                 </div>
             </div>
             
-            <!-- 右侧：资源 & 支出 -->
-            <div style="grid-area: status; display:flex; flex-direction:column; gap:20px;">
+            <!-- 右侧状态列：包含三个面板 -->
+            <div class="status-column">
                 <!-- 今日主动用时 + 同步状态 -->
                 <div id="resource-panel" class="panel compact-panel">
                     <div class="panel-title">
@@ -65,6 +65,8 @@
                     </div>
                     <div id="resource-stats"></div>
                 </div>
+                
+                <!-- 资源管理面板 -->
                 <div id="expenses-panel" class="panel">
                     <div class="panel-title-wrapper">
                         <div class="panel-title-content">
@@ -99,7 +101,7 @@
                 </div>
                 
                 <!-- 里程碑面板 -->
-                <div class="panel">
+                <div id="milestones-panel" class="panel">
                     <h2 class="panel-title"><span>🎯</span><span>里程碑</span></h2>
                     <div class="experience-section" id="experiences-list"></div>
                 </div>
