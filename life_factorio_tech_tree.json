@@ -97,7 +97,7 @@
             "unlocks": ["income_optimization", "expense_automation", "investment_foundation"],
             "estimated_time": "3个月",
             "automation_reward": "月底没钱 → 支出心中有数",
-            "freq": "每周3次",
+            "freq": "每天",
             "cycle": 90,
             "target": 36,
             "stages": [
@@ -118,7 +118,7 @@
             "unlocks": ["deep_work_mastery", "expertise_building", "side_income_stream"],
             "estimated_time": "1个月",
             "automation_reward": "技能埋没 → 明确变现路径",
-            "freq": "每周2次",
+            "freq": "每天",
             "cycle": 30,
             "target": 8
           },
@@ -134,7 +134,7 @@
             "unlocks": ["deep_work_mastery", "automation_systems"],
             "estimated_time": "2周",
             "automation_reward": "时间流失 → 高效时段锁定",
-            "freq": "每天记录",
+            "freq": "每天",
             "cycle": 14,
             "target": 12
           }
@@ -173,7 +173,7 @@
             "unlocks": ["investment_foundation", "flexible_work_negotiation"],
             "estimated_time": "6个月",
             "automation_reward": "工作平庸 → 老板主动加薪",
-            "freq": "每周2次",
+            "freq": "每天",
             "cycle": 180,
             "target": 48,
             "stages": [
@@ -194,7 +194,7 @@
             "unlocks": ["automation_systems", "expertise_building", "side_income_stream"],
             "estimated_time": "2个月",
             "automation_reward": "频繁分心 → 连续专注3小时",
-            "freq": "每工作日",
+            "freq": "每天",
             "cycle": 60,
             "target": 40,
             "stages": [
@@ -215,7 +215,7 @@
             "unlocks": ["investment_foundation", "travel_fund_automation"],
             "estimated_time": "1个月",
             "automation_reward": "手动记账 → 自动财务管理",
-            "freq": "每周2次",
+            "freq": "每天",
             "cycle": 30,
             "target": 8
           },
@@ -231,7 +231,7 @@
             "unlocks": ["energy_optimization"],
             "estimated_time": "2个月",
             "automation_reward": "讨厌运动 → 享受挥汗如雨",
-            "freq": "每周3次",
+            "freq": "每天",
             "cycle": 60,
             "target": 24,
             "stages": [
@@ -280,7 +280,7 @@
             "unlocks": ["passive_income_scaling", "travel_fund_automation"],
             "estimated_time": "3个月",
             "automation_reward": "资金闲置 → 稳定被动收入",
-            "freq": "每周1次",
+            "freq": "每天",
             "cycle": 90,
             "target": 12,
             "stages": [
@@ -301,7 +301,7 @@
             "unlocks": ["flexible_work_negotiation", "side_income_stream"],
             "estimated_time": "4个月",
             "automation_reward": "重复劳动 → 自动化高效产出",
-            "freq": "每周3次",
+            "freq": "每天",
             "cycle": 120,
             "target": 48,
             "stages": [
@@ -322,7 +322,7 @@
             "unlocks": ["consulting_income", "platform_monetization"],
             "estimated_time": "8个月",
             "automation_reward": "默默无闻 → 行业专家认可",
-            "freq": "每周3次",
+            "freq": "每天",
             "cycle": 240,
             "target": 96,
             "stages": [
@@ -350,7 +350,7 @@
             "unlocks": ["consulting_income", "passive_income_scaling"],
             "estimated_time": "6个月",
             "automation_reward": "单一收入 → 多元收入保障",
-            "freq": "每周4次",
+            "freq": "每天",
             "cycle": 180,
             "target": 96
           },
@@ -366,7 +366,7 @@
             "unlocks": ["flexible_work_negotiation", "platform_monetization"],
             "estimated_time": "4个月",
             "automation_reward": "打工思维 → 专家咨询收入",
-            "freq": "每周3次",
+            "freq": "每天",
             "cycle": 120,
             "target": 48
           },
@@ -382,7 +382,7 @@
             "unlocks": ["lifestyle_sovereignty"],
             "estimated_time": "2个月",
             "automation_reward": "旅行奢望 → 自动旅行基金",
-            "freq": "每月1次",
+            "freq": "每天",
             "cycle": 60,
             "target": 2
           }
@@ -405,7 +405,7 @@
             "unlocks": ["time_sovereignty"],
             "estimated_time": "3个月",
             "automation_reward": "坐班制约 → 自主工作安排",
-            "freq": "每月2次",
+            "freq": "每天",
             "cycle": 90,
             "target": 6
           },
@@ -421,7 +421,7 @@
             "unlocks": ["financial_independence"],
             "estimated_time": "12个月",
             "automation_reward": "主动赚钱 → 钱自动生钱",
-            "freq": "每月1次",
+            "freq": "每天",
             "cycle": 360,
             "target": 12
           },
@@ -437,7 +437,7 @@
             "unlocks": ["lifestyle_sovereignty"],
             "estimated_time": "6个月",
             "automation_reward": "单一雇佣 → 多平台变现",
-            "freq": "每周3次",
+            "freq": "每天",
             "cycle": 180,
             "target": 72
           },
@@ -476,7 +476,7 @@
             "unlocks": ["complete_life_freedom"],
             "estimated_time": "18个月",
             "automation_reward": "为钱工作 → 钱为我工作",
-            "freq": "每季度1次",
+            "freq": "每天",
             "cycle": 540,
             "target": 6
           },
@@ -492,7 +492,7 @@
             "unlocks": ["complete_life_freedom"],
             "estimated_time": "6个月",
             "automation_reward": "时间被绑架 → 完全时间自主",
-            "freq": "每月1次",
+            "freq": "每天",
             "cycle": 180,
             "target": 6
           },
