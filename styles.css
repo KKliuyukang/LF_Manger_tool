@@ -1061,220 +1061,276 @@ body {
 
 @media (max-width: 768px) {
     body {
-        padding: 8px;
-        margin: 0;
-        overflow-x: hidden;
-    }
-    
-    .container {
-        max-width: 100%;
+        font-size: 16px; /* 增加基础字体大小 */
+        overflow-x: auto;
+        overflow-y: auto;
+        position: relative;
+        width: 100%;
+        min-height: 100vh;
         margin: 0;
         padding: 0;
     }
-    
-    /* 移动端布局：单列从上到下排列 */
+
+    /* 允许页面正常滚动 */
+    html {
+        overflow-x: auto;
+        overflow-y: auto;
+        position: relative;
+        width: 100%;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+        overflow-x: auto;
+    }
+
     .main-grid {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        width: 100%;
-        max-width: 100vw;
-    }
-    
-    /* 隐藏桌面端专用的中间列容器 */
-    .middle-column {
-        display: contents; /* 使子元素直接成为main-grid的子元素 */
-    }
-    
-    /* 移动端面板基础样式 */
-    .panel {
+        gap: 8px;
         width: 100%;
         max-width: 100%;
-        padding: 14px;
-        border-radius: 12px;
-        margin: 0;
-        box-sizing: border-box;
+        overflow-x: auto;
+        padding: 8px;
     }
-    
-    /* 面板排序：1. resource-panel */
+
+    /* 面板排序：1. LIFE-FACTORY面板 */
     #resource-panel {
         order: 1;
-        min-width: auto;
-        max-width: 100%;
         width: 100%;
-        margin-bottom: 0;
-        padding: 14px;
+        max-width: 100%;
+        margin-bottom: 8px;
     }
-    
+
     /* 面板排序：2. 生产线面板 */
     .panel[style*="grid-area: production"] {
         order: 2;
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 8px;
     }
-    
+
     /* 面板排序：3. 日历面板 */
     #week-calendar {
         order: 3;
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 8px;
     }
-    
-    /* 面板排序：4. 资源管理面板（expenses-panel） */
+
+    /* 面板排序：4. 资源管理面板 */
     #expenses-panel {
         order: 4;
         width: 100%;
         max-width: 100%;
-        box-sizing: border-box;
+        margin-bottom: 8px;
     }
-    
-    /* 面板排序：5. 里程碑面板 */
-    #milestones-panel {
+
+    /* 面板排序：5. 研发中心面板 */
+    .research-panel {
         order: 5;
         width: 100%;
         max-width: 100%;
-        box-sizing: border-box;
+        margin-bottom: 8px;
     }
-    
-    /* 面板排序：6. 研发中心面板 */
-    .research-panel {
+
+    /* 面板排序：6. 里程碑面板 */
+    #milestones-panel {
         order: 6;
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 8px;
     }
-    
+
     /* 移动端status-column使用contents，让子面板直接参与主布局 */
     .status-column {
         display: contents;
     }
-    
-    /* 移动端日历优化 - 内部滚动，显示当前日期 */
-    .week-calendar-container {
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-        scroll-behavior: smooth;
+
+    /* 隐藏桌面端专用的中间列容器 */
+    .middle-column {
+        display: contents;
+    }
+
+    /* 移动端面板基础样式 */
+    .panel {
         width: 100%;
-        padding-bottom: 8px;
+        max-width: 100%;
+        padding: 16px; /* 增加内边距 */
+        border-radius: 8px;
+        margin: 0;
+        box-sizing: border-box;
     }
-    
+
+    /* 日历面板特殊处理 */
+    .week-calendar-container {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .calendar-scroll-container {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    /* 确保表格可以水平滚动 */
     .week-calendar-container table {
-        min-width: 600px; /* 保持足够宽度以显示完整日历 */
-        width: auto;
-        border-collapse: collapse;
+        min-width: 600px;
+        width: 100%;
     }
-    
-    .calendar-cell {
-        min-width: 45px;
-        width: 45px;
-        height: 22px;
-        font-size: 0.75em;
-        padding: 2px 1px;
-    }
-    
-    .time-block {
-        min-height: 16px;
-        font-size: 0.7em;
-        border-radius: 4px;
-        margin: 1px 0;
-    }
-    
-    .time-block-text {
-        padding: 1px 2px;
-        line-height: 1.1;
-        font-size: 0.65em;
-    }
-    
-    /* 移动端按钮和交互元素优化 */
-    .panel-actions {
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-    
-    .panel-actions .btn {
-        font-size: 0.85em;
-        padding: 8px 12px;
-        min-width: auto;
-        flex: 1;
-        min-width: calc(50% - 4px);
-    }
-    
-    .production-item, .dev-item {
-        padding: 10px;
-        margin-bottom: 6px;
-        font-size: 0.9em;
-    }
-    
+
+    /* 移动端字体大小优化 */
     .panel-title {
-        font-size: 0.9em;
-        margin-bottom: 10px;
-        padding-bottom: 8px;
+        font-size: 18px; /* 增加标题字体大小 */
+        padding: 12px 16px;
+        font-weight: 600;
     }
-    
-    /* 移动端标签优化 */
-    .tag {
-        font-size: 0.7em;
-        padding: 2px 6px;
-        margin: 1px 2px;
+
+    .btn {
+        padding: 12px 16px; /* 增加按钮内边距 */
+        font-size: 16px; /* 增加按钮字体大小 */
+        margin: 4px;
+        border-radius: 8px;
     }
-    
-    /* 移动端资源数据行优化 */
+
+    .form-input, .form-select {
+        padding: 12px; /* 增加输入框内边距 */
+        font-size: 16px; /* 增加输入框字体大小 */
+        border-radius: 8px;
+    }
+
+    /* 生产线项目字体优化 */
+    .production-item, .dev-item {
+        padding: 16px; /* 增加项目内边距 */
+        margin-bottom: 8px;
+        font-size: 16px; /* 增加项目字体大小 */
+        border-radius: 8px;
+    }
+
+    .production-item .production-name,
+    .dev-item .dev-name {
+        font-size: 18px; /* 增加项目名称字体大小 */
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .production-item .production-details,
+    .dev-item .dev-details {
+        font-size: 14px; /* 增加详情字体大小 */
+        line-height: 1.4;
+    }
+
+    /* 资源数据字体优化 */
     .resource-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-        padding: 6px 0;
+        padding: 12px 0;
+        font-size: 16px;
     }
-    
-    .resource-row .resource-label {
-        font-size: 0.85em;
-        margin-bottom: 2px;
+
+    .resource-label {
+        font-size: 16px;
+        font-weight: 500;
     }
-    
-    .resource-row .resource-main-value {
-        font-size: 1.3em;
-    }
-    
-    /* 移动端资源面板特殊优化 */
+
     .resource-main-value {
-        font-size: 1.8em;
+        font-size: 24px; /* 增加主要数值字体大小 */
+        font-weight: 700;
     }
-    
-    /* 移动端表格和数据显示优化 */
-    .panel-tabs {
-        flex-wrap: wrap;
-        gap: 4px;
+
+    /* 标签字体优化 */
+    .tag {
+        font-size: 14px; /* 增加标签字体大小 */
+        padding: 6px 12px;
+        margin: 2px 4px;
+        border-radius: 6px;
     }
-    
-    .tab-btn {
-        font-size: 0.8em;
-        padding: 6px 10px;
-        flex: 1;
-        min-width: calc(33.33% - 3px);
+
+    /* 时间块字体优化 */
+    .time-block {
+        font-size: 14px; /* 增加时间块字体大小 */
+        padding: 6px 8px;
+        border-radius: 6px;
     }
-    
-    /* 移动端模态框优化 */
-    .modal {
-        padding: 4px;
+
+    .time-block-text {
+        font-size: 13px; /* 增加时间块文字大小 */
+        line-height: 1.3;
     }
-    
+
+    /* 日历单元格字体优化 */
+    .calendar-cell {
+        font-size: 14px; /* 增加日历单元格字体大小 */
+        padding: 4px 2px;
+    }
+
+    /* 模态框字体优化 */
     .modal-content {
         width: 95%;
         max-width: 95vw;
-        max-height: 90vh;
-        margin: 5vh auto;
-        overflow-y: auto;
-        border-radius: 12px;
+        margin: 20px auto;
+        font-size: 16px;
     }
-    
-    .modal-large .modal-content,
-    .modal-xlarge .modal-content {
-        width: 98%;
-        max-width: 98vw;
-        margin: 2vh auto;
+
+    .modal-title {
+        font-size: 20px; /* 增加模态框标题字体大小 */
+        font-weight: 600;
+        margin-bottom: 16px;
     }
-    
-    /* 移动端表格头部优化 */
+
+    .form-label {
+        font-size: 16px; /* 增加表单标签字体大小 */
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
+    /* 防止长按时文本选择 - 针对所有可交互元素 */
+    .production-item,
+    .dev-item,
+    .calendar-cell,
+    .time-block,
+    .expense-item,
+    .blueprint-item,
+    .context-menu,
+    .context-menu-item,
+    .btn,
+    .panel-title,
+    .resource-row,
+    .tag {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    /* 确保所有子元素也不会被选择 */
+    .production-item *,
+    .dev-item *,
+    .calendar-cell *,
+    .time-block *,
+    .expense-item *,
+    .blueprint-item * {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+
+    /* 表格内容防止选择 */
     .week-calendar-container table th,
     .week-calendar-container table td {
-        font-size: 0.75em;
-        padding: 2px 1px;
-        text-align: center;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        font-size: 14px;
+        padding: 4px 2px;
     }
 }
 

@@ -1,6 +1,3 @@
-// Life Factorio - 人生工厂 脚本分离文件
-
-// 测试次级模态框层级
 window.testModalLayers = function() {
     console.log('🧪 测试模态框层级...');
     
