@@ -679,7 +679,7 @@ body {
 }
 
 .btn-add {
-    background: var(--card-bg);
+    background: #32bc3241;
     color: var(--status-success);
     border-color: var(--border-light);
     flex: 1;
