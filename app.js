@@ -395,6 +395,76 @@ function calculateProgress(dev) {
         total: dev.target || 21
     };
 }
+
+// 解析研发项目阶段信息
+function parseProjectStages(action) {
+    if (!action) return [];
+    
+    // 支持的阶段分隔符：| 和 |
+    const stages = action.split(/\s*\|\s*/).filter(stage => stage.trim());
+    
+    return stages.map((stage, index) => {
+        const trimmedStage = stage.trim();
+        
+        // 解析时间范围
+        let timeRange = '';
+        let description = trimmedStage;
+        
+        // 匹配不同的时间格式
+        const patterns = [
+            /^第(\d+)-(\d+)天：(.+)$/,     // 第1-7天：...
+            /^第(\d+)-(\d+)周：(.+)$/,     // 第1-2周：...
+            /^第(\d+)-(\d+)月：(.+)$/,     // 第1-2月：...
+            /^第(\d+)天：(.+)$/,           // 第1天：...
+            /^第(\d+)周：(.+)$/,           // 第1周：...
+            /^第(\d+)月：(.+)$/            // 第1月：...
+        ];
+        
+        for (const pattern of patterns) {
+            const match = trimmedStage.match(pattern);
+            if (match) {
+                if (match.length === 4) {
+                    // 范围格式
+                    timeRange = `第${match[1]}-${match[2]}${pattern.source.includes('天') ? '天' : pattern.source.includes('周') ? '周' : '月'}`;
+                    description = match[3];
+                } else if (match.length === 3) {
+                    // 单个时间格式
+                    timeRange = `第${match[1]}${pattern.source.includes('天') ? '天' : pattern.source.includes('周') ? '周' : '月'}`;
+                    description = match[2];
+                }
+                break;
+            }
+        }
+        
+        return {
+            index: index + 1,
+            timeRange,
+            description,
+            original: trimmedStage
+        };
+    });
+}
+
+// 计算当前应该处于的阶段
+function getCurrentStage(dev, stages) {
+    if (!stages.length) return null;
+    
+    const progress = calculateProgress(dev);
+    const completionRate = progress.count / progress.total;
+    
+    // 根据完成比例确定当前阶段
+    const stageIndex = Math.min(
+        Math.floor(completionRate * stages.length),
+        stages.length - 1
+    );
+    
+    return {
+        current: stageIndex,
+        stage: stages[stageIndex],
+        progress: completionRate,
+        isCompleted: stageIndex === stages.length - 1 && completionRate >= 1
+    };
+}
 // 升级研究项目
 function upgradeResearchProject(dev) {
     // 记录完成信息
@@ -749,6 +819,68 @@ function checkDailyReset() {
     }
 }
 
+// 移动端长按菜单支持
+let longPressTimer = null;
+let startTouch = null;
+let isLongPress = false;
+
+function enableLongPressForElement(element, callback) {
+    if (!element) return;
+    
+    element.addEventListener('touchstart', function(e) {
+        startTouch = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY,
+            time: Date.now()
+        };
+        isLongPress = false;
+        
+        longPressTimer = setTimeout(() => {
+            isLongPress = true;
+            // 创建模拟的右键事件
+            const fakeEvent = {
+                preventDefault: () => {},
+                clientX: startTouch.x,
+                clientY: startTouch.y,
+                touches: e.touches
+            };
+            callback(fakeEvent);
+            
+            // 添加震动反馈（如果支持）
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        }, 500); // 500ms长按触发
+    }, { passive: false });
+    
+    element.addEventListener('touchend', function(e) {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+        
+        // 如果是长按后的touchend，阻止默认行为
+        if (isLongPress) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    element.addEventListener('touchmove', function(e) {
+        if (startTouch && longPressTimer) {
+            const moveDistance = Math.sqrt(
+                Math.pow(e.touches[0].clientX - startTouch.x, 2) + 
+                Math.pow(e.touches[0].clientY - startTouch.y, 2)
+            );
+            
+            // 如果移动距离超过10px，取消长按
+            if (moveDistance > 10) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        }
+    }, { passive: false });
+}
+
 // 设置事件监听
 function setupEventListeners() {
     // 生产线表单监听
@@ -786,10 +918,23 @@ function setupEventListeners() {
     // 生产线右键菜单
     const prodList = document.getElementById('productions-list');
     if (prodList) {
+        // 桌面端右键菜单
         prodList.addEventListener('contextmenu', function(e) {
             const item = e.target.closest('.production-item');
             if (item) {
                 e.preventDefault();
+                const index = Array.from(document.querySelectorAll('.production-item')).indexOf(item);
+                window.showContextMenu(e, index, 'production');
+            }
+        });
+        
+        // 移动端长按菜单
+        enableLongPressForElement(prodList, function(e) {
+            const touchPoint = e.touches ? e.touches[0] : e;
+            const element = document.elementFromPoint(touchPoint.clientX, touchPoint.clientY);
+            const item = element ? element.closest('.production-item') : null;
+            
+            if (item) {
                 const index = Array.from(document.querySelectorAll('.production-item')).indexOf(item);
                 window.showContextMenu(e, index, 'production');
             }
@@ -993,6 +1138,10 @@ function renderDevelopments() {
                 const progress = calculateProgress(dev);
                 const percent = Math.min(1, progress.count / progress.total);
                 
+                // 解析阶段信息
+                const stages = parseProjectStages(dev.action);
+                const currentStageInfo = getCurrentStage(dev, stages);
+                
                 // 格式化tooltip
                 const startDate = dev.startDate ? new Date(dev.startDate).toLocaleDateString() : '未开始';
                 const tip = [
@@ -1002,8 +1151,62 @@ function renderDevelopments() {
                     `频率：${dev.freq}`,
                     `周期：${dev.cycle}天`,
                     `目标：${dev.target}次`,
-                    `当前进度：${progress.count}/${progress.total}`
-                ].join('\n');
+                    `当前进度：${progress.count}/${progress.total}`,
+                    stages.length > 0 ? `阶段数：${stages.length}` : ''
+                ].filter(Boolean).join('\n');
+                
+                // 生成阶段展示HTML
+                let stagesHtml = '';
+                if (stages.length > 0 && currentStageInfo) {
+                    stagesHtml = `
+                        <div class="stages-container" style="margin-top: 10px;">
+                            <div class="stages-header" style="font-size: 0.9em; font-weight: bold; margin-bottom: 6px; color: #444;">
+                                📋 项目阶段 (${currentStageInfo.current + 1}/${stages.length})
+                            </div>
+                            <div class="stages-list">
+                                ${stages.map((stage, stageIdx) => {
+                                    const isCurrent = stageIdx === currentStageInfo.current;
+                                    const isPast = stageIdx < currentStageInfo.current;
+                                    const isFuture = stageIdx > currentStageInfo.current;
+                                    
+                                    let statusIcon = '';
+                                    let statusClass = '';
+                                    
+                                    if (isPast) {
+                                        statusIcon = '✅';
+                                        statusClass = 'stage-completed';
+                                    } else if (isCurrent) {
+                                        statusIcon = '🔄';
+                                        statusClass = 'stage-current';
+                                    } else {
+                                        statusIcon = '⏳';
+                                        statusClass = 'stage-future';
+                                    }
+                                    
+                                    return `
+                                        <div class="stage-item ${statusClass}" style="
+                                            display: flex; 
+                                            align-items: flex-start; 
+                                            margin-bottom: 4px; 
+                                            padding: 4px; 
+                                            border-radius: 4px;
+                                            background: ${isCurrent ? '#e8f5e9' : isPast ? '#f0f0f0' : '#fafafa'};
+                                            border-left: 3px solid ${isCurrent ? '#4caf50' : isPast ? '#8bc34a' : '#ddd'};
+                                        ">
+                                            <span style="margin-right: 6px; font-size: 0.9em;">${statusIcon}</span>
+                                            <div style="flex: 1; font-size: 0.85em;">
+                                                ${stage.timeRange ? `<strong>${stage.timeRange}</strong>: ` : ''}
+                                                <span style="color: ${isCurrent ? '#2e7d32' : isPast ? '#666' : '#999'};">
+                                                    ${stage.description}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
                 
                 html += `
                     <div class=\"dev-item ${dev.active ? 'active' : 'paused'}\" title=\"${tip}\">
@@ -1028,7 +1231,12 @@ function renderDevelopments() {
                             <div class=\"progress-bar\">
                                 <div class=\"progress-fill\" style=\"width: ${(percent*100).toFixed(1)}%\"></div>
                             </div>
-                            <div style=\"margin-top: 8px; font-size: 0.85em; color: #666;\">${dev.action}</div>
+                            ${currentStageInfo && currentStageInfo.stage ? 
+                                `<div style="margin-top: 8px; font-size: 0.85em; color: #4caf50; font-weight: bold;">
+                                    🎯 当前阶段: ${currentStageInfo.stage.timeRange} ${currentStageInfo.stage.description}
+                                </div>` : 
+                                `<div style="margin-top: 8px; font-size: 0.85em; color: #666;">${dev.action}</div>`
+                            }
                         </div>
                         <div style=\"margin-top: 8px; font-size: 0.85em; color: #888;\">
                             频率：${dev.freq}
@@ -1037,6 +1245,7 @@ function renderDevelopments() {
                             `<div style=\"margin-top: 4px; font-size: 0.85em; color: #666;\">开始于：${new Date(dev.startDate).toLocaleDateString()}</div>` : 
                             ''
                         }
+                        ${stagesHtml}
                     </div>
                 `;
             });
@@ -2162,9 +2371,20 @@ function renderWeekCalendar() {
     setTimeout(() => {
         const calendarCells = container.querySelectorAll('.calendar-cell');
         calendarCells.forEach(cell => {
-            // 右键菜单
+            // 桌面端右键菜单
             cell.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
+                const date = cell.dataset.date;
+                const hour = parseInt(cell.dataset.hour);
+                
+                // 不允许在24:00时间点创建蓝图
+                if (hour >= 24) return;
+                
+                showCalendarCellContextMenu(e, date, hour);
+            });
+            
+            // 移动端长按菜单
+            enableLongPressForElement(cell, (e) => {
                 const date = cell.dataset.date;
                 const hour = parseInt(cell.dataset.hour);
                 
@@ -2301,6 +2521,10 @@ function renderTimeBlocks(weekDates) {
                 block.style.zIndex = 100 + index;
                 block.title = `${name}\n时间: ${item.hour}:${String(item.minute).padStart(2,'0')}-${item.endHour}:${String(item.endMinute).padStart(2,'0')}`;
                 block.oncontextmenu = (e) => { e.preventDefault(); window._calendarBlockContextMenu(e, item.date, item.name, item.hour, item.minute); };
+                // 移动端长按菜单
+                enableLongPressForElement(block, (e) => { 
+                    window._calendarBlockContextMenu(e, item.date, item.name, item.hour, item.minute); 
+                });
             } else { // Blueprint
                 const startDate = new Date(item.scheduledDate);
                 dateStr = formatDateLocal(startDate);
@@ -2316,6 +2540,10 @@ function renderTimeBlocks(weekDates) {
                 block.title = `计划: ${name} (${duration}分钟)\n优先级: ${item.priority || 'medium'}${sourceInfo}\n💡 提示: 可拖拽调整时间`;
                 block.dataset.blueprintId = item.id;
                 block.oncontextmenu = (e) => { e.preventDefault(); showBlueprintContextMenu(e, item.id); };
+                // 移动端长按菜单
+                enableLongPressForElement(block, (e) => { 
+                    showBlueprintContextMenu(e, item.id); 
+                });
                 
                 // 添加拖拽功能
                 block.draggable = true;
@@ -3298,7 +3526,7 @@ function renderExpenses() {
         // 货币符号与填写一致
         let symbol = currencySymbols[exp.currency] || '¥';
         return `
-            <div class="expense-item" data-expense-index="${idx}" oncontextmenu="window.showExpenseContextMenu(event, ${idx})">
+            <div class="expense-item" data-expense-index="${idx}">
                 <div class="expense-header">
                     <span class="expense-name">${exp.name}</span>
                     <span class="expense-amount">${symbol}${Number(exp.amount).toLocaleString()}</span>
@@ -3310,6 +3538,23 @@ function renderExpenses() {
             </div>
         `;
     }).join('');
+    
+    // 为支出项目添加右键菜单和长按菜单事件
+    setTimeout(() => {
+        const expenseItems = container.querySelectorAll('.expense-item');
+        expenseItems.forEach((item, index) => {
+            // 桌面端右键菜单
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                window.showExpenseContextMenu(e, index);
+            });
+            
+            // 移动端长按菜单
+            enableLongPressForElement(item, (e) => {
+                window.showExpenseContextMenu(e, index);
+            });
+        });
+    }, 50);
 }
 // 支出项右键菜单
 window.showExpenseContextMenu = function(event, idx) {
@@ -7800,3 +8045,105 @@ function testDesktopRightPanels() {
 }
 
 window.testDesktopRightPanels = testDesktopRightPanels;
+
+// 测试移动端长按菜单功能
+function testMobileLongPress() {
+    console.log('📱 开始测试移动端长按菜单功能...');
+    
+    // 检测是否为移动设备
+    const isMobile = window.innerWidth <= 768;
+    console.log('📱 当前设备类型:', isMobile ? '移动端' : '桌面端');
+    console.log('📱 窗口宽度:', window.innerWidth);
+    
+    // 检查长按功能是否已启用
+    const prodList = document.getElementById('productions-list');
+    const calendarCells = document.querySelectorAll('.calendar-cell');
+    const expenseItems = document.querySelectorAll('.expense-item');
+    
+    console.log('📱 生产线列表:', prodList ? '已找到' : '未找到');
+    console.log('📱 日历单元格数量:', calendarCells.length);
+    console.log('📱 支出项目数量:', expenseItems.length);
+    
+    // 检查震动API支持
+    const hasVibration = 'vibrate' in navigator;
+    console.log('📱 震动API支持:', hasVibration ? '支持' : '不支持');
+    
+    // 测试长按提示
+    if (isMobile) {
+        showNotification('💡 移动端长按功能已启用！长按生产线、日历或支出项目可显示菜单', 'info');
+    } else {
+        showNotification('🖥️ 桌面端可直接右键查看菜单', 'info');
+    }
+    
+    console.log('📱 移动端长按功能测试完成');
+    
+    return {
+        isMobile,
+        hasVibration,
+        hasProductionList: !!prodList,
+        calendarCellsCount: calendarCells.length,
+        expenseItemsCount: expenseItems.length
+    };
+}
+
+window.testMobileLongPress = testMobileLongPress;
+
+// 测试项目阶段解析功能
+function testProjectStages() {
+    console.log('📋 开始测试项目阶段解析功能...');
+    
+    // 测试样例数据
+    const testActions = [
+        "第1-7天：固定23:30睡觉时间 | 第8-14天：加上固定7:00起床 | 第15-21天：睡前30分钟无屏幕",
+        "第1周：记录所有支出明细 | 第2-4周：分类统计月度支出 | 第5-8周：建立预算模型 | 第9-12周：预测分析和优化",
+        "第1-2月：技能提升计划执行 | 第3-4月：绩效优化和成果展示 | 第5-6月：薪资谈判和职业发展",
+        "第1周：30分钟深度工作块 | 第2-4周：逐步延长到90分钟 | 第5-8周：达到3小时连续专注"
+    ];
+    
+    testActions.forEach((action, index) => {
+        console.log(`\n测试样例 ${index + 1}: ${action}`);
+        const stages = parseProjectStages(action);
+        
+        console.log(`解析出 ${stages.length} 个阶段:`);
+        stages.forEach(stage => {
+            console.log(`  阶段${stage.index}: ${stage.timeRange} - ${stage.description}`);
+        });
+    });
+    
+    // 测试当前进行中的研发项目
+    if (gameData.developments && gameData.developments.length > 0) {
+        console.log('\n当前进行中的研发项目阶段信息:');
+        gameData.developments.forEach((dev, index) => {
+            console.log(`\n项目 ${index + 1}: ${dev.researchName}`);
+            console.log(`Action: ${dev.action}`);
+            
+            const stages = parseProjectStages(dev.action);
+            const currentStageInfo = getCurrentStage(dev, stages);
+            const progress = calculateProgress(dev);
+            
+            console.log(`解析出 ${stages.length} 个阶段`);
+            if (currentStageInfo) {
+                console.log(`当前阶段: ${currentStageInfo.current + 1}/${stages.length}`);
+                console.log(`当前阶段内容: ${currentStageInfo.stage.timeRange} - ${currentStageInfo.stage.description}`);
+                console.log(`完成进度: ${progress.count}/${progress.total} (${(currentStageInfo.progress * 100).toFixed(1)}%)`);
+            }
+        });
+    } else {
+        console.log('\n当前没有进行中的研发项目');
+    }
+    
+    console.log('\n📋 项目阶段解析功能测试完成');
+    
+    // 重新渲染研发项目以显示阶段信息
+    renderDevelopments();
+    showNotification('项目阶段解析功能已启用！查看研发中心可见阶段进度', 'success');
+    
+    return {
+        testActionsParsed: testActions.length,
+        activeDevelopments: gameData.developments ? gameData.developments.length : 0,
+        parseProjectStages,
+        getCurrentStage
+    };
+}
+
+window.testProjectStages = testProjectStages;
