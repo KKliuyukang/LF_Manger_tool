@@ -1566,8 +1566,8 @@ window.pauseDev = function(index) {
 
 window.resumeDev = function(index) {
     const activeCount = gameData.developments.filter(d => d.active).length;
-    if (activeCount >= 5) {
-        alert('最多同时进行5个研发项目！');
+    if (activeCount >= 6) {
+        alert('最多同时进行6个研发项目！');
         return;
     }
     
@@ -2337,10 +2337,10 @@ function renderWeekCalendar() {
     }
     html += '</tr></thead>';
     html += '<tbody>';
-    for (let h = 0; h <= 24; h++) {
+    for (let h = 0; h < 24; h++) {
         const isNightTime = h >= 22 || h < 8;
         const nightClass = isNightTime ? 'night-time' : '';
-        const timeLabel = h === 24 ? '24:00' : `${h}:00`;
+        const timeLabel = `${h}:00`;
         html += `<tr style="height:25px;" class="${nightClass}"><td style="color:#aaa;padding:2px;font-size:0.8em;">${timeLabel}</td>`;
 
         for (let d = 0; d < 7; d++) {
@@ -2456,7 +2456,7 @@ function renderTimeBlocks(weekDates) {
     const container = document.getElementById('calendar-container');
     const table = container ? container.querySelector('table') : null;
 
-    if (!overlay || !container || !table || !table.rows[25] || !table.rows[25].cells[7]) {
+    if (!overlay || !container || !table || !table.rows[24] || !table.rows[24].cells[7]) {
         requestAnimationFrame(() => renderTimeBlocks(weekDates));
         return;
     }
@@ -2466,7 +2466,7 @@ function renderTimeBlocks(weekDates) {
 
     try {
         const firstDataCell = table.rows[1].cells[1];
-        const lastDataCell = table.rows[25].cells[7]; // 24:00 row, Sunday cell
+        const lastDataCell = table.rows[23].cells[7]; // 23:00 row, Sunday cell
         const cellHeight = firstDataCell.offsetHeight;
         const cellWidth = firstDataCell.offsetWidth;
 
@@ -2511,7 +2511,7 @@ function renderTimeBlocks(weekDates) {
             if (item.itemType === 'log') {
                 dateStr = item.date;
                 startMinutes = (item.hour || 0) * 60 + (item.minute || 0);
-                const endMinutes = (item.endHour || item.hour || 0) * 60 + (item.endMinute || item.minute || 0);
+                const endMinutes = (item.endHour || item.hour || 0) * 60 + (item.endMinute !== undefined ? item.endMinute : (item.minute || 0));
                 duration = Math.max(endMinutes - startMinutes, 15);
                 name = item.name;
                 const today = getLocalDateString(); const isPast = dateStr < today; const fadeClass = isPast ? " time-block-faded" : ""; block.className = `time-block ${getCalendarBlockClass(name)}${fadeClass}`;
@@ -2563,7 +2563,9 @@ function renderTimeBlocks(weekDates) {
             const left = weekDay * cellWidth;
             const top = (startMinutes / 60) * cellHeight;
             const width = cellWidth;
-            const height = Math.max((duration / 60) * cellHeight, 1);
+            const maxDuration = 23 * 60 + 59 - startMinutes; // 最大可用时间
+            const actualDuration = Math.min(duration, maxDuration);
+            const height = Math.max((actualDuration / 60) * cellHeight, 1);
 
             block.style.position = 'absolute';
             block.style.left = `${left}px`;
@@ -2585,7 +2587,7 @@ function renderTimeBlocks(weekDates) {
         const todayStr = formatDateLocal(now);
         const weekDay = weekDates.indexOf(todayStr);
         if (weekDay >= 0) {
-            const cellHeight = overlay.offsetHeight / 25; // 24小时+1行
+            const cellHeight = overlay.offsetHeight / 24; // 24小时
             const cellWidth = overlay.offsetWidth / 7;
             const minutes = now.getHours() * 60 + now.getMinutes();
             const top = (minutes / 60) * cellHeight;
@@ -3109,36 +3111,10 @@ window.logProductionTime = function(sortedIndex) {
         console.error('在真实索引', prod._realIndex, '处找不到生产线');
         return;
     }
-    
-    // 快速打卡，记录30分钟
-    const now = new Date();
-    const endH = now.getHours(), endM = now.getMinutes();
-    const start = new Date(now.getTime() - 30*60000);
-    const startH = start.getHours(), startM = start.getMinutes();
-    const today = now.toISOString().slice(0,10);
-    const weekDay = (now.getDay()+6)%7;
-    const timeLog = {
-        name: realProd.name,
-        type: realProd.type,
-        date: today,
-        weekDay: weekDay,
-        hour: startH,
-        minute: startM,
-        timeCost: 30,
-        endHour: endH,
-        endMinute: endM
-    };
-    gameData.timeLogs.push(timeLog);
-    realProd.lastCheckIn = now.toISOString();
-    saveToCloud();
-    renderProductions();
-    renderDevelopments();
-    renderWeekCalendar();
-    renderResourceStats();
-    renderResourceOverview(); // 添加资源总览刷新
-}
 
-// 2. 修复数据关联
+    // 显示时间选项对话框
+    showTimeOptionsDialog(sortedIndex);
+}// 2. 修复数据关联
 function fixDataLinks() {
     // 1. 生产线与研发项目关联修正
     gameData.productions = gameData.productions.filter(p => p && p.name);
@@ -7016,6 +6992,13 @@ window.updateResourceAnalysisData = function() {
     months.forEach(month => {
         const monthData = gameData.billsData[month];
         
+        // 安全检查：确保monthData和expenses存在
+        if (!monthData || !monthData.expenses || !Array.isArray(monthData.expenses)) {
+            monthlyExpenses.push(0);
+            monthlyIncomes.push(0);
+            return;
+        }
+        
         // 计算月支出（转换为澳元基准）
         const monthExpense = monthData.expenses.reduce((sum, expense) => {
             return sum + convertToCNY(expense.amount, expense.currency || 'AUD');
@@ -7029,7 +7012,6 @@ window.updateResourceAnalysisData = function() {
         // 统计支出类别
         monthData.expenses.forEach(expense => {
             const category = expense.category || expense.name || '其他';
-            const amount = convertToCNY(expense.amount, expense.currency || 'AUD');
             expenseCategories[category] = (expenseCategories[category] || 0) + amount;
         });
     });
@@ -8144,3 +8126,125 @@ function testProjectStages() {
 }
 
 window.testProjectStages = testProjectStages;
+// 新增：显示时间选项对话框
+window.showTimeOptionsDialog = function(sortedIndex) {
+    const prod = sortedProductions[sortedIndex];
+    const realProd = gameData.productions[prod._realIndex];
+    
+    // 创建时间选项对话框
+    const dialog = document.createElement('dialog');
+    dialog.id = 'time-options-dialog';
+    dialog.style.cssText = 'border:none;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.3);padding:0;max-width:360px;width:92vw;background:#fff;';
+    
+    let selectedMinutes = 5; // 默认5分钟
+    
+    dialog.innerHTML = `
+        <form method="dialog" style="padding:28px 24px 20px 24px;">
+            <h3 style="margin-bottom:20px;font-size:1.25em;font-weight:600;color:#333;text-align:center;">选择打卡时长</h3>
+            <div style="margin-bottom:24px;">
+                <div style="font-size:1em;color:#555;margin-bottom:16px;text-align:center;padding:12px;background:#f8f9fa;border-radius:8px;font-weight:500;">项目：${realProd.name}</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+                    <button type="button" class="time-option-btn" data-minutes="5" style="padding:16px 12px;border:3px solid #e0e0e0;border-radius:12px;background:#fff;cursor:pointer;font-size:16px;font-weight:600;transition:all 0.3s;min-height:60px;display:flex;align-items:center;justify-content:center;">5分钟</button>
+                    <button type="button" class="time-option-btn" data-minutes="15" style="padding:16px 12px;border:3px solid #e0e0e0;border-radius:12px;background:#fff;cursor:pointer;font-size:16px;font-weight:600;transition:all 0.3s;min-height:60px;display:flex;align-items:center;justify-content:center;">15分钟</button>
+                    <button type="button" class="time-option-btn" data-minutes="30" style="padding:16px 12px;border:3px solid #e0e0e0;border-radius:12px;background:#fff;cursor:pointer;font-size:16px;font-weight:600;transition:all 0.3s;min-height:60px;display:flex;align-items:center;justify-content:center;">30分钟</button>
+                </div>
+                <div style="text-align:center;font-size:1em;color:#666;padding:12px;background:#f0f8ff;border-radius:8px;border:2px solid #e6f3ff;">
+                    当前选择：<span id="selected-time-display" style="font-weight:600;color:#007bff;">5分钟</span>
+                </div>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button type="submit" class="btn btn-primary" style="flex:1;padding:14px 20px;font-size:16px;font-weight:600;border-radius:10px;min-height:48px;">确认打卡</button>
+                <button type="button" class="btn btn-secondary" onclick="this.closest('dialog').close()" style="flex:1;padding:14px 20px;font-size:16px;font-weight:600;border-radius:10px;min-height:48px;">取消</button>
+            </div>
+        </form>
+    `;
+    
+    document.body.appendChild(dialog);
+    
+    // 绑定时间选项按钮事件
+    const timeOptionBtns = dialog.querySelectorAll('.time-option-btn');
+    timeOptionBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // 移除其他按钮的选中状态
+            timeOptionBtns.forEach(b => {
+                b.style.borderColor = '#e0e0e0';
+                b.style.background = '#fff';
+                b.style.color = '#333';
+                b.style.transform = 'scale(1)';
+            });
+            
+            // 设置当前按钮为选中状态
+            this.style.borderColor = '#007bff';
+            this.style.background = '#007bff';
+            this.style.color = '#fff';
+            this.style.transform = 'scale(1.05)';
+            
+            // 更新选中的时间
+            selectedMinutes = parseInt(this.dataset.minutes);
+            document.getElementById('selected-time-display').textContent = selectedMinutes + '分钟';
+        });
+    });
+    
+    // 设置默认选中5分钟
+    timeOptionBtns[0].click();
+    
+    // 绑定表单提交事件
+    const form = dialog.querySelector('form');
+    form.onsubmit = function(e) {
+        e.preventDefault();
+        
+        // 执行打卡
+        recordTimeWithDuration(sortedIndex, selectedMinutes);
+        
+        dialog.close();
+        document.body.removeChild(dialog);
+    };
+    
+    dialog.showModal();
+}
+
+// 新增：根据选择的时间长度记录打卡
+window.recordTimeWithDuration = function(sortedIndex, durationMinutes) {
+    const prod = sortedProductions[sortedIndex];
+    const realProd = gameData.productions[prod._realIndex];
+    
+    // 使用正确的当前时间
+    const now = new Date();
+    const endH = now.getHours();
+    const endM = now.getMinutes();
+    
+    // 计算开始时间（向前推指定分钟数）
+    const start = new Date(now.getTime() - durationMinutes * 60000);
+    const startH = start.getHours();
+    const startM = start.getMinutes();
+    
+    // 使用本地日期字符串，避免时区问题
+    const today = getLocalDateString();
+    const weekDay = (now.getDay() + 6) % 7;
+    
+    const timeLog = {
+        name: realProd.name,
+        type: realProd.type,
+        date: today,
+        weekDay: weekDay,
+        hour: startH,
+        minute: startM,
+        timeCost: durationMinutes,
+        endHour: endH,
+        endMinute: endM,
+        timestamp: now.toISOString()
+    };
+    
+    gameData.timeLogs.push(timeLog);
+    realProd.lastCheckIn = now.toISOString();
+    
+    saveToCloud();
+    renderProductions();
+    renderDevelopments();
+    renderWeekCalendar();
+    renderResourceStats();
+    renderResourceOverview();
+    
+    // 显示成功提示
+    showNotification(`✅ 已记录 ${realProd.name} ${durationMinutes}分钟`, 'success');
+} 
