@@ -191,6 +191,12 @@ window.AccountManager = {
                     </button>
                 </div>
                 
+                ${accounts.length > 0 ? `
+                <div class="account-help">
+                    <small>💡 操作说明：<strong>✏️</strong> 编辑账户 | <strong>🔇/🔊</strong> 启用/禁用账户</small>
+                </div>
+                ` : ''}
+                
                 <div class="account-list">
         `;
         
@@ -224,10 +230,10 @@ window.AccountManager = {
                             ${statusText}
                         </div>
                         <div class="account-actions">
-                            <button class="btn btn-sm" onclick="AccountManager.showEditAccountModal('${account.id}')">
+                            <button class="btn btn-sm" onclick="AccountManager.showEditAccountModal('${account.id}')" title="编辑账户">
                                 ✏️
                             </button>
-                            <button class="btn btn-sm" onclick="AccountManager.toggleAccountStatus('${account.id}'); AccountManager.renderAccountManagement();">
+                            <button class="btn btn-sm" onclick="AccountManager.toggleAccountStatus('${account.id}'); if(window.renderAccountsManagement) window.renderAccountsManagement();" title="${account.enabled ? '点击禁用账户' : '点击启用账户'}">
                                 ${account.enabled ? '🔇' : '🔊'}
                             </button>
                         </div>
@@ -246,11 +252,23 @@ window.AccountManager = {
     
     // 显示创建账户模态框
     showCreateAccountModal: function() {
-        // 这里暂时用简单的prompt，后续可以改为完整的模态框
         const name = prompt('请输入账户名称:');
         if (!name) return;
         
-        const type = prompt('请选择账户类型 (bank_debit/alipay/wechat/other):', 'other');
+        // 提供账户类型选择
+        const typeOptions = Object.entries(this.accountTypes).map(([key, value]) => 
+            `${key}: ${value.name} ${value.icon}`
+        ).join('\n');
+        
+        const typePrompt = `请选择账户类型（输入左侧代码）:\n${typeOptions}\n\n请输入:`;
+        let type = prompt(typePrompt, 'bank_debit');
+        
+        // 验证账户类型
+        if (type && !this.accountTypes[type]) {
+            alert('⚠️ 无效的账户类型，已自动设置为"其他"');
+            type = 'other';
+        }
+        
         const currency = prompt('请选择货币 (CNY/AUD/USD):', 'CNY');
         
         try {
@@ -260,14 +278,14 @@ window.AccountManager = {
                 currency: currency || 'CNY'
             });
             
-            alert('账户创建成功！');
+            alert('✅ 账户创建成功！');
             
             // 重新渲染界面
-            if (window.switchResourceTab) {
-                window.switchResourceTab('accounts');
+            if (window.renderAccountsManagement) {
+                window.renderAccountsManagement();
             }
         } catch (error) {
-            alert('创建失败: ' + error.message);
+            alert('❌ 创建失败: ' + error.message);
         }
     },
     
@@ -275,23 +293,66 @@ window.AccountManager = {
     showEditAccountModal: function(accountId) {
         const account = this.getAccountById(accountId);
         if (!account) {
-            alert('账户不存在');
+            alert('❌ 账户不存在');
             return;
         }
         
-        const newName = prompt('请输入新的账户名称:', account.name);
-        if (newName && newName !== account.name) {
-            try {
-                this.updateAccount(accountId, { name: newName });
-                alert('账户更新成功！');
-                
-                // 重新渲染界面
-                if (window.switchResourceTab) {
-                    window.switchResourceTab('accounts');
-                }
-            } catch (error) {
-                alert('更新失败: ' + error.message);
+        const operations = [
+            '1. 修改账户名称',
+            '2. 更改账户类型',
+            '3. 删除账户',
+            '0. 取消'
+        ];
+        
+        const choice = prompt(`账户编辑选项:\n${operations.join('\n')}\n\n请选择操作 (输入数字):`, '1');
+        
+        try {
+            switch(choice) {
+                case '1':
+                    const newName = prompt('请输入新的账户名称:', account.name);
+                    if (newName && newName !== account.name) {
+                        this.updateAccount(accountId, { name: newName });
+                        alert('✅ 账户名称更新成功！');
+                    }
+                    break;
+                    
+                case '2':
+                    const typeOptions = Object.entries(this.accountTypes).map(([key, value]) => 
+                        `${key}: ${value.name} ${value.icon}`
+                    ).join('\n');
+                    
+                    const newType = prompt(`当前类型: ${this.accountTypes[account.type]?.name}\n\n可选类型:\n${typeOptions}\n\n请输入新类型代码:`, account.type);
+                    if (newType && newType !== account.type && this.accountTypes[newType]) {
+                        this.updateAccount(accountId, { type: newType });
+                        alert('✅ 账户类型更新成功！');
+                    } else if (newType && !this.accountTypes[newType]) {
+                        alert('⚠️ 无效的账户类型');
+                        return;
+                    }
+                    break;
+                    
+                case '3':
+                    const confirmDelete = confirm(`确定要删除账户"${account.name}"吗？\n\n此操作无法撤销！`);
+                    if (confirmDelete) {
+                        const deleted = this.deleteAccount(accountId);
+                        if (deleted) {
+                            alert('✅ 账户删除成功！');
+                        }
+                    }
+                    break;
+                    
+                case '0':
+                default:
+                    return; // 取消操作
             }
+            
+            // 重新渲染界面
+            if (window.renderAccountsManagement) {
+                window.renderAccountsManagement();
+            }
+            
+        } catch (error) {
+            alert('❌ 操作失败: ' + error.message);
         }
     }
 }; 
