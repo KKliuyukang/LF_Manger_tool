@@ -75,6 +75,7 @@
                         </div>
                         <div class="panel-tabs">
                             <button class="tab-btn active" onclick="window.switchResourceTab('overview')">总览</button>
+                            <button class="tab-btn" onclick="window.switchResourceTab('accounts')">账户管理</button>
                             <button class="tab-btn" onclick="window.switchResourceTab('bills')">账单管理</button>
                             <button class="tab-btn" onclick="window.switchResourceTab('analysis')">详细分析</button>
                         </div>
@@ -83,6 +84,11 @@
                     <!-- 资源总览面板 -->
                     <div id="resource-overview-tab" class="resource-tab-content">
                         <div id="resource-overview-content"></div>
+                    </div>
+                    
+                    <!-- 账户管理面板 -->
+                    <div id="resource-accounts-tab" class="resource-tab-content" style="display: none;">
+                        <div id="resource-accounts-content"></div>
                     </div>
                     
                     <!-- 账单管理面板 -->
@@ -796,6 +802,9 @@
     </div>
 
     <script src="utils/tech-tree-renderer.js"></script>
+    <!-- 财务模块 -->
+    <script src="utils/finance-main.js"></script>
+    <script src="utils/account-manager.js"></script>
     <script>
         // DOM加载完成后执行
         // 当页面完全加载后，立即预加载科技树数据

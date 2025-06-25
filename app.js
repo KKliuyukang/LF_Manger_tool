@@ -3720,6 +3720,9 @@ window.switchResourceTab = function(tabName) {
             case 'overview':
                 renderResourceOverview();
                 break;
+            case 'accounts':
+                renderAccountsManagement();
+                break;
             case 'bills':
                 renderBillsSummary();
                 break;
@@ -3873,6 +3876,29 @@ function getCurrencySymbol(currency) {
         'EUR': '€'
     };
     return symbols[currency] || '¥';
+}
+
+// 渲染账户管理面板
+function renderAccountsManagement() {
+    const container = document.getElementById('resource-accounts-content');
+    if (!container) return;
+    
+    // 确保财务模块已初始化
+    if (window.FinanceModule && !window.FinanceModule.initialized) {
+        window.FinanceModule.init();
+    }
+    
+    // 使用账户管理器渲染界面
+    if (window.AccountManager) {
+        container.innerHTML = window.AccountManager.renderAccountManagement();
+    } else {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #95a5a6;">
+                <p>⚠️ 账户管理模块加载中...</p>
+                <p>请稍后再试</p>
+            </div>
+        `;
+    }
 }
 
 // 切换显示货币
@@ -7012,6 +7038,7 @@ window.updateResourceAnalysisData = function() {
         // 统计支出类别
         monthData.expenses.forEach(expense => {
             const category = expense.category || expense.name || '其他';
+            const amount = convertToCNY(expense.amount, expense.currency || 'AUD');
             expenseCategories[category] = (expenseCategories[category] || 0) + amount;
         });
     });
@@ -7023,7 +7050,7 @@ window.updateResourceAnalysisData = function() {
     const fixedCategories = ['房租', '保险', '贷款', '水电费', '网费', '手机费', 'Rent', 'Insurance', 'Loan'];
     const fixedExpenses = Object.entries(expenseCategories)
         .filter(([category]) => fixedCategories.some(fixed => category.toLowerCase().includes(fixed.toLowerCase())))
-        .reduce((sum, [, amount]) => sum + amount, 0);
+        .reduce((sum, entry) => sum + entry[1], 0);
     const fixedExpenseRatio = monthlyExpenses.length > 0 ? (fixedExpenses / (monthlyAverage * monthlyExpenses.length)) : 0;
     
     // 计算稳定度评分（基于支出变化的标准差）

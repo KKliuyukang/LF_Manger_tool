@@ -3428,6 +3428,129 @@ input:checked + .slider:before {
     top: 2px;
 }
 
+/* 账户管理样式 */
+.account-management {
+    padding: var(--spacing-md);
+}
+
+.account-management-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.account-management-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.1em;
+    font-weight: 500;
+}
+
+.account-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.account-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-base);
+}
+
+.account-item:hover {
+    border-color: var(--border-medium);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-hover);
+}
+
+.account-item.disabled {
+    opacity: 0.6;
+    background: var(--surface-muted);
+}
+
+.account-icon {
+    font-size: 1.5em;
+    margin-right: var(--spacing-md);
+    width: 40px;
+    text-align: center;
+}
+
+.account-info {
+    flex: 1;
+}
+
+.account-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.account-meta {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.account-status {
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8em;
+    font-weight: 500;
+    margin-right: var(--spacing-sm);
+}
+
+.account-status.enabled {
+    background: rgba(76, 175, 80, 0.1);
+    color: var(--status-success);
+}
+
+.account-status.disabled {
+    background: rgba(158, 158, 158, 0.1);
+    color: var(--text-muted);
+}
+
+.account-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.account-actions .btn {
+    padding: 4px 8px;
+    font-size: 0.8em;
+    min-width: auto;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+
+.empty-icon {
+    font-size: 3em;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+.empty-text {
+    font-size: 1.1em;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-secondary);
+}
+
+.empty-hint {
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
 /* 只对特定模态框应用样式 */
 #bills-import-modal .modal-content,
 #monthly-comparison-modal .modal-content {
