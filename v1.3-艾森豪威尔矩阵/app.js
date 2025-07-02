@@ -556,16 +556,10 @@ window.init = async function() {
     
     console.log(`✅ 系统初始化完成`);
     
-    // 强制初始化tooltip系统（即使没有生产线数据）
-    setTimeout(() => {
-        console.log('🔍 延迟初始化tooltip系统...');
-        initProductionTooltips();
-    }, 1000);
-    
     // 设置模态框点击空白区域关闭功能
     setTimeout(() => {
         setupModalClickToClose();
-    }, 1500);
+    }, 1000);
 };
 
 // 为所有模态框添加点击空白区域关闭功能
@@ -1092,48 +1086,16 @@ function renderProductions() {
                     isPaused = linkedDev && linkedDev.paused;
                 }
                 
-                // 简化版本 - 只显示当前阶段关键信息
-                // 获取关联的研发项目和当前阶段信息
-                const linkedDev = gameData.developments.find(d => d.researchName === prod.linkedDev);
-                let currentStageInfo = '';
-                if (linkedDev) {
-                    const stages = parseProjectStages(linkedDev.action);
-                    const currentStage = getCurrentStage(linkedDev, stages);
-                    if (currentStage && currentStage.stage) {
-                        currentStageInfo = `<div class="production-details">
-                            🎯 当前阶段: ${currentStage.stage.timeRange || ''} ${currentStage.stage.description}
-                        </div>`;
-                    } else {
-                        // 如果没有阶段信息，显示简化的操作定义
-                        const shortAction = linkedDev.action.length > 30 ? linkedDev.action.substring(0, 30) + '...' : linkedDev.action;
-                        currentStageInfo = `<div class="production-details">📋 ${shortAction}</div>`;
-                    }
-                } else {
-                    // 如果没有关联研发项目，显示基本信息
-                    let detailsInfo = [];
-                    if (prod.type === 'production' || prod.type === 'work') {
-                        detailsInfo.push('💼 需要投入时间换收入');
-                    } else if (prod.type === 'investment') {
-                        detailsInfo.push('💰 投资/被动收入');
-                    } else if (prod.type === 'automation' || prod.type === 'habit') {
-                        detailsInfo.push('🔄 长期习惯/自动行为');
-                    } else if (prod.type === 'lifestyle') {
-                        detailsInfo.push('📝 日常行为记录');
-                    }
-                    
-                    if (detailsInfo.length > 0) {
-                        currentStageInfo = `<div class="production-details">${detailsInfo.join('<br>')}</div>`;
-                    }
-                }
-                
+                // 恢复原有结构和class，修复按钮HTML
                 return `
-                    <div class="production-item compact-mode ${isPaused ? 'paused' : ''}" data-sorted-index="${index}" oncontextmenu="window.showContextMenu(event, ${index}, 'production')" onclick="window.toggleProductionDetails(this)">
+                    <div class="production-item ${isPaused ? 'paused' : ''}" data-sorted-index="${index}" oncontextmenu="window.showContextMenu(event, ${index}, 'production')">
                         <div class="production-header">
                             <div class="production-name">
                                 ${isPaused ? '⏸️ ' : ''}${prod.name}
+                                ${isPaused && prod.linkedDev ? `<span style="font-size:0.8em;color:#999;margin-left:8px;">(研发项目已暂停)</span>` : ''}
                             </div>
                             <div>
-                                ${(prod.type==='automation' || prod.type==='habit') ? (canCheckIn && !isPaused ? `<button class='check-btn' onclick='event.stopPropagation(); window.logProductionTime(${index})'>打卡</button>` : isPaused ? `<span style='color: #999; font-size: 0.75em;'>⏸️ 已暂停</span>` : `<span style='color: #27ae60; font-size: 0.75em;'>✓ 已完成</span>`) : ''}
+                                ${(prod.type==='automation' || prod.type==='habit') ? (canCheckIn && !isPaused ? `<button class='check-btn' onclick='window.logProductionTime(${index})'>打卡</button>` : isPaused ? `<span style='color: #999; font-size: 0.85em;'>⏸️ 已暂停</span>` : `<span style='color: #27ae60; font-size: 0.85em;'>✓ 已完成</span>`) : ''}
                             </div>
                         </div>
                         ${tags.length > 0 ? `
@@ -1142,8 +1104,11 @@ function renderProductions() {
                             </div>
                         ` : ''}
                         ${timeLabel}
-                        ${investInfo ? `<div class="investment-info">${investInfo.replace(/<div[^>]*>|<\/div>/g, '')}</div>` : ''}
-                        ${currentStageInfo}
+                        ${investInfo}
+                        ${(() => {
+                            const dev = gameData.developments.find(d => d.researchName === prod.linkedDev);
+                            return dev ? `<div style='font-size:0.85em;color:#bbb;margin-top:4px;'>${dev.action}</div>` : '';
+                        })()}
                     </div>
                 `;
             }).join('');
@@ -1152,235 +1117,6 @@ function renderProductions() {
         console.error('渲染生产线失败:', error);
         return false;
     });
-    
-    // 初始化生产线tooltip系统
-    initProductionTooltips();
-}
-
-// 初始化生产线tooltip系统
-function initProductionTooltips() {
-    console.log('🔍 开始初始化生产线tooltip系统...');
-    
-    const tooltip = document.getElementById('production-tooltip');
-    if (!tooltip) {
-        console.error('❌ 找不到production-tooltip元素');
-        return;
-    }
-    
-    console.log('✅ 找到production-tooltip元素:', tooltip);
-    
-    // 检查是否有生产线项目
-    const productionItems = document.querySelectorAll('.production-item.compact-mode');
-    console.log(`📊 找到 ${productionItems.length} 个生产线项目`);
-    
-    if (productionItems.length === 0) {
-        console.warn('⚠️ 没有找到生产线项目，但仍然初始化tooltip系统');
-    }
-    
-    console.log('🔧 初始化生产线tooltip系统');
-    
-    // 移除之前的事件监听器（避免重复绑定）
-    if (window.productionTooltipMouseOver) {
-        document.removeEventListener('mouseover', window.productionTooltipMouseOver);
-        console.log('🧹 移除旧的mouseover事件监听器');
-    }
-    if (window.productionTooltipMouseOut) {
-        document.removeEventListener('mouseout', window.productionTooltipMouseOut);
-        console.log('🧹 移除旧的mouseout事件监听器');
-    }
-    
-    // 为所有生产线项目添加hover事件
-    window.productionTooltipMouseOver = (e) => {
-        console.log('🖱️ 鼠标悬停事件触发:', e.target);
-        
-        const item = e.target.closest('.production-item.compact-mode');
-        if (!item) {
-            console.log('🚫 不是生产线项目，隐藏tooltip');
-            hideProductionTooltip();
-            return;
-        }
-        
-        console.log('✅ 鼠标悬停在生产线项目上:', item);
-        
-        // 获取生产线数据
-        const index = Array.from(document.querySelectorAll('.production-item')).indexOf(item);
-        const sortedProductions = getSortedProductions();
-        const production = sortedProductions[index];
-        
-        console.log('📊 生产线索引:', index, '数据:', production);
-        
-        if (!production) {
-            console.warn('⚠️ 找不到生产线数据，索引:', index);
-            return;
-        }
-        
-        // 生成tooltip内容
-        const tooltipContent = generateTooltipContent(production);
-        console.log('📝 生成的tooltip内容:', tooltipContent);
-        showProductionTooltip(e, tooltipContent);
-    };
-    
-    window.productionTooltipMouseOut = (e) => {
-        console.log('🖱️ 鼠标离开事件触发');
-        
-        // 检查鼠标是否真的离开了生产线项目区域
-        const relatedTarget = e.relatedTarget;
-        const item = e.target.closest('.production-item.compact-mode');
-        
-        if (!item || !relatedTarget || !item.contains(relatedTarget)) {
-            console.log('👋 鼠标真正离开生产线项目，隐藏tooltip');
-            hideProductionTooltip();
-        } else {
-            console.log('🔄 鼠标仍在生产线项目内，不隐藏tooltip');
-        }
-    };
-    
-    document.addEventListener('mouseover', window.productionTooltipMouseOver);
-    document.addEventListener('mouseout', window.productionTooltipMouseOut);
-    
-    console.log('🎉 生产线tooltip系统初始化完成');
-}
-
-// 生成tooltip内容
-function generateTooltipContent(production) {
-    let content = `<h4>${production.name}</h4>`;
-    
-    // 基本信息
-    const typeNames = {
-        'production': '💼 需要投入时间换收入',
-        'work': '💼 工作相关收入',
-        'investment': '💰 资产投资',
-        'automation': '🤖 自动化习惯',
-        'habit': '🤖 自动化习惯',
-        'lifestyle': '🎯 日常行为',
-        'infrastructure': '🏗️ 基础设施',
-        'maintenance': '🔧 系统维护',
-        'research': '🔬 研发项目'
-    };
-    
-    const typeName = typeNames[production.type] || production.type;
-    content += `<p class="tooltip-type">${typeName}</p>`;
-    
-    // 关联项目和当前阶段信息
-    if (production.linkedDev) {
-        content += `<div class="tooltip-section">`;
-        content += `<p class="tooltip-linked"><strong>关联研发:</strong> ${production.linkedDev}</p>`;
-        
-        // 获取关联的研发项目和当前阶段信息
-        const linkedDev = gameData.developments && gameData.developments.find(d => d.researchName === production.linkedDev);
-        if (linkedDev) {
-            const stages = parseProjectStages(linkedDev.action);
-            const currentStage = getCurrentStage(linkedDev, stages);
-            
-            if (currentStage && currentStage.stage) {
-                content += `<div class="tooltip-stage">`;
-                content += `<p class="stage-title">🎯 当前阶段:</p>`;
-                if (currentStage.stage.timeRange) {
-                    content += `<p class="stage-time">${currentStage.stage.timeRange}</p>`;
-                }
-                content += `<p class="stage-desc">${currentStage.stage.description}</p>`;
-                content += `</div>`;
-            } else {
-                // 如果没有阶段信息，显示操作定义
-                const shortAction = linkedDev.action.length > 60 ? linkedDev.action.substring(0, 60) + '...' : linkedDev.action;
-                content += `<p class="tooltip-action">${shortAction}</p>`;
-            }
-        }
-        content += `</div>`;
-    }
-    
-    // 收入信息
-    if (production.hasActiveIncome && production.activeIncome > 0) {
-        const currency = production.activeCurrency || 'CNY';
-        const symbol = getCurrencySymbol(currency);
-        content += `<p class="tooltip-income"><strong>主动收入:</strong> ${symbol}${production.activeIncome.toLocaleString()}</p>`;
-    }
-    
-    if (production.hasPassiveIncome && production.passiveIncome > 0) {
-        const currency = production.passiveCurrency || 'CNY';
-        const symbol = getCurrencySymbol(currency);
-        content += `<p class="tooltip-income"><strong>被动收入:</strong> ${symbol}${production.passiveIncome.toLocaleString()}</p>`;
-    }
-    
-    // 支出信息
-    if (production.expense > 0) {
-        const currency = production.expenseCurrency || 'CNY';
-        const symbol = getCurrencySymbol(currency);
-        content += `<p class="tooltip-expense"><strong>支出:</strong> ${symbol}${production.expense.toLocaleString()}</p>`;
-    }
-    
-    // 投资信息
-    if (production.type === 'investment' && production.investCurrent > 0) {
-        const currency = production.investCurrentCurrency || 'AUD';
-        const symbol = getCurrencySymbol(currency);
-        content += `<div class="tooltip-section">`;
-        content += `<p class="tooltip-investment"><strong>当前价值:</strong> ${symbol}${production.investCurrent.toLocaleString()}</p>`;
-        if (production.investAmount > 0 && production.investDate) {
-            const start = new Date(production.investDate);
-            const now = new Date();
-            const days = (now - start) / (1000 * 60 * 60 * 24);
-            const years = days / 365.25;
-            const rate = (production.investCurrent - production.investAmount) / production.investAmount / years * 100;
-            content += `<p class="tooltip-return"><strong>年化回报:</strong> ${rate.toFixed(2)}%</p>`;
-        }
-        content += `</div>`;
-    }
-    
-    return content;
-}
-
-// 显示tooltip
-function showProductionTooltip(event, content) {
-    const tooltip = document.getElementById('production-tooltip');
-    if (!tooltip) {
-        console.error('❌ 找不到tooltip元素');
-        return;
-    }
-    
-    console.log('📝 显示tooltip，内容:', content);
-    
-    tooltip.innerHTML = content;
-    tooltip.classList.add('show');
-    
-    // 计算位置
-    const rect = event.target.closest('.production-item').getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    let left = rect.right + 10;
-    let top = rect.top;
-    
-    // 右侧空间不够，显示在左侧
-    if (left + 350 > viewportWidth) {
-        left = rect.left - 350 - 10;
-    }
-    
-    // 左侧也不够，显示在下方
-    if (left < 10) {
-        left = rect.left;
-        top = rect.bottom + 10;
-    }
-    
-    // 确保不超出边界
-    if (left < 10) left = 10;
-    if (left + 350 > viewportWidth) left = viewportWidth - 350 - 10;
-    if (top < 10) top = 10;
-    if (top + 200 > viewportHeight) top = viewportHeight - 200 - 10;
-    
-    tooltip.style.left = left + 'px';
-    tooltip.style.top = top + 'px';
-    
-    console.log('📍 Tooltip位置:', { left, top });
-    console.log('🎨 Tooltip类列表:', tooltip.classList.toString());
-}
-
-// 隐藏tooltip
-function hideProductionTooltip() {
-    const tooltip = document.getElementById('production-tooltip');
-    if (tooltip) {
-        console.log('👋 隐藏tooltip');
-        tooltip.classList.remove('show');
-    }
 }
 
 // 渲染研发项目
@@ -1937,37 +1673,6 @@ window.showTodayTimeDetails = function() {
     const groupedLogs = {};
     let totalMins = 0;
     
-    // 按类型统计
-    const typeStats = {
-        'production': 0,
-        'investment': 0,
-        'automation': 0,
-        'lifestyle': 0,
-        'infrastructure': 0,
-        'maintenance': 0,
-        'research': 0
-    };
-    
-    const typeNames = {
-        'production': '产线',
-        'investment': '资产',
-        'automation': '自动化',
-        'lifestyle': '日常',
-        'infrastructure': '基建',
-        'maintenance': '维护',
-        'research': '研发'
-    };
-    
-    const typeIcons = {
-        'production': '🏭',
-        'investment': '💰',
-        'automation': '🤖',
-        'lifestyle': '🌱',
-        'infrastructure': '🏗️',
-        'maintenance': '🔧',
-        'research': '🔬'
-    };
-    
     todayLogs.forEach(log => {
         if (!groupedLogs[log.name]) groupedLogs[log.name] = [];
         let timeCost = log.timeCost || 0;
@@ -1977,50 +1682,18 @@ window.showTodayTimeDetails = function() {
         timeCost = Math.max(0, timeCost);
         groupedLogs[log.name].push({...log, timeCost});
         totalMins += timeCost;
-        
-        // 统计各类型时间
-        const logType = log.type || 'production';
-        if (typeStats.hasOwnProperty(logType)) {
-            typeStats[logType] += timeCost;
-        }
     });
     
     console.log('分组后的记录:', groupedLogs);
     console.log('总分钟数:', totalMins);
-    console.log('类型统计:', typeStats);
     
     let html = `<h3>今日时间详情 (共 ${Math.floor(totalMins/60)}小时${totalMins%60}分钟)</h3>`;
-    
-    // 添加类型统计概览
-    html += '<div style="background:#f8f9fa;border-radius:6px;padding:12px;margin-bottom:15px;">';
-    html += '<h4 style="margin:0 0 10px 0;font-size:1em;color:#495057;">📊 按类型统计</h4>';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">';
-    
-    Object.entries(typeStats).forEach(([type, minutes]) => {
-        if (minutes > 0) {
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            const timeText = hours > 0 ? `${hours}h${mins}m` : `${mins}m`;
-            html += `<div style="background:white;border:1px solid #dee2e6;border-radius:4px;padding:6px;text-align:center;font-size:0.85em;">`;
-            html += `<div style="color:#6c757d;">${typeIcons[type]} ${typeNames[type]}</div>`;
-            html += `<div style="font-weight:bold;color:#495057;">${timeText}</div>`;
-            html += `</div>`;
-        }
-    });
-    html += '</div></div>';
-    
     html += '<div style="max-height:400px;overflow-y:auto;padding:10px;">';
     
     Object.entries(groupedLogs).forEach(([name, logs]) => {
         const projectTotal = logs.reduce((sum, log) => sum + log.timeCost, 0);
-        const logType = logs[0].type || 'production';
-        const typeIcon = typeIcons[logType] || '📋';
-        
         html += `<div style="margin-bottom:15px;border-bottom:1px solid #eee;padding-bottom:10px;">`;
-        html += `<div style="font-weight:bold;margin-bottom:5px;color:#2c3e50;">`;
-        html += `${typeIcon} ${name} (${Math.floor(projectTotal/60)}小时${projectTotal%60}分钟)`;
-        html += `<span style="color:#6c757d;font-size:0.8em;margin-left:8px;">[${typeNames[logType]}]</span>`;
-        html += `</div>`;
+        html += `<div style="font-weight:bold;margin-bottom:5px;color:#2c3e50;">${name} (${Math.floor(projectTotal/60)}小时${projectTotal%60}分钟)</div>`;
         
         logs.forEach(log => {
             html += `<div style="color:#666;font-size:0.9em;margin-left:10px;margin-bottom:3px;">`;
@@ -2119,8 +1792,7 @@ function updateFormVisibility() {
         expenseGroup.style.display = 'none';
         document.getElementById('investment-fields').style.display = '';
         if (lifestyleHistoryGroup) lifestyleHistoryGroup.style.display = 'none';
-    } else if (type === 'automation' || type === 'infrastructure' || type === 'maintenance' || type === 'research') {
-        // 自动化、基建、维护、研发类项目 - 不涉及收入，主要用于时间记录
+    } else if (type === 'automation') {
         incomeGroup.style.display = 'none';
         hasPassive.style.display = 'none';
         expenseGroup.style.display = 'none';
@@ -2917,40 +2589,23 @@ function renderTimeBlocks(weekDates) {
         const todayStr = formatDateLocal(now);
         const weekDay = weekDates.indexOf(todayStr);
         if (weekDay >= 0) {
-            // 重新获取单元格引用用于时间线计算
-            const timelineFirstDataCell = table.rows[1].cells[1];
-            const actualCellHeight = timelineFirstDataCell.offsetHeight;
-            const actualCellWidth = timelineFirstDataCell.offsetWidth;
+            const cellHeight = overlay.offsetHeight / 24; // 24小时
+            const cellWidth = overlay.offsetWidth / 7;
             const minutes = now.getHours() * 60 + now.getMinutes();
-            const top = (minutes / 60) * actualCellHeight;
-            const left = weekDay * actualCellWidth;
-            const width = actualCellWidth;
-            
-            // 调试信息
-            console.log('⏰ 时间线调试:', {
-                currentTime: `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`,
-                minutes,
-                actualCellHeight,
-                calculatedTop: top,
-                expectedFor22: 22 * actualCellHeight,
-                weekDay,
-                overlayHeight: overlay.offsetHeight
-            });
-            
+            const top = (minutes / 60) * cellHeight;
+            const left = weekDay * cellWidth;
+            const width = cellWidth;
             // 创建时间线
             const line = document.createElement('div');
-            line.className = 'current-time-line';
             line.style.position = 'absolute';
             line.style.left = `${left}px`;
             line.style.top = `${top}px`;
             line.style.width = `${width}px`;
-            line.style.height = '3px';
+            line.style.height = '2px';
             line.style.background = 'linear-gradient(90deg, #ff1744 60%, #ff9100 100%)';
-            line.style.boxShadow = '0 0 8px 2px #ff174488';
+            line.style.boxShadow = '0 0 6px 2px #ff174488';
             line.style.zIndex = 9999;
             line.style.pointerEvents = 'none';
-            line.style.borderRadius = '2px';
-            line.title = `当前时间: ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
             overlay.appendChild(line);
         }
     }
@@ -3192,7 +2847,9 @@ function renderResourceStats() {
             <div class='daily-goals-title'>今日目标</div>
             <div class='daily-time-stats'>
                 <div class='time-stats-row'>
+                    <span class='resource-label' style='font-size: 0.85em;'>今天主动用时</span>
                     <button class='resource-btn-edit' onclick='window.showTodayTimeDetails()' title='查看详情' style='font-size: 0.8em; margin-left: 4px;'>👁️</button>
+                <span class='resource-main-value' style='color:#27ae60; font-size: 1.2em;'>${todayActiveMins} <span style='font-size:0.6em;font-weight:normal;'>分钟</span></span>
         </div>
             </div>
         </div>
@@ -3467,13 +3124,7 @@ window.logProductionTime = function(sortedIndex) {
     }
     
     // 显示时间选项对话框
-    if (typeof showTimeOptionsDialog === 'function') {
-        showTimeOptionsDialog(sortedIndex);
-    } else {
-        console.error('showTimeOptionsDialog函数未定义');
-        // 临时解决方案：直接记录30分钟
-        recordTimeWithDuration(sortedIndex, 30);
-    }
+    showTimeOptionsDialog(sortedIndex);
 }// 2. 修复数据关联
 function fixDataLinks() {
     // 1. 生产线与研发项目关联修正
@@ -3587,12 +3238,6 @@ function listenCloudData() {
                 cloudInitDone = true;
                 updateSyncStatus('已同步', new Date().toLocaleTimeString());
                 console.log('[云同步] 数据更新完成');
-                
-                // 云同步完成后重新初始化tooltip系统
-                setTimeout(() => {
-                    console.log('🔍 云同步完成后重新初始化tooltip系统...');
-                    initProductionTooltips();
-                }, 500);
                 
             } else if (!cloudInitDone) {
                 console.log('[云同步] 未找到云端数据，执行首次保存');
@@ -3742,10 +3387,8 @@ function showCalendarContextMenu(e, log) {
         document.body.appendChild(menu);
     }
     menu.innerHTML = `
-        <div class="context-menu-item" onclick="window.editProductionFromCalendar('${log.date}','${log.name}',${log.hour},${log.minute})">✏️ 编辑生产线</div>
-        <div class="context-menu-item" onclick="window.editCalendarLogType('${log.date}','${log.name}',${log.hour},${log.minute})">🏷️ 修改类型</div>
-        <div class="context-menu-item" onclick="window.editCalendarLog('${log.date}','${log.name}',${log.hour},${log.minute})">⏰ 修改时间</div>
-        <div class="context-menu-item" onclick="window.deleteCalendarLog('${log.date}','${log.name}',${log.hour},${log.minute})">❌ 删除</div>
+        <div class="context-menu-item" onclick="window.editCalendarLog('${log.date}','${log.name}',${log.hour},${log.minute})">修改</div>
+        <div class="context-menu-item" onclick="window.deleteCalendarLog('${log.date}','${log.name}',${log.hour},${log.minute})">删除</div>
     `;
     menu.style.display = 'block';
     menu.style.left = e.clientX + 'px';
@@ -3785,234 +3428,6 @@ window.editCalendarLog = function(date, name, hour, minute) {
     // 显示模态框
     document.getElementById('time-edit-modal').classList.add('show');
 }
-window.editCalendarLogName = function(date, name, hour, minute) {
-    console.log('✏️ editCalendarLogName 被调用:', { date, name, hour, minute });
-    hideCalendarContextMenu();
-    
-    const log = (gameData.timeLogs||[]).find(l=>l.date===date&&l.name===name&&l.hour==hour&&l.minute==minute);
-    if (!log) {
-        console.error('❌ 找不到对应的时间记录:', { date, name, hour, minute });
-        alert('找不到对应的时间记录');
-        return;
-    }
-    
-    const newName = prompt('请输入新的项目名称:', log.name);
-    if (newName === null || newName.trim() === '') return;
-    
-    const trimmedName = newName.trim();
-    if (trimmedName === log.name) return; // 名称未改变
-    
-    // 更新时间记录
-    log.name = trimmedName;
-    
-    // 保存并刷新
-    saveToCloud();
-    renderResourceStats();
-    renderWeekCalendar();
-    renderProductions();
-    renderDevelopments();
-    
-    console.log('✅ 时间记录名称修改成功:', { oldName: name, newName: trimmedName });
-    showNotification(`✅ 已修改项目名称：${name} → ${trimmedName}`, 'success');
-}
-
-window.editCalendarLogType = function(date, name, hour, minute) {
-    console.log('✏️ editCalendarLogType 被调用:', { date, name, hour, minute });
-    hideCalendarContextMenu();
-    
-    const log = (gameData.timeLogs||[]).find(l=>l.date===date&&l.name===name&&l.hour==hour&&l.minute==minute);
-    if (!log) {
-        console.error('❌ 找不到对应的时间记录:', { date, name, hour, minute });
-        alert('找不到对应的时间记录');
-        return;
-    }
-    
-    // 创建类型选择对话框
-    const dialog = document.createElement('div');
-    dialog.id = 'type-select-dialog';
-    dialog.className = 'modal modal-small';
-    
-    const currentType = log.type || 'production';
-    const typeOptions = [
-        { value: 'production', label: '产线（需要投入时间换收入，如全职工作、副业等）', icon: '🏭' },
-        { value: 'investment', label: '资产（如股票、债券、房地产等，统计支出和被动收入）', icon: '💰' },
-        { value: 'automation', label: '自动化（长期培养的习惯或行为，主要用于打卡记录）', icon: '🤖' },
-        { value: 'lifestyle', label: '日常（日常行为记录，如娱乐、社交、学习等）', icon: '🌱' },
-        { value: 'infrastructure', label: '基建（基础设施建设，如健康、学习环境等）', icon: '🏗️' },
-        { value: 'maintenance', label: '维护（系统维护、设备保养等）', icon: '🔧' },
-        { value: 'research', label: '研发（技术研究、知识学习等）', icon: '🔬' }
-    ];
-    
-    let optionsHtml = '';
-    typeOptions.forEach(option => {
-        const isSelected = option.value === currentType;
-        optionsHtml += `
-            <div class="type-option ${isSelected ? 'selected' : ''}" data-type="${option.value}">
-                <span class="type-icon">${option.icon}</span>
-                <div class="type-info">
-                    <div class="type-name">${option.value}</div>
-                    <div class="type-desc">${option.label}</div>
-                </div>
-                ${isSelected ? '<span class="type-check">✓</span>' : ''}
-            </div>
-        `;
-    });
-    
-    dialog.innerHTML = `
-        <div class="modal-content">
-            <div class="type-select-dialog">
-                <h4>选择生产线类型</h4>
-                <div class="current-info">
-                    <strong>项目：</strong>${log.name}<br>
-                    <strong>当前类型：</strong>${currentType}
-                </div>
-                <div class="type-options">
-                    ${optionsHtml}
-                </div>
-                <div class="dialog-buttons">
-                    <button class="btn btn-secondary" onclick="window.closeTypeDialog()">取消</button>
-                    <button class="btn btn-primary" onclick="window.confirmTypeChange('${date}', '${name}', ${hour}, ${minute})">确认</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(dialog);
-    dialog.classList.add('show');
-    
-    // 存储选中的类型
-    window.selectedLogType = currentType;
-    
-    // 绑定选项点击事件
-    const typeOptions_el = dialog.querySelectorAll('.type-option');
-    typeOptions_el.forEach(option => {
-        option.addEventListener('click', function() {
-            // 移除其他选中状态
-            typeOptions_el.forEach(opt => {
-                opt.classList.remove('selected');
-                const check = opt.querySelector('.type-check');
-                if (check) check.remove();
-            });
-            
-            // 设置当前选中
-            this.classList.add('selected');
-            this.innerHTML += '<span class="type-check">✓</span>';
-            
-            // 记录选中的类型
-            window.selectedLogType = this.dataset.type;
-        });
-    });
-}
-
-window.closeTypeDialog = function() {
-    const dialog = document.getElementById('type-select-dialog');
-    if (dialog) {
-        dialog.remove();
-    }
-    window.selectedLogType = null;
-}
-
-// 从日历编辑生产线
-window.editProductionFromCalendar = function(date, name, hour, minute) {
-    console.log('✏️ editProductionFromCalendar 被调用:', { date, name, hour, minute });
-    hideCalendarContextMenu();
-    
-    const log = (gameData.timeLogs||[]).find(l=>l.date===date&&l.name===name&&l.hour==hour&&l.minute==minute);
-    if (!log) {
-        console.error('❌ 找不到对应的时间记录:', { date, name, hour, minute });
-        alert('找不到对应的时间记录');
-        return;
-    }
-    
-    // 查找对应的生产线
-    let productionIndex = -1;
-    const productions = gameData.productions || [];
-    
-    for (let i = 0; i < productions.length; i++) {
-        if (productions[i].name === log.name) {
-            productionIndex = i;
-            break;
-        }
-    }
-    
-    if (productionIndex === -1) {
-        // 如果没有找到对应的生产线，提示用户但不自动创建
-        alert(`没有找到名为"${log.name}"的生产线。\n\n请先在生产线面板中手动添加该生产线，然后再进行编辑。`);
-        return;
-    }
-    
-    // 调用现有的编辑生产线功能
-    editProduction(productionIndex);
-    
-    console.log(`✅ 正在编辑生产线 "${log.name}" (索引: ${productionIndex})`);
-}
-
-window.confirmTypeChange = function(date, name, hour, minute) {
-    const log = (gameData.timeLogs||[]).find(l=>l.date===date&&l.name===name&&l.hour==hour&&l.minute==minute);
-    if (!log) {
-        alert('找不到对应的时间记录');
-        return;
-    }
-    
-    const newType = window.selectedLogType;
-    if (!newType || newType === log.type) {
-        window.closeTypeDialog();
-        return;
-    }
-    
-    const oldType = log.type || 'production';
-    
-    // 查找所有同名的时间记录
-    const sameNameLogs = (gameData.timeLogs || []).filter(l => l.name === name);
-    
-    if (sameNameLogs.length > 1) {
-        // 如果有多个同名记录，询问是否一起修改
-        const confirmMessage = `发现 ${sameNameLogs.length} 个名为"${name}"的时间记录。\n\n是否要同时修改所有同名记录的类型？\n\n点击"确定"修改所有同名记录\n点击"取消"只修改当前记录`;
-        
-        if (confirm(confirmMessage)) {
-            // 修改所有同名记录
-            sameNameLogs.forEach(sameLog => {
-                sameLog.type = newType;
-            });
-            console.log(`✅ 已修改 ${sameNameLogs.length} 个同名时间记录的类型: ${oldType} → ${newType}`);
-            showNotification(`✅ 已修改 ${sameNameLogs.length} 个"${name}"记录的类型`, 'success');
-        } else {
-            // 只修改当前记录
-            log.type = newType;
-            console.log(`✅ 已修改单个时间记录的类型: ${oldType} → ${newType}`);
-            showNotification(`✅ 已修改当前记录的类型`, 'success');
-        }
-    } else {
-        // 只有一个记录，直接修改
-        log.type = newType;
-        console.log(`✅ 已修改时间记录的类型: ${oldType} → ${newType}`);
-        showNotification(`✅ 已修改"${name}"的类型`, 'success');
-    }
-    
-    // 保存并刷新
-    saveToCloud();
-    renderResourceStats();
-    renderWeekCalendar();
-    renderProductions();
-    renderDevelopments();
-    
-    // 如果时间详情模态框当前是打开的，刷新其内容
-    const detailsModal = document.getElementById('details-modal');
-    if (detailsModal && detailsModal.classList.contains('show')) {
-        const detailsTitle = document.getElementById('details-modal-title');
-        if (detailsTitle && detailsTitle.textContent === '今日时间详情') {
-            // 重新渲染今日时间详情
-            setTimeout(() => {
-                window.showTodayTimeDetails();
-            }, 100);
-        }
-    }
-    
-    window.closeTypeDialog();
-    console.log('✅ 时间记录类型修改成功:', { name, oldType, newType });
-    showNotification(`✅ 已修改项目类型：${oldType} → ${newType}`, 'success');
-}
-
 window.deleteCalendarLog = function(date, name, hour, minute) {
     hideCalendarContextMenu();
     
@@ -4323,9 +3738,6 @@ function renderFinanceMainPanel() {
     try {
         console.log('🔄 开始渲染财务面板...');
         
-        // 首先渲染简化财务概览
-        renderCompactFinanceOverview();
-        
         // 渲染财务概览（原资源总览的简化版）
         renderFinanceOverview();
         
@@ -4338,28 +3750,6 @@ function renderFinanceMainPanel() {
         console.log('✅ 财务面板渲染完成');
     } catch (error) {
         console.error('❌ 财务面板渲染失败:', error);
-    }
-}
-
-// 统一财务数据结构
-function unifyFinanceDataStructure() {
-    // 简单的数据结构统一函数
-    if (!gameData.financeData) {
-        gameData.financeData = {
-            accounts: {},
-            accountData: {},
-            aggregatedData: {},
-            settings: {
-                primaryCurrency: 'AUD',
-                exchangeRates: { 'AUD': 1, 'CNY': 4.65, 'USD': 0.65, 'EUR': 0.60 },
-                lastAggregation: new Date().toISOString()
-            }
-        };
-    }
-    
-    // 确保显示货币设置存在
-    if (!gameData.displayCurrency) {
-        gameData.displayCurrency = 'AUD';
     }
 }
 
@@ -4448,9 +3838,6 @@ function renderFinanceOverview() {
                 <div class="resource-overview-meta">收支差额</div>
             </div>
         </div>
-        
-        <!-- 收起按钮 -->
-        <button class="finance-expand-btn" onclick="toggleFinancePanel()" style="margin-top: 10px;">收起详情</button>
     `;
     
     container.innerHTML = html;
@@ -4518,96 +3905,6 @@ function getCurrencySymbol(currency) {
     };
     return symbols[currency] || '¥';
 }
-
-function renderAccountStatusSummary() {
-    const container = document.getElementById('account-status-summary');
-    if (!container) return;
-    
-    // 获取账户统计
-    let accountCount = 0;
-    let enabledCount = 0;
-    
-    if (window.AccountManager) {
-        const accounts = window.AccountManager.getAccountList();
-        accountCount = accounts.length;
-        enabledCount = accounts.filter(acc => acc.enabled).length;
-    }
-    
-    let statusText = '';
-    if (accountCount === 0) {
-        statusText = '尚未添加任何账户';
-    } else if (enabledCount === 0) {
-        statusText = `已添加${accountCount}个账户，但都未启用`;
-    } else {
-        statusText = `已启用${enabledCount}个账户`;
-        if (enabledCount < accountCount) {
-            statusText += `，${accountCount - enabledCount}个未启用`;
-        }
-    }
-    
-    container.textContent = statusText;
-}
-
-// 渲染智能洞察
-function renderFinanceInsights() {
-    const container = document.getElementById('finance-insights-content');
-    if (!container) return;
-    
-    // 获取分析数据
-    const analysisData = gameData.resourceAnalysis || {};
-    
-    let html = '';
-    
-    // 本月预测支出
-    const predictedExpense = analysisData.predictions?.nextMonthExpense || 0;
-    if (predictedExpense > 0) {
-        const displayCurrency = gameData.displayCurrency || 'AUD';
-        const currencySymbol = getCurrencySymbol(displayCurrency);
-        const convertedPrediction = convertToDisplayCurrency(predictedExpense, 'AUD', displayCurrency);
-        
-        html += `
-            <div class="insight-item">
-                <strong>📊 本月支出预测：</strong>${currencySymbol}${Math.round(convertedPrediction).toLocaleString()}
-            </div>
-        `;
-    }
-    
-    // 稳定性评分
-    const stabilityScore = analysisData.stabilityScore || 0;
-    if (stabilityScore > 0) {
-        const scoreLevel = stabilityScore >= 80 ? '优秀' : stabilityScore >= 60 ? '良好' : '有待改善';
-        const scoreEmoji = stabilityScore >= 80 ? '🟢' : stabilityScore >= 60 ? '🟡' : '🔴';
-        
-        html += `
-            <div class="insight-item">
-                <strong>${scoreEmoji} 财务稳定性：</strong>${scoreLevel} (${stabilityScore.toFixed(0)}分)
-            </div>
-        `;
-    }
-    
-    // 特别提醒
-    const specialReminders = analysisData.predictions?.specialReminders || [];
-    if (specialReminders.length > 0) {
-        html += `
-            <div class="insight-item">
-                <strong>⚠️ 特别提醒：</strong>${specialReminders[0]}
-            </div>
-        `;
-    }
-    
-    // 如果没有任何洞察，显示默认信息
-    if (!html) {
-        html = `
-            <div class="insight-item" style="color: #999; font-style: italic;">
-                导入更多账单数据后将显示智能分析结果
-            </div>
-        `;
-    }
-    
-    container.innerHTML = html;
-}
-
-
 
 // 渲染账户管理面板
 function renderAccountsManagement() {
@@ -8556,7 +7853,6 @@ window.showTimeRecords = function(period) {
                 case 'lifestyle': typeColor = '#8e44ad'; typeName = '日常'; break;
                 case 'investment': typeColor = '#000000'; typeName = '资产'; break;
                 case 'infrastructure': typeColor = '#229954'; typeName = '基建'; break;
-                case 'research': typeColor = '#e74c3c'; typeName = '研发'; break;
                 default: typeColor = '#666'; typeName = stats.type || '未知'; break;
             }
             
@@ -9108,151 +8404,7 @@ function testProjectStages() {
 }
 
 window.testProjectStages = testProjectStages;
-
-// 为兼容性添加函数别名
-window.renderResourceOverview = renderFinanceMainPanel;
-
-// 显示月度对比模态框
-function showMonthlyComparisonModal() {
-    const modal = document.getElementById('monthly-comparison-modal');
-    if (!modal) {
-        console.error('月度对比模态框未找到');
-        return;
-    }
-    
-    // 设置当前年份
-    const currentYear = new Date().getFullYear();
-    gameData.comparisonYear = gameData.comparisonYear || currentYear;
-    
-    const yearDisplay = modal.querySelector('#comparison-year');
-    if (yearDisplay) {
-        yearDisplay.textContent = gameData.comparisonYear;
-    }
-    
-    // 渲染月度对比内容
-    window.renderMonthlyComparison();
-    
-    // 显示模态框
-    modal.classList.add('show');
-}
-
-// 为兼容性添加全局函数引用
-window.showMonthlyComparisonModal = showMonthlyComparisonModal;
-
-// =================================================== //
-// 账单导入和数据清理功能                                //
-// =================================================== //
-
-// 显示账单导入模态框
-function showBillImportModal() {
-    console.log('🧾 显示账单导入模态框...');
-    
-    // 检查是否有多账户导入功能
-    if (window.BillImporter && typeof window.BillImporter.showMultiAccountImportModal === 'function') {
-        console.log('✅ 使用多账户导入功能');
-        window.BillImporter.showMultiAccountImportModal();
-    } else {
-        console.log('⚠️ 多账户模块未加载，使用传统导入');
-        // 回退到传统的账单导入模态框
-        const modal = document.getElementById('bills-import-modal');
-        if (modal) {
-            modal.classList.add('show');
-        } else {
-            alert('❌ 账单导入功能暂不可用，请刷新页面后重试');
-        }
-    }
-}
-
-// 显示数据清理模态框
-function showDataCleanupModal() {
-    console.log('🧹 显示数据清理模态框...');
-    
-    // 检查账户管理模块是否加载
-    if (window.AccountManager && typeof window.AccountManager.showDataCleanupModal === 'function') {
-        console.log('✅ 使用账户管理的数据清理功能');
-        window.AccountManager.showDataCleanupModal();
-    } else if (window.AccountManager && typeof window.AccountManager.showDuplicateDataManager === 'function') {
-        console.log('✅ 使用重复数据管理功能');
-        window.AccountManager.showDuplicateDataManager();
-    } else {
-        console.log('⚠️ 账户管理模块未加载，提供基础清理选项');
-        
-        // 提供基础的清理选项
-        const options = [
-            '🔍 检测重复数据',
-            '🗑️ 清空所有账单数据', 
-            '📊 重新汇总数据',
-            '❌ 取消'
-        ];
-        
-        const choice = prompt(`请选择数据清理操作：\n\n${options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}\n\n请输入序号 (1-${options.length}):`);
-        
-        const choiceNum = parseInt(choice);
-        
-        switch (choiceNum) {
-            case 1:
-                if (window.DataAggregator && window.DataAggregator.autoDetectDuplicates) {
-                    const duplicates = window.DataAggregator.autoDetectDuplicates();
-                    if (duplicates.length === 0) {
-                        alert('✅ 未发现重复数据！');
-                    } else {
-                        const shouldClean = confirm(`🔍 发现 ${duplicates.length} 组重复数据，是否立即清理？`);
-                        if (shouldClean && window.DataAggregator.removeDuplicates) {
-                            const result = window.DataAggregator.removeDuplicates();
-                            alert(`✅ 清理完成！移除了 ${result.removed} 个重复项`);
-                        }
-                    }
-                } else {
-                    alert('❌ 重复数据检测功能不可用');
-                }
-                break;
-                
-            case 2:
-                const confirmClear = confirm('⚠️ 确定要清空所有账单数据吗？此操作不可撤销！');
-                if (confirmClear) {
-                    gameData.billsData = {};
-                    if (gameData.financeData) {
-                        gameData.financeData.aggregatedData = {};
-                        gameData.financeData.accountData = {};
-                    }
-                    saveToCloud();
-                    // 刷新界面
-                    if (window.renderResourceOverview) window.renderResourceOverview();
-                    if (window.renderBillsSummary) window.renderBillsSummary();
-                    alert('✅ 所有账单数据已清空');
-                }
-                break;
-                
-            case 3:
-                if (window.DataAggregator && window.DataAggregator.aggregateAllAccounts) {
-                    window.DataAggregator.aggregateAllAccounts();
-                    alert('✅ 数据重新汇总完成');
-                } else {
-                    alert('❌ 数据汇总功能不可用');
-                }
-                break;
-                
-            case 4:
-            default:
-                console.log('用户取消了数据清理操作');
-                break;
-        }
-    }
-}
-
-// 将函数添加到全局作用域
-window.showBillImportModal = showBillImportModal;
-window.showDataCleanupModal = showDataCleanupModal;
-
-console.log('✅ 账单导入和数据清理功能已加载');
-console.log(`📊 showBillImportModal类型: ${typeof window.showBillImportModal}`);
-console.log(`🧹 showDataCleanupModal类型: ${typeof window.showDataCleanupModal}`);
-
-// =================================================== //
-// 生产线打卡功能                                        //
-// =================================================== //
-
-// 显示时间选项对话框
+// 新增：显示时间选项对话框
 window.showTimeOptionsDialog = function(sortedIndex) {
     const prod = sortedProductions[sortedIndex];
     const realProd = gameData.productions[prod._realIndex];
@@ -9329,7 +8481,7 @@ window.showTimeOptionsDialog = function(sortedIndex) {
     dialog.showModal();
 }
 
-// 根据选择的时间长度记录打卡
+// 新增：根据选择的时间长度记录打卡
 window.recordTimeWithDuration = function(sortedIndex, durationMinutes) {
     const prod = sortedProductions[sortedIndex];
     const realProd = gameData.productions[prod._realIndex];
@@ -9369,168 +8521,585 @@ window.recordTimeWithDuration = function(sortedIndex, durationMinutes) {
     renderDevelopments();
     renderWeekCalendar();
     renderResourceStats();
-    renderFinanceMainPanel();
+    renderFinanceMainPanel(); // 更新为新的财务面板
     
     // 显示成功提示
     showNotification(`✅ 已记录 ${realProd.name} ${durationMinutes}分钟`, 'success');
 }
 
-console.log('✅ 生产线打卡功能已加载');
-console.log(`⏰ showTimeOptionsDialog类型: ${typeof window.showTimeOptionsDialog}`);
-console.log(`📝 recordTimeWithDuration类型: ${typeof window.recordTimeWithDuration}`);
+// =================================================== //
+// 新版财务面板函数 - 替代原有标签页系统                //
+// =================================================== //
 
-// ========== 智能界面优化功能 ==========
-
-// 渲染简化财务概览
-function renderCompactFinanceOverview() {
-    const container = document.getElementById('finance-compact-overview');
+// 渲染账户状态概览
+function renderAccountStatusSummary() {
+    const container = document.getElementById('account-status-summary');
     if (!container) return;
     
-    // 确保数据结构统一
-    unifyFinanceDataStructure();
+    // 获取账户统计
+    let accountCount = 0;
+    let enabledCount = 0;
     
-    const displayCurrency = gameData.displayCurrency || 'AUD';
-    const currencySymbol = getCurrencySymbol(displayCurrency);
+    if (window.AccountManager) {
+        const accounts = window.AccountManager.getAccountList();
+        accountCount = accounts.length;
+        enabledCount = accounts.filter(acc => acc.enabled).length;
+    }
     
-    // 使用统一的数据源
-    const dataSource = (gameData.financeData?.aggregatedData && Object.keys(gameData.financeData.aggregatedData).length > 0) 
-        ? gameData.financeData.aggregatedData 
-        : gameData.billsData || {};
-    
-    let monthlyIncome = 0;
-    let monthlyExpense = 0;
-    
-    if (Object.keys(dataSource).length > 0) {
-        const availableMonths = Object.keys(dataSource).sort().reverse();
-        const latestMonth = availableMonths[0];
-        
-        if (latestMonth && dataSource[latestMonth]) {
-            const monthData = dataSource[latestMonth];
-            monthlyIncome = convertToDisplayCurrency(monthData.income || 0, 'AUD', displayCurrency);
-            
-            const expenses = monthData.expenses || [];
-            let totalExpense = 0;
-            expenses.forEach(exp => {
-                totalExpense += exp.amount || 0;
-            });
-            monthlyExpense = convertToDisplayCurrency(totalExpense, 'AUD', displayCurrency);
+    let statusText = '';
+    if (accountCount === 0) {
+        statusText = '尚未添加任何账户';
+    } else if (enabledCount === 0) {
+        statusText = `已添加${accountCount}个账户，但都未启用`;
+    } else {
+        statusText = `已启用${enabledCount}个账户`;
+        if (enabledCount < accountCount) {
+            statusText += `，${accountCount - enabledCount}个未启用`;
         }
     }
     
-    const balance = monthlyIncome - monthlyExpense;
+    container.textContent = statusText;
+}
+
+// 渲染智能洞察
+function renderFinanceInsights() {
+    const container = document.getElementById('finance-insights-content');
+    if (!container) return;
     
-    const html = `
-        <div class="finance-panel-compact">
-            <div class="finance-summary-row">
-                <div class="finance-summary-item">
-                    <div class="finance-summary-label">本月收入</div>
-                    <div class="finance-summary-value income">${currencySymbol}${Math.round(monthlyIncome).toLocaleString()}</div>
-                </div>
-                <div class="finance-summary-item">
-                    <div class="finance-summary-label">本月支出</div>
-                    <div class="finance-summary-value expense">${currencySymbol}${Math.round(monthlyExpense).toLocaleString()}</div>
-                </div>
-                <div class="finance-summary-item">
-                    <div class="finance-summary-label">余额</div>
-                    <div class="finance-summary-value ${balance >= 0 ? 'income' : 'expense'}">
-                        ${balance >= 0 ? '+' : ''}${currencySymbol}${Math.round(Math.abs(balance)).toLocaleString()}
-                    </div>
-                </div>
+    // 获取分析数据
+    const analysisData = gameData.resourceAnalysis || {};
+    
+    let html = '';
+    
+    // 本月预测支出
+    const predictedExpense = analysisData.predictions?.nextMonthExpense || 0;
+    if (predictedExpense > 0) {
+        const displayCurrency = gameData.displayCurrency || 'AUD';
+        const currencySymbol = getCurrencySymbol(displayCurrency);
+        const convertedPrediction = convertToDisplayCurrency(predictedExpense, 'AUD', displayCurrency);
+        
+        html += `
+            <div class="insight-item">
+                <strong>📊 本月支出预测：</strong>${currencySymbol}${Math.round(convertedPrediction).toLocaleString()}
             </div>
-            <button class="finance-expand-btn" onclick="toggleFinancePanel()">查看详情</button>
-        </div>
-    `;
+        `;
+    }
+    
+    // 稳定性评分
+    const stabilityScore = analysisData.stabilityScore || 0;
+    if (stabilityScore > 0) {
+        const scoreLevel = stabilityScore >= 80 ? '优秀' : stabilityScore >= 60 ? '良好' : '有待改善';
+        const scoreEmoji = stabilityScore >= 80 ? '🟢' : stabilityScore >= 60 ? '🟡' : '🔴';
+        
+        html += `
+            <div class="insight-item">
+                <strong>${scoreEmoji} 财务稳定性：</strong>${scoreLevel} (${stabilityScore.toFixed(0)}分)
+            </div>
+        `;
+    }
+    
+    // 特别提醒
+    const specialReminders = analysisData.predictions?.specialReminders || [];
+    if (specialReminders.length > 0) {
+        html += `
+            <div class="insight-item">
+                <strong>⚠️ 特别提醒：</strong>${specialReminders[0]}
+            </div>
+        `;
+    }
+    
+    // 如果没有任何洞察，显示默认信息
+    if (!html) {
+        html = `
+            <div class="insight-item" style="color: #999; font-style: italic;">
+                导入更多账单数据后将显示智能分析结果
+            </div>
+        `;
+    }
     
     container.innerHTML = html;
 }
 
-// 切换财务面板显示模式
-function toggleFinancePanel() {
-    const compactContainer = document.getElementById('finance-compact-overview');
-    const fullContainer = document.querySelector('.finance-overview-card');
-    const actionsCard = document.querySelector('.finance-actions-card');
-    const insightsCard = document.querySelector('.finance-insights-card');
-    const accountStatus = document.getElementById('account-status-summary');
-    const insights = document.getElementById('finance-insights-content');
-    
-    if (!compactContainer) {
-        console.error('找不到 finance-compact-overview 容器');
+// 显示账户管理模态框
+function showAccountManagementModal() {
+    const modal = document.getElementById('account-management-modal');
+    if (!modal) {
+        console.error('账户管理模态框未找到');
         return;
     }
     
-    // 检查当前状态
-    const isCompact = !compactContainer.classList.contains('panel-content-collapsed');
-    
-    if (isCompact) {
-        // 切换到完整模式
-        compactContainer.classList.add('panel-content-collapsed');
-        if (fullContainer) fullContainer.classList.remove('panel-content-collapsed');
-        if (actionsCard) actionsCard.classList.remove('panel-content-collapsed');
-        if (insightsCard) insightsCard.classList.remove('panel-content-collapsed');
-        if (accountStatus) accountStatus.classList.remove('panel-content-collapsed');
-        if (insights) insights.classList.remove('panel-content-collapsed');
-        
-        // 重新渲染完整面板数据
-        renderFinanceOverview();
-        renderAccountStatusSummary();
-        renderFinanceInsights();
-        
-        console.log('🔄 切换到完整财务面板模式');
-    } else {
-        // 切换到简化模式
-        compactContainer.classList.remove('panel-content-collapsed');
-        if (fullContainer) fullContainer.classList.add('panel-content-collapsed');
-        if (actionsCard) actionsCard.classList.add('panel-content-collapsed');
-        if (insightsCard) insightsCard.classList.add('panel-content-collapsed');
-        if (accountStatus) accountStatus.classList.add('panel-content-collapsed');
-        if (insights) insights.classList.add('panel-content-collapsed');
-        
-        // 重新渲染简化面板
-        renderCompactFinanceOverview();
-        
-        console.log('🔄 切换到简化财务面板模式');
-    }
-}
-
-// 增强任务规划按钮
-function showTaskPlanningModal() {
-    // 这里可以打开艾森豪威尔矩阵或其他任务规划工具
-    if (typeof window.showEisenhowerMatrix === 'function') {
-        window.showEisenhowerMatrix();
-    } else {
-        showNotification('任务规划功能正在开发中...', 'info');
-    }
-}
-
-// 切换生产线详情显示（移动端支持）
-function toggleProductionDetails(element) {
-    // 检查是否为移动设备或小屏幕
-    const isMobile = window.innerWidth <= 768;
-    
-    if (isMobile) {
-        // 移动端：切换expanded类
-        if (element.classList.contains('expanded')) {
-            element.classList.remove('expanded');
-        } else {
-            // 先移除其他项目的展开状态
-            document.querySelectorAll('.production-item.expanded').forEach(item => {
-                item.classList.remove('expanded');
-            });
-            // 展开当前项目
-            element.classList.add('expanded');
+    // 渲染账户管理内容
+    if (window.AccountManager) {
+        const content = modal.querySelector('.modal-body');
+        if (content) {
+            content.innerHTML = window.AccountManager.renderAccountManagement();
         }
     }
-    // 桌面端：不做任何操作，保持hover效果
+    
+    // 显示模态框
+    modal.classList.add('show');
 }
 
-// 将新函数添加到全局作用域
-window.renderCompactFinanceOverview = renderCompactFinanceOverview;
-window.toggleFinancePanel = toggleFinancePanel;
-window.showTaskPlanningModal = showTaskPlanningModal;
-window.toggleProductionDetails = toggleProductionDetails;
+// 显示月度对比模态框
+function showMonthlyComparisonModal() {
+    const modal = document.getElementById('monthly-comparison-modal');
+    if (!modal) {
+        console.error('月度对比模态框未找到');
+        return;
+    }
+    
+    // 设置当前年份
+    const currentYear = new Date().getFullYear();
+    gameData.comparisonYear = gameData.comparisonYear || currentYear;
+    
+    const yearDisplay = modal.querySelector('#comparison-year');
+    if (yearDisplay) {
+        yearDisplay.textContent = gameData.comparisonYear;
+    }
+    
+    // 渲染月度对比内容
+    renderMonthlyComparison();
+    
+    // 显示模态框
+    modal.classList.add('show');
+}
 
-console.log('✅ 智能界面优化功能已加载');
-console.log(`💰 renderCompactFinanceOverview类型: ${typeof window.renderCompactFinanceOverview}`);
-console.log(`🔄 toggleFinancePanel类型: ${typeof window.toggleFinancePanel}`);
-console.log(`📋 showTaskPlanningModal类型: ${typeof window.showTaskPlanningModal}`);
-console.log(`📱 toggleProductionDetails类型: ${typeof window.toggleProductionDetails}`);
+// 显示账单导入模态框
+function showBillImportModal() {
+    console.log('🔍 检查账单导入模块状态...');
+    
+    if (window.BillImporter && typeof window.BillImporter.showMultiAccountImportModal === 'function') {
+        console.log('✅ BillImporter模块已加载，调用多账户导入模态框...');
+        try {
+            window.BillImporter.showMultiAccountImportModal();
+        } catch (error) {
+            console.error('❌ 调用导入模态框时发生错误:', error);
+            alert('❌ 导入功能调用失败: ' + error.message);
+        }
+    } else {
+        console.error('❌ BillImporter模块未正确加载');
+        
+        // 详细检查模块状态
+        console.log('模块状态详细检查:');
+        console.log('- window.BillImporter存在:', !!window.BillImporter);
+        console.log('- showMultiAccountImportModal方法:', typeof window.BillImporter?.showMultiAccountImportModal);
+        console.log('- FinanceModule存在:', !!window.FinanceModule);
+        console.log('- AccountManager存在:', !!window.AccountManager);
+        
+        // 尝试重新初始化
+        if (window.FinanceModule && !window.FinanceModule.initialized) {
+            console.log('🔄 尝试重新初始化财务模块...');
+            try {
+                window.FinanceModule.init();
+                
+                // 延迟再次尝试
+                setTimeout(() => {
+                    if (window.BillImporter && window.BillImporter.showMultiAccountImportModal) {
+                        console.log('✅ 重新初始化成功，再次尝试调用导入模态框...');
+                        window.BillImporter.showMultiAccountImportModal();
+                    } else {
+                        alert('❌ 财务模块初始化失败，请刷新页面重试');
+                    }
+                }, 200);
+            } catch (error) {
+                console.error('重新初始化失败:', error);
+                alert('❌ 模块初始化失败，请刷新页面重试');
+            }
+        } else {
+            alert('❌ 账单导入功能不可用，请刷新页面后重试\n\n调试信息：\n- BillImporter: ' + !!window.BillImporter + 
+                  '\n- 方法存在: ' + (typeof window.BillImporter?.showMultiAccountImportModal));
+        }
+    }
+}
+
+// 显示数据清理模态框
+function showDataCleanupModal() {
+    console.log('🔍 检查账户管理模块状态...');
+    
+    if (window.AccountManager && typeof window.AccountManager.showDataCleanupModal === 'function') {
+        console.log('✅ AccountManager模块已加载，调用数据清理模态框...');
+        try {
+            window.AccountManager.showDataCleanupModal();
+        } catch (error) {
+            console.error('❌ 调用数据清理模态框时发生错误:', error);
+            alert('❌ 数据清理功能调用失败: ' + error.message);
+        }
+    } else {
+        console.error('❌ AccountManager模块未正确加载');
+        alert('❌ 数据清理功能不可用，请刷新页面后重试');
+    }
+}
+
+// 测试财务模块状态
+window.testFinanceModules = function() {
+    console.log('🔍 测试财务模块状态：');
+    console.log('FinanceModule:', window.FinanceModule);
+    console.log('AccountManager:', window.AccountManager);
+    console.log('BillImporter:', window.BillImporter);
+    console.log('DataAggregator:', window.DataAggregator);
+    
+    if (window.FinanceModule) {
+        console.log('FinanceModule.initialized:', window.FinanceModule.initialized);
+    }
+    
+    if (window.BillImporter) {
+        console.log('BillImporter.showMultiAccountImportModal:', typeof window.BillImporter.showMultiAccountImportModal);
+    }
+    
+    if (window.AccountManager) {
+        console.log('AccountManager.getAccountList:', typeof window.AccountManager.getAccountList);
+        const accounts = window.AccountManager.getAccountList();
+        console.log('当前账户数量:', accounts.length);
+    }
+};
+
+// 更新全局函数引用，保持兼容性
+window.renderFinanceMainPanel = renderFinanceMainPanel;
+window.renderAccountStatusSummary = renderAccountStatusSummary; 
+window.renderFinanceInsights = renderFinanceInsights;
+window.showAccountManagementModal = showAccountManagementModal;
+window.showMonthlyComparisonModal = showMonthlyComparisonModal;
+window.showBillImportModal = showBillImportModal;
+window.showDataCleanupModal = showDataCleanupModal;
+
+// 为兼容性保留原函数名
+window.renderResourceOverview = renderFinanceMainPanel;
+
+// === 新旧数据结构统一和迁移系统 ===
+window.unifyFinanceDataStructure = function() {
+    console.log('🔄 开始统一财务数据结构...');
+    
+    // 1. 确保新的财务数据结构存在
+    if (!gameData.financeData) {
+        gameData.financeData = {
+            accounts: {},
+            accountData: {},
+            aggregatedData: {},
+            settings: {
+                primaryCurrency: 'AUD',
+                exchangeRates: { 'AUD': 1, 'CNY': 4.65, 'USD': 0.65, 'EUR': 0.60 },
+                lastAggregation: new Date().toISOString()
+            }
+        };
+    }
+    
+    // 2. 迁移旧的billsData到新结构
+    if (gameData.billsData && Object.keys(gameData.billsData).length > 0) {
+        console.log('🔄 迁移旧账单数据到新结构...');
+        
+        // 将旧数据作为聚合数据保存（假设已经是AUD基准）
+        gameData.financeData.aggregatedData = { ...gameData.billsData };
+        
+        console.log('✅ 旧账单数据已迁移');
+    }
+    
+    // 3. 统一显示货币设置
+    if (!gameData.displayCurrency) {
+        gameData.displayCurrency = 'AUD';
+    }
+    
+    // 4. 确保财务模块已初始化
+    if (window.FinanceModule && !window.FinanceModule.initialized) {
+        window.FinanceModule.init();
+    }
+    
+    console.log('✅ 财务数据结构统一完成');
+    return true;
+};
+
+// 统一的货币切换函数 - 覆盖旧版本
+window.switchDisplayCurrency = function(currency) {
+    console.log(`🔄 切换显示货币到: ${currency}`);
+    
+    gameData.displayCurrency = currency;
+    
+    // 确保数据结构统一
+    unifyFinanceDataStructure();
+    
+    // 重新渲染所有财务相关面板（但不弹出模态窗口）
+    if (window.renderFinanceMainPanel) renderFinanceMainPanel();
+    if (window.renderBillsSummary) renderBillsSummary();
+    // 移除renderMonthlyComparison()调用，避免切换货币时弹出模态窗口
+    
+    // 如果月度对比模态窗口当前是打开的，则刷新其内容
+    const monthlyModal = document.getElementById('monthly-comparison-modal');
+    if (monthlyModal && monthlyModal.classList.contains('show')) {
+        console.log('🔄 月度对比模态窗口已打开，刷新其内容...');
+        if (window.renderMonthlyComparison) {
+            renderMonthlyComparison();
+        }
+    }
+    
+    // 保存设置到云端（如果可用）或本地
+    if (familyCode && isCloudReady && !isCloudSaving) {
+        saveToCloud();
+    } else {
+        // 如果云端不可用，保存到本地
+        saveToLocal();
+    }
+    
+    console.log(`✅ 显示货币已切换为: ${currency}`);
+};
+
+// 废弃旧的资源分析更新函数
+window.updateResourceAnalysisData = function() {
+    console.log('⚠️  updateResourceAnalysisData 已废弃，使用新的数据汇总系统');
+    
+    // 如果有多账户数据，触发重新汇总
+    if (window.DataAggregator && gameData.financeData?.accountData) {
+        try {
+            window.DataAggregator.aggregateAllAccounts();
+        } catch (error) {
+            console.error('数据汇总失败:', error);
+        }
+    }
+};
+
+// 初始化统一财务系统
+window.initUnifiedFinanceSystem = function() {
+    console.log('🚀 初始化统一财务系统...');
+    
+    // 统一数据结构
+    unifyFinanceDataStructure();
+    
+    // 确保模块加载
+    if (window.FinanceModule) {
+        window.FinanceModule.init();
+    }
+    
+    // 渲染面板
+    if (window.renderFinanceMainPanel) {
+        renderFinanceMainPanel();
+    }
+    
+    console.log('✅ 统一财务系统初始化完成');
+};
+
+// 数据清理和验证函数
+window.cleanupFinanceData = function() {
+    console.log('🧹 开始清理财务数据...');
+    
+    // 1. 检查数据一致性
+    if (gameData.billsData && gameData.financeData?.aggregatedData) {
+        const billsMonths = Object.keys(gameData.billsData).length;
+        const aggregatedMonths = Object.keys(gameData.financeData.aggregatedData).length;
+        
+        console.log(`检查数据: billsData(${billsMonths}个月), aggregatedData(${aggregatedMonths}个月)`);
+        
+        // 如果聚合数据更完整，使用聚合数据
+        if (aggregatedMonths >= billsMonths) {
+            console.log('🔄 使用聚合数据作为主数据源...');
+            gameData.billsData = { ...gameData.financeData.aggregatedData };
+        }
+    }
+    
+    // 2. 确保货币一致性
+    const targetCurrency = 'AUD'; // 基准货币
+    if (gameData.financeData?.aggregatedData) {
+        Object.entries(gameData.financeData.aggregatedData).forEach(([monthKey, monthData]) => {
+            if (monthData.expenses) {
+                monthData.expenses.forEach(expense => {
+                    // 确保所有聚合数据中的金额都是AUD基准
+                    if (expense.currency && expense.currency !== targetCurrency) {
+                        console.log(`⚠️ 发现非AUD基准数据: ${expense.name} ${expense.amount} ${expense.currency}`);
+                    }
+                });
+            }
+        });
+    }
+    
+    // 3. 清理重复数据
+    if (gameData.financeData?.accountData) {
+        console.log('🔄 清理重复的账户数据...');
+        // 这里可以添加重复数据检测逻辑
+    }
+    
+    console.log('✅ 财务数据清理完成');
+    
+    // 保存清理后的数据
+    saveToLocal();
+};
+
+// 详细的数据流跟踪调试函数
+window.debugDataFlow = function(monthKey = '2024-04') {
+    console.log(`=== 数据流跟踪调试 (${monthKey}) ===`);
+    
+    // 1. 检查原始账户数据
+    console.log('\n1. 原始账户数据:');
+    const accountData = gameData.financeData?.accountData || {};
+    Object.entries(accountData).forEach(([accountId, data]) => {
+        if (data[monthKey]) {
+            console.log(`账户 ${accountId}:`, {
+                income: data[monthKey].income,
+                incomeCurrency: data[monthKey].incomeCurrency,
+                expenseCount: data[monthKey].expenses?.length,
+                firstExpense: data[monthKey].expenses?.[0]
+            });
+        }
+    });
+    
+    // 2. 检查聚合后数据
+    console.log('\n2. 聚合后数据:');
+    const aggregatedMonthData = gameData.financeData?.aggregatedData?.[monthKey];
+    if (aggregatedMonthData) {
+        console.log('聚合数据:', {
+            income: aggregatedMonthData.income,
+            incomeCurrency: aggregatedMonthData.incomeCurrency,
+            expenseCount: aggregatedMonthData.expenses?.length,
+            firstExpense: aggregatedMonthData.expenses?.[0],
+            sources: aggregatedMonthData.sources
+        });
+    } else {
+        console.log('聚合数据: 未找到该月份数据');
+    }
+    
+    // 3. 检查显示转换
+    console.log('\n3. 显示转换测试:');
+    if (aggregatedMonthData) {
+        const displayCurrency = gameData.displayCurrency || 'AUD';
+        const originalIncome = aggregatedMonthData.income;
+        const displayIncome = convertToDisplayCurrency(originalIncome, 'AUD', displayCurrency);
+        
+        console.log(`原始收入 (AUD基准): ${originalIncome}`);
+        console.log(`显示收入 (${displayCurrency}): ${displayIncome}`);
+        console.log(`转换倍率: ${displayIncome / originalIncome}`);
+        
+        // 检查支出
+        if (aggregatedMonthData.expenses && aggregatedMonthData.expenses.length > 0) {
+            const firstExpense = aggregatedMonthData.expenses[0];
+            console.log('\n第一个支出项目:');
+            console.log('- 原始金额:', firstExpense.originalAmount, firstExpense.originalCurrency);
+            console.log('- 聚合金额:', firstExpense.amount, firstExpense.currency);
+            console.log('- 显示金额:', convertToDisplayCurrency(firstExpense.amount, 'AUD', displayCurrency), displayCurrency);
+        }
+    }
+    
+    // 4. 检查汇率计算
+    console.log('\n4. 汇率计算验证:');
+    console.log('如果原始是5233 AUD:');
+    console.log('- 转换为CNY:', convertToDisplayCurrency(5233, 'AUD', 'CNY'));
+    console.log('- 从CNY转回AUD:', convertToDisplayCurrency(convertToDisplayCurrency(5233, 'AUD', 'CNY'), 'CNY', 'AUD'));
+    
+    console.log('\n如果当前显示CNY 5110，反推原始AUD:');
+    const backCalculated = convertToDisplayCurrency(5110, 'CNY', 'AUD');
+    console.log('- 反推AUD:', backCalculated);
+    console.log('- 与期望5233的差异:', Math.abs(backCalculated - 5233));
+    
+    return {
+        monthData: aggregatedMonthData,
+        expectedAUD: 5233,
+        actualDisplayCNY: 5110,
+        actualDisplayAUD: 1099,
+        backCalculatedAUD: backCalculated
+    };
+};
+
+// 检查多货币账单处理的调试函数
+window.debugMultiCurrencyAccounts = function() {
+    console.log('=== 多货币账单处理调试 ===');
+    
+    const accountData = gameData.financeData?.accountData || {};
+    
+    Object.entries(accountData).forEach(([accountId, data]) => {
+        const account = gameData.financeData.accounts[accountId];
+        console.log(`\n账户: ${account?.name || accountId}`);
+        
+        Object.entries(data).forEach(([monthKey, monthData]) => {
+            console.log(`  ${monthKey}:`);
+            
+            // 检查收入货币
+            if (monthData.income) {
+                console.log(`    收入: ${monthData.income} ${monthData.incomeCurrency || '未指定货币'}`);
+            }
+            
+            // 检查支出中的各种货币
+            if (monthData.expenses && monthData.expenses.length > 0) {
+                const currencyBreakdown = {};
+                monthData.expenses.forEach(expense => {
+                    const currency = expense.currency || '未指定货币';
+                    if (!currencyBreakdown[currency]) {
+                        currencyBreakdown[currency] = { count: 0, amount: 0 };
+                    }
+                    currencyBreakdown[currency].count++;
+                    currencyBreakdown[currency].amount += expense.amount || 0;
+                });
+                
+                console.log('    支出货币分布:');
+                Object.entries(currencyBreakdown).forEach(([currency, stats]) => {
+                    console.log(`      ${currency}: ${stats.count}项, 总计 ${stats.amount.toFixed(2)}`);
+                });
+            }
+        });
+    });
+    
+    // 检查汇总后的数据
+    console.log('\n=== 汇总后数据 ===');
+    const aggregatedData = gameData.financeData?.aggregatedData || {};
+    
+    Object.entries(aggregatedData).forEach(([monthKey, monthData]) => {
+        console.log(`\n${monthKey}:`);
+        console.log(`  汇总收入: ${monthData.income} ${monthData.incomeCurrency}`);
+        console.log(`  汇总支出: ${monthData.expenses?.length || 0}项`);
+        
+        if (monthData.sources) {
+            console.log('  数据来源:');
+            monthData.sources.forEach(source => {
+                console.log(`    ${source.accountName}: 货币 [${source.currencies?.join(', ') || '未知'}]`);
+            });
+        }
+    });
+};
+
+// 修复数据的函数
+window.fixCurrencyData = function() {
+    console.log('🔧 开始彻底修复货币数据...');
+    
+    // 1. 强制修复财务设置中的主货币
+    if (gameData.financeData?.settings) {
+        console.log('🔧 修复主货币设置:', gameData.financeData.settings.primaryCurrency, '-> AUD');
+        gameData.financeData.settings.primaryCurrency = 'AUD';
+    }
+    
+    // 2. 清空错误的汇总数据，强制重新汇总
+    console.log('🔧 清空错误的汇总数据，准备重新汇总...');
+    if (gameData.financeData) {
+        gameData.financeData.aggregatedData = {};
+    }
+    gameData.billsData = {};
+    
+    // 3. 重新触发正确的汇总
+    console.log('🔧 重新汇总所有账户数据...');
+    if (window.DataAggregator) {
+        window.DataAggregator.aggregateAllAccounts();
+    }
+    
+    // 4. 重新渲染
+    setTimeout(() => {
+        if (window.renderFinanceMainPanel) renderFinanceMainPanel();
+        if (window.renderBillsSummary) renderBillsSummary();
+        if (window.renderMonthlyComparison) renderMonthlyComparison();
+        console.log('✅ 界面刷新完成');
+    }, 1000);
+    
+    console.log('✅ 货币数据彻底修复完成');
+    
+    // 优先使用本地保存，避免云端同步问题
+    saveToLocal();
+    console.log('💾 数据已保存到本地');
+};
+
+// 页面加载时自动初始化
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        if (window.initUnifiedFinanceSystem) {
+            window.initUnifiedFinanceSystem();
+        }
+        
+        // 延迟执行数据清理
+        setTimeout(() => {
+            if (window.cleanupFinanceData) {
+                window.cleanupFinanceData();
+            }
+        }, 1000);
+    }, 500);
+}); 

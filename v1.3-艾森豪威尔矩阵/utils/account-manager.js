@@ -144,37 +144,8 @@ window.AccountManager = {
             throw new Error('账户不存在');
         }
         
-        const oldStatus = account.enabled;
         account.enabled = !account.enabled;
         account.lastUpdated = new Date().toISOString();
-        
-        console.log(`🔄 切换账户状态: ${account.name} - ${oldStatus ? '启用' : '禁用'} -> ${account.enabled ? '启用' : '禁用'}`);
-        
-        // 立即重新汇总数据以反映账户状态变化
-        if (window.DataAggregator) {
-            try {
-                console.log('⚡ 账户状态变化，重新汇总数据...');
-                window.DataAggregator.aggregateAllAccounts();
-                
-                // 延迟更新界面以确保数据汇总完成
-                setTimeout(() => {
-                    this.refreshAllFinanceDisplays();
-                    
-                    // 显示状态变更提示
-                    const statusText = account.enabled ? '启用' : '禁用';
-                    const impactText = account.enabled ? '该账户数据已加入汇总计算' : '该账户数据已从汇总计算中排除';
-                    
-                    // 创建临时提示
-                    this.showStatusChangeNotification(`账户"${account.name}"已${statusText}，${impactText}`);
-                }, 100);
-                
-            } catch (error) {
-                console.error('重新汇总数据失败:', error);
-                // 回滚状态
-                account.enabled = oldStatus;
-                throw new Error('状态切换失败: ' + error.message);
-            }
-        }
         
         // 保存数据
         if (window.saveToCloud) {
@@ -182,89 +153,6 @@ window.AccountManager = {
         }
         
         return account.enabled;
-    },
-    
-    // 新增：显示状态变更通知
-    showStatusChangeNotification: function(message) {
-        // 创建通知元素
-        const notification = document.createElement('div');
-        notification.className = 'status-change-notification';
-        notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #2ecc71;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            z-index: 10000;
-            font-size: 14px;
-            font-weight: 500;
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-        `;
-        
-        document.body.appendChild(notification);
-        
-        // 显示动画
-        setTimeout(() => {
-            notification.style.transform = 'translateX(0)';
-        }, 10);
-        
-        // 自动消失
-        setTimeout(() => {
-            notification.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 3000);
-    },
-    
-    // 新增：刷新所有财务相关显示
-    refreshAllFinanceDisplays: function() {
-        console.log('🔄 刷新所有财务显示界面...');
-        
-        // 刷新资源面板
-        if (window.renderResourceOverview) {
-            window.renderResourceOverview();
-        }
-        
-        // 刷新账单汇总
-        if (window.renderBillsSummary) {
-            window.renderBillsSummary();
-        }
-        
-        // 刷新资源统计
-        if (window.renderResourceStats) {
-            window.renderResourceStats();
-        }
-        
-        // 刷新资源分析
-        if (window.renderResourceAnalysis) {
-            window.renderResourceAnalysis();
-        }
-        
-        // 刷新账户管理面板
-        if (window.renderAccountsManagement) {
-            window.renderAccountsManagement();
-        }
-        
-        // 刷新账户状态概览
-        if (window.renderAccountStatusSummary) {
-            window.renderAccountStatusSummary();
-        }
-        
-        // 触发自定义事件
-        document.dispatchEvent(new CustomEvent('accountStatusChanged', {
-            detail: { 
-                type: 'status_toggle',
-                timestamp: new Date().toISOString()
-            }
-        }));
     },
     
     // 获取账户统计信息
@@ -315,9 +203,6 @@ window.AccountManager = {
                         <button class="btn btn-secondary btn-sm" onclick="AccountManager.showAggregationStatus()">
                             📊 汇总状态
                         </button>
-                        <button class="btn btn-warning btn-sm" onclick="AccountManager.showDuplicateDataManager()">
-                            🔍 重复数据
-                        </button>
                     </div>
                 </div>
                 
@@ -359,7 +244,7 @@ window.AccountManager = {
                             <button class="btn btn-sm" onclick="AccountManager.showEditAccountModal('${account.id}')" title="编辑账户">
                                 ✏️
                             </button>
-                            <button class="btn btn-sm" onclick="AccountManager.toggleAccountStatus('${account.id}');" title="${account.enabled ? '点击禁用账户' : '点击启用账户'}">
+                            <button class="btn btn-sm" onclick="AccountManager.toggleAccountStatus('${account.id}'); if(window.renderAccountsManagement) window.renderAccountsManagement();" title="${account.enabled ? '点击禁用账户' : '点击启用账户'}">
                                 ${account.enabled ? '🔇' : '🔊'}
                             </button>
                         </div>
@@ -870,105 +755,6 @@ window.AccountManager = {
             }
         } catch (error) {
             alert('❌ 清除失败: ' + error.message);
-        }
-    },
-
-    // 新增：显示重复数据管理器
-    showDuplicateDataManager: function() {
-        if (!window.DataAggregator) {
-            alert('❌ 数据汇总模块未加载');
-            return;
-        }
-        
-        console.log('🔍 启动重复数据检测...');
-        
-        try {
-            // 检测重复数据
-            const duplicates = window.DataAggregator.autoDetectDuplicates();
-            
-            let message = `🔍 重复数据检测报告\n\n`;
-            
-            if (duplicates.length === 0) {
-                message += `✅ 恭喜！未发现重复数据\n`;
-                message += `您的账单数据很干净，无需清理。`;
-                
-                alert(message);
-                return;
-            }
-            
-            // 统计重复项
-            let totalDuplicateItems = 0;
-            const monthSummary = {};
-            
-            duplicates.forEach(group => {
-                totalDuplicateItems += group.count - 1; // 减1是因为保留一个原件
-                
-                if (!monthSummary[group.month]) {
-                    monthSummary[group.month] = 0;
-                }
-                monthSummary[group.month] += group.count - 1;
-            });
-            
-            message += `⚠️ 发现 ${duplicates.length} 组重复数据\n`;
-            message += `📊 总共 ${totalDuplicateItems} 个重复项\n\n`;
-            
-            message += `📅 按月份统计：\n`;
-            Object.entries(monthSummary).forEach(([month, count]) => {
-                message += `• ${month}: ${count} 个重复项\n`;
-            });
-            
-            message += `\n🔧 是否立即清理这些重复数据？\n`;
-            message += `（注意：此操作不可撤销）`;
-            
-            const shouldClean = confirm(message);
-            
-            if (shouldClean) {
-                this.performDuplicateCleanup();
-            }
-            
-        } catch (error) {
-            alert(`❌ 重复数据检测失败: ${error.message}`);
-            console.error('重复数据检测错误:', error);
-        }
-    },
-    
-    // 新增：执行重复数据清理
-    performDuplicateCleanup: function() {
-        if (!window.DataAggregator) {
-            alert('❌ 数据汇总模块未加载');
-            return;
-        }
-        
-        try {
-            console.log('🧹 开始清理重复数据...');
-            
-            const result = window.DataAggregator.removeDuplicates();
-            
-            if (result.removed > 0) {
-                let successMessage = `✅ 重复数据清理完成！\n\n`;
-                successMessage += `🗑️ 总共移除: ${result.removed} 个重复项\n`;
-                
-                if (result.details && result.details.length > 0) {
-                    successMessage += `\n📋 清理详情：\n`;
-                    result.details.forEach(detail => {
-                        successMessage += `• ${detail.accountName} - ${detail.month}: ${detail.removedCount}项 (${detail.originalCount}→${detail.finalCount})\n`;
-                    });
-                }
-                
-                successMessage += `\n💾 数据已自动保存并重新汇总。`;
-                
-                alert(successMessage);
-                
-                // 刷新界面
-                this.refreshAllFinanceDisplays();
-                
-            } else {
-                alert('✅ 未发现需要清理的重复数据。');
-            }
-            
-        } catch (error) {
-            alert(`❌ 重复数据清理失败: ${error.message}`);
-            console.error('重复数据清理错误:', error);
         }
     }
 }; 

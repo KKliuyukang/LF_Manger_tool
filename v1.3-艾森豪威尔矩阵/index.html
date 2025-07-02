@@ -107,17 +107,14 @@
                     
                     <!-- 第一级：核心功能面板 -->
                     <div class="finance-main-content">
-                        <!-- 简化财务概览 -->
-                        <div id="finance-compact-overview"></div>
-                        
                         <!-- 财务概览卡片 -->
-                        <div class="finance-overview-card panel-content-collapsed">
+                        <div class="finance-overview-card">
                             <h4>📊 财务概览</h4>
                             <div id="finance-overview-content"></div>
                         </div>
                         
                         <!-- 快速操作区 -->
-                        <div class="finance-actions-card panel-content-collapsed">
+                        <div class="finance-actions-card">
                             <h4>🚀 快速操作</h4>
                             <div class="finance-actions-grid">
                                 <button class="btn btn-primary btn-finance-action" onclick="window.showBillImportModal()">
@@ -133,13 +130,13 @@
                                     🧹 数据清理
                                 </button>
                             </div>
-                            <div class="account-status-summary panel-content-collapsed" id="account-status-summary"></div>
+                            <div class="account-status-summary" id="account-status-summary"></div>
                         </div>
                         
                         <!-- 智能洞察卡片 -->
-                        <div class="finance-insights-card panel-content-collapsed">
+                        <div class="finance-insights-card">
                             <h4>💡 智能洞察</h4>
-                            <div id="finance-insights-content" class="panel-content-collapsed"></div>
+                            <div id="finance-insights-content"></div>
                         </div>
                     </div>
                 </div>
@@ -160,9 +157,6 @@
         <div class="context-menu-item" onclick="window.recordTimeContextItem()">记录用时</div>
         <div class="context-menu-item" onclick="window.clearTimeContextItem()">清除用时</div>
     </div>
-
-    <!-- 全局生产线详情Tooltip -->
-    <div id="production-tooltip" class="production-tooltip"></div>
 
     <!-- 生产线编辑模态框 -->
     <div id="production-modal" class="modal">
@@ -185,9 +179,6 @@
                         <option value="investment">资产（如股票、债券、房地产等，统计支出和被动收入）</option>
                         <option value="automation">自动化（长期培养的习惯或行为，主要用于打卡记录）</option>
                         <option value="lifestyle">日常（日常行为记录，如娱乐、社交、学习等）</option>
-                        <option value="infrastructure">基建（基础设施建设，如健康、学习环境等）</option>
-                        <option value="maintenance">维护（系统维护、设备保养等）</option>
-                        <option value="research">研发（技术研究、知识学习等）</option>
                     </select>
                 </div>
 

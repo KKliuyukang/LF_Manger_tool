@@ -25,7 +25,7 @@ class DataValidator {
                 type: {
                     required: true,
                     type: 'string',
-                    enum: ['production', 'investment', 'automation', 'lifestyle', 'infrastructure', 'maintenance', 'research']
+                    enum: ['production', 'investment', 'automation', 'lifestyle']
                 },
                 activeIncome: {
                     type: 'number',

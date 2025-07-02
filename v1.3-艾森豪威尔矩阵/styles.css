@@ -190,27 +190,17 @@ body {
     50% { transform: scale(1.1); opacity: 0.8; }
 }
 
-/* 现代化生产线样式 - 紧凑模式 */
+/* 现代化生产线样式 */
 .production-item {
     background: var(--surface-bg);
-    padding: 8px 10px; /* 进一步减少内边距 */
-    margin-bottom: 4px; /* 进一步减少间距 */
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-light);
     box-shadow: var(--shadow-card);
     transition: all 0.3s ease;
     cursor: context-menu;
     position: relative;
-    min-height: 50px; /* 设置最小高度保持一致性 */
-}
-
-/* 确保生产线列表容器不会剪切hover内容 */
-#productions-list {
-    overflow: visible; /* 确保hover内容可见 */
-}
-
-.panel[style*="grid-area: production"] {
-    overflow: visible; /* 确保hover内容不被裁剪 */
 }
 
 .production-item::before {
@@ -220,10 +210,12 @@ body {
     top: 0;
     bottom: 0;
     width: 3px;
+    background: var(--primary-color);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 .production-item:hover {
-    transform: translateY(-1px); /* 减少悬停效果 */
+    transform: translateY(-2px);
     box-shadow: var(--shadow-hover);
     border-color: var(--primary-light);
 }
@@ -252,38 +244,32 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 4px; /* 减少间距 */
 }
 
 .production-name {
     font-weight: 500;
     font-size: 0.9em;
-    line-height: 1.3; /* 减少行高 */
 }
 
 .production-tags {
     display: flex;
-    gap: 6px; /* 减少标签间距 */
-    margin-top: 6px; /* 减少上边距 */
+    gap: 8px;
+    margin-top: 8px;
     flex-wrap: wrap;
 }
 
-/* 简化标签样式 */
 .tag {
-    display: inline-block;
-    padding: 2px 8px; /* 减少内边距 */
+    padding: 2px 6px;
     border-radius: var(--radius-sm);
-    font-size: 0.75em; /* 减少字体大小 */
-    font-weight: 500;
-    color: var(--text-secondary);
-    background: var(--surface-hover);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-fast);
-    line-height: 1.2; /* 减少行高 */
+    font-size: 0.7em;
+    font-weight: 400;
+    line-height: 1.2;
     white-space: nowrap;
+    border: 1px solid var(--border-light);
+    background: var(--card-bg);
+    color: var(--text-muted);
 }
 
-/* 生产线类别标签样式 */
 .tag-production {
     background: #f8fafe;
     color: var(--primary-color);
@@ -302,220 +288,111 @@ body {
     border-color: #e8f5e9;
 }
 
+.tag-active {
+    background: var(--card-bg);
+    color: var(--text-muted);
+    border-color: var(--border-light);
+}
+
+.tag-passive {
+    background: var(--card-bg);
+    color: var(--text-muted);
+    border-color: var(--border-light);
+}
+
+.tag-expense {
+    background: var(--card-bg);
+    color: var(--text-muted);
+    border-color: var(--border-light);
+}
+
+.tag-time {
+    background: var(--card-bg);
+    color: var(--text-muted);
+    border-color: var(--border-light);
+}
+
+.tag-freq {
+    background: var(--card-bg);
+    color: var(--text-muted);
+    border-color: var(--border-light);
+}
+
+.tag-category {
+    background: #fefbf6;
+    color: #d4761a;
+    border-color: #fdebd0;
+}
+
+.tag-linked-energy {
+    background: #f0f9f0;
+    color: var(--status-success);
+    border-color: #e8f5e9;
+}
+
+.tag-linked-time {
+    background: #fffcf8;
+    color: var(--status-warning);
+    border-color: #fff3e0;
+}
+
+.tag-linked-cognition {
+    background: #f8f5f9;
+    color: #8e44ad;
+    border-color: #f3e5f5;
+}
+
+.tag-linked-finance {
+    background: #fef6f8;
+    color: #d81b60;
+    border-color: #fce4ec;
+}
+
 .tag-lifestyle {
     background: #f8f5f9;
     color: #8e44ad;
     border-color: #f3e5f5;
 }
 
-.tag-active {
-    background: #e8f5e9;
-    color: #27ae60;
-    border-color: #c8e6c9;
-}
-
-.tag-passive {
-    background: #e3f2fd;
-    color: #1976d2;
-    border-color: #bbdefb;
-}
-
-.tag-expense {
-    background: #ffebee;
-    color: #d32f2f;
-    border-color: #ffcdd2;
-}
-
-/* 生产线详情信息 - 紧凑布局 */
-.production-details {
-    margin-top: 4px;
-    font-size: 0.8em;
-    color: var(--text-secondary);
-    line-height: 1.3;
-}
-
-/* 智能折叠模式 - 默认隐藏详细信息 */
-.production-item.compact-mode .production-details {
-    display: none !important; /* 完全隐藏原始详情 */
-}
-
-/* 全局生产线详情Tooltip */
-.production-tooltip {
-    position: fixed;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 6px;
-    padding: 10px 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    z-index: 999999;
-    max-width: 320px;
-    min-width: 220px;
-    word-wrap: break-word;
-    font-size: 0.82em;
-    line-height: 1.3;
-    color: #333;
-    pointer-events: none;
-    opacity: 0;
-    transform: scale(0.95) translateY(-3px);
-    transition: all 0.15s ease;
-    backdrop-filter: blur(6px);
-    display: none;
-}
-
-.production-tooltip.show {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    display: block;
-}
-
-.production-tooltip h4 {
-    margin: 0 0 6px 0;
-    font-size: 0.95em;
-    font-weight: 600;
-    color: #444;
-}
-
-.production-tooltip p {
-    margin: 3px 0;
-    color: #666;
-}
-
-.production-tooltip .tooltip-type {
-    color: #888;
-    font-size: 0.88em;
-    margin-bottom: 8px;
-    font-style: italic;
-}
-
-.production-tooltip .tooltip-section {
-    margin: 8px 0;
-    padding-top: 6px;
-    border-top: 1px solid #f0f0f0;
-}
-
-.production-tooltip .tooltip-section:first-child {
-    border-top: none;
-    padding-top: 0;
-    margin-top: 0;
-}
-
-.production-tooltip .tooltip-linked {
-    color: #5a5a5a;
-    font-size: 0.88em;
-    margin-bottom: 6px;
-}
-
-.production-tooltip .tooltip-stage {
-    background: rgba(76, 175, 80, 0.04);
-    border-left: 2px solid rgba(76, 175, 80, 0.3);
-    padding: 6px 8px;
-    margin: 6px 0;
-    border-radius: 3px;
-}
-
-.production-tooltip .stage-title {
-    margin: 0 0 3px 0;
-    color: #4caf50;
-    font-weight: 600;
-    font-size: 0.88em;
-}
-
-.production-tooltip .stage-time {
-    margin: 0 0 2px 0;
-    color: #666;
-    font-weight: 500;
-    font-size: 0.82em;
-}
-
-.production-tooltip .stage-desc {
-    margin: 0;
-    color: #555;
-    font-size: 0.82em;
-    line-height: 1.3;
-}
-
-.production-tooltip .tooltip-action {
-    color: #666;
-    font-size: 0.82em;
-    font-style: italic;
-    margin: 4px 0;
-}
-
-.production-tooltip .tooltip-income {
-    color: #2e7d32;
-    font-size: 0.85em;
-}
-
-.production-tooltip .tooltip-expense {
-    color: #d32f2f;
-    font-size: 0.85em;
-}
-
-.production-tooltip .tooltip-investment {
-    color: #1976d2;
-    font-size: 0.85em;
-}
-
-.production-tooltip .tooltip-return {
-    color: #388e3c;
-    font-size: 0.82em;
-}
-
-/* 移动端点击展开支持 */
-@media (max-width: 768px) {
-    .production-item.compact-mode:hover .production-details {
-        display: none; /* 移动端禁用hover */
-    }
-    
-    .production-item.compact-mode.expanded .production-details {
-        display: block; /* 移动端使用点击展开 */
-    }
-}
-
-/* 时间标签简化 */
-.tag-time {
-    background: #e8f5e9 !important;
-    color: #27ae60 !important;
-    font-size: 0.7em !important; /* 进一步减小时间标签 */
-    padding: 1px 6px !important;
-}
-
-/* 简化投资信息显示 */
-.investment-info {
-    margin-top: 4px;
+/* 统一所有类型标签样式 */
+.tag-production, .tag-automation, .tag-investment, .tag-lifestyle,
+.tag-active, .tag-passive, .tag-expense, .tag-time, .tag-freq {
     font-size: 0.75em;
-    color: var(--text-muted);
-    line-height: 1.2;
+    padding: 4px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    margin: 2px 4px 2px 0;
+    white-space: nowrap;
 }
 
-/* 打卡按钮优化 - 更突出 */
 .check-btn {
-    background: var(--success-color);
-    color: white;
-    border: none;
-    padding: 6px 12px; /* 增大按钮尺寸 */
+    background: var(--card-bg);
+    color: var(--status-success);
+    border: 1px solid var(--border-light);
+    padding: 3px 8px;
     border-radius: var(--radius-sm);
-    font-size: 0.8em; /* 稍微增大字体 */
-    font-weight: 500;
     cursor: pointer;
-    transition: all var(--transition-fast);
-    min-width: 50px; /* 设置最小宽度 */
+    font-size: 0.75em;
+    font-weight: 400;
 }
 
 .check-btn:hover {
-    background: #45a049;
-    transform: translateY(-1px);
+    background: #f0f9f0;
+    border-color: var(--status-success);
 }
 
 .check-btn:disabled {
-    background: var(--status-neutral);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    border-color: var(--border-light);
     cursor: not-allowed;
     opacity: 0.6;
 }
 
 .check-btn.checked {
-    background: var(--success-color);
-    opacity: 0.8;
+    background: var(--status-success);
+    color: var(--text-white);
+    border-color: var(--status-success);
 }
 
 /* 现代化右键菜单 */
@@ -669,11 +546,11 @@ body {
     border-color: #95a5a6;
 }
 
-/* 暂停的生产线样式 - 简化版本 */
+/* 暂停的生产线样式 */
 .production-item.paused {
-    opacity: 0.7;
+    opacity: 0.6;
     background: #f8f9fa;
-    border-left-color: #6c757d !important;
+    border-left: 4px solid #6c757d;
 }
 
 .production-item.paused .production-name {
@@ -682,10 +559,6 @@ body {
 
 .production-item.paused .tag {
     opacity: 0.7;
-}
-
-.production-item.paused .production-details {
-    color: #9e9e9e;
 }
 
 .dev-header {
@@ -1333,42 +1206,25 @@ body {
         border-radius: 8px;
     }
 
-    /* 生产线项目字体优化 - 简化版本 */
+    /* 生产线项目字体优化 */
     .production-item, .dev-item {
-        padding: 12px; /* 适中的内边距 */
-        margin-bottom: 6px; /* 减少间距 */
-        font-size: 15px; /* 适中的字体大小 */
+        padding: 16px; /* 增加项目内边距 */
+        margin-bottom: 8px;
+        font-size: 16px; /* 增加项目字体大小 */
         border-radius: 8px;
     }
 
     .production-item .production-name,
     .dev-item .dev-name {
-        font-size: 16px; /* 适中的名称字体大小 */
+        font-size: 18px; /* 增加项目名称字体大小 */
         font-weight: 600;
-        margin-bottom: 4px; /* 减少间距 */
-        line-height: 1.3;
+        margin-bottom: 8px;
     }
 
     .production-item .production-details,
     .dev-item .dev-details {
-        font-size: 13px; /* 适中的详情字体大小 */
-        line-height: 1.3;
-        margin-top: 4px;
-    }
-
-    /* 移动端标签简化 */
-    .production-tags {
-        gap: 4px;
-        margin-top: 4px;
-    }
-
-    .tag {
-        font-size: 0.7em;
-        padding: 2px 6px;
-    }
-
-    .tag-time {
-        font-size: 0.65em !important;
+        font-size: 14px; /* 增加详情字体大小 */
+        line-height: 1.4;
     }
 
     /* 资源数据字体优化 */
@@ -4163,35 +4019,13 @@ input:checked + .slider:before {
 
 /* 时间块变淡效果 */
 .time-block-faded {
-    opacity: 0.3 !important;
-    filter: grayscale(70%) !important;
+    opacity: 0.7 !important;
+    filter: grayscale(50%) !important;
 }
 
 .time-block-faded:hover {
     opacity: 0.7 !important;
     filter: grayscale(10%) !important;
-}
-
-/* 当前时间线样式 */
-.current-time-line {
-    background: linear-gradient(90deg, #ff1744 60%, #ff9100 100%) !important;
-    box-shadow: 0 0 8px 2px #ff174488 !important;
-    border-radius: 2px !important;
-    animation: timeLine-pulse 2s ease-in-out infinite;
-    position: absolute;
-    pointer-events: none;
-    z-index: 9999;
-}
-
-@keyframes timeLine-pulse {
-    0%, 100% { 
-        opacity: 1; 
-        transform: scaleY(1);
-    }
-    50% { 
-        opacity: 0.8; 
-        transform: scaleY(1.2);
-    }
 }
 
 /* 月度对比年份选择器居中 */
@@ -5261,294 +5095,4 @@ input:checked + .slider:before {
         font-size: 0.7em;
         min-width: 50px;
     }
-}
-
-/* 账户状态概览样式 */
-.account-status-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin: 15px 0;
-}
-
-.account-status-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 15px;
-    text-align: center;
-}
-
-.account-status-card.warning {
-    border-color: #ff6b35;
-    background: rgba(255, 107, 53, 0.1);
-}
-
-.account-status-card.success {
-    border-color: #28a745;
-    background: rgba(40, 167, 69, 0.1);
-}
-
-.account-status-card h4 {
-    margin: 0 0 10px 0;
-    font-size: 14px;
-    color: var(--text-secondary);
-}
-
-.account-status-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: var(--text-primary);
-    margin: 10px 0;
-}
-
-.account-status-meta {
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-/* 财务洞察样式 */
-.finance-insights-content h4 {
-    margin: 0 0 15px 0;
-    color: var(--text-primary);
-}
-
-.insights-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.insights-list li {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 10px 15px;
-    margin: 8px 0;
-    font-size: 14px;
-    color: var(--text-primary);
-}
-
-/* 类型选择对话框样式 */
-.type-select-dialog {
-    padding: 20px;
-}
-
-.type-select-dialog h4 {
-    margin-bottom: 16px;
-    color: var(--text-color);
-    font-size: 1.2em;
-    font-weight: 600;
-}
-
-.current-info {
-    background: var(--card-bg);
-    padding: 12px;
-    border-radius: 6px;
-    margin-bottom: 16px;
-    font-size: 0.9em;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-}
-
-.type-options {
-    margin-bottom: 20px;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.type-option {
-    display: flex;
-    align-items: center;
-    padding: 12px;
-    margin-bottom: 8px;
-    background: var(--card-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-}
-
-.type-option:hover {
-    background: var(--hover-bg);
-    border-color: var(--primary-color);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.type-option.selected {
-    background: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-}
-
-.type-option:last-child {
-    margin-bottom: 0;
-}
-
-.type-icon {
-    font-size: 1.8em;
-    margin-right: 12px;
-    min-width: 40px;
-    text-align: center;
-}
-
-.type-info {
-    flex: 1;
-}
-
-.type-name {
-    font-weight: 600;
-    font-size: 1.1em;
-    margin-bottom: 4px;
-    text-transform: capitalize;
-}
-
-.type-desc {
-    font-size: 0.85em;
-    opacity: 0.8;
-    line-height: 1.3;
-}
-
-.type-option.selected .type-desc {
-    opacity: 0.9;
-}
-
-.type-check {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 0.9em;
-}
-
-/* 移动端适配 */
-@media (max-width: 768px) {
-    .type-option {
-        padding: 10px;
-    }
-    
-    .type-icon {
-        font-size: 1.5em;
-        margin-right: 8px;
-        min-width: 32px;
-    }
-    
-    .type-name {
-        font-size: 1em;
-    }
-    
-    .type-desc {
-        font-size: 0.8em;
-    }
-    
-    .type-options {
-        max-height: 300px;
-    }
-}
-
-/* ========== 智能界面优化 ========== */
-
-/* 财务面板简化模式 */
-.finance-panel-compact {
-    background: var(--surface-bg);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-md);
-    border: 1px solid var(--border-light);
-    margin-bottom: var(--spacing-md);
-}
-
-.finance-summary-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-sm);
-}
-
-.finance-summary-item {
-    flex: 1;
-    text-align: center;
-    padding: var(--spacing-sm);
-    background: var(--surface-hover);
-    border-radius: var(--radius-sm);
-}
-
-.finance-summary-label {
-    font-size: 0.75em;
-    color: var(--text-secondary);
-    margin-bottom: 2px;
-}
-
-.finance-summary-value {
-    font-size: 0.9em;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.finance-summary-value.income {
-    color: var(--success-color);
-}
-
-.finance-summary-value.expense {
-    color: var(--danger-color);
-}
-
-.finance-expand-btn {
-    background: none;
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-sm);
-    padding: 4px 8px;
-    font-size: 0.75em;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    width: 100%;
-    margin-top: var(--spacing-sm);
-}
-
-.finance-expand-btn:hover {
-    background: var(--surface-hover);
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-}
-
-/* 任务规划按钮增强 */
-.btn-task-planning {
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 10px 16px;
-    border-radius: var(--radius-md);
-    font-size: 0.9em;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    width: 100%;
-    margin-bottom: var(--spacing-md);
-    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
-}
-
-.btn-task-planning:hover {
-    background: var(--primary-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
-}
-
-/* 隐藏详细信息的类 */
-.panel-content-collapsed {
-    display: none;
-}
-
-.panel-content-expanded {
-    display: block;
 }

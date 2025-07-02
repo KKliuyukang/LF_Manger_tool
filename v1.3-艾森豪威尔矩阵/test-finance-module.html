@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>财务模块测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>财务模块功能测试</h1>
+        
+        <div class="test-section">
+            <h3>1. 模块加载测试</h3>
+            <button onclick="testModuleLoading()">测试模块加载</button>
+            <div id="module-loading-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. 账户管理测试</h3>
+            <button onclick="testAccountCreation()">创建测试账户</button>
+            <button onclick="testAccountList()">查看账户列表</button>
+            <button onclick="testAccountUpdate()">更新账户</button>
+            <div id="account-management-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. 数据结构测试</h3>
+            <button onclick="testDataStructure()">检查数据结构</button>
+            <button onclick="testCompatibility()">测试兼容性</button>
+            <div id="data-structure-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. API接口测试</h3>
+            <button onclick="testFinanceAPI()">测试Finance API</button>
+            <div id="api-test-result"></div>
+        </div>
+    </div>
+
+    <!-- 模拟基础环境 -->
+    <script>
+        // 模拟gameData
+        window.gameData = {
+            billsData: {
+                "2024-06": {
+                    "income": 15000,
+                    "incomeCurrency": "CNY",
+                    "expenses": [
+                        {"name": "房租", "amount": 3000, "currency": "CNY", "category": "住房"},
+                        {"name": "生活费", "amount": 2000, "currency": "CNY", "category": "生活"}
+                    ]
+                }
+            },
+            displayCurrency: 'CNY'
+        };
+        
+        // 模拟保存函数
+        window.saveToCloud = function() {
+            console.log('模拟保存到云端');
+        };
+    </script>
+    
+    <!-- 加载财务模块 -->
+    <script src="utils/finance-main.js"></script>
+    <script src="utils/account-manager.js"></script>
+    
+    <script>
+        // 测试函数
+        function testModuleLoading() {
+            const resultDiv = document.getElementById('module-loading-result');
+            let results = [];
+            
+            // 检查FinanceModule是否加载
+            if (window.FinanceModule) {
+                results.push('<div class="test-result success">✅ FinanceModule 加载成功</div>');
+                
+                // 检查初始化
+                if (window.FinanceModule.initialized) {
+                    results.push('<div class="test-result success">✅ FinanceModule 已初始化</div>');
+                } else {
+                    results.push('<div class="test-result info">ℹ️ FinanceModule 未初始化，尝试初始化...</div>');
+                    window.FinanceModule.init();
+                    if (window.FinanceModule.initialized) {
+                        results.push('<div class="test-result success">✅ FinanceModule 初始化成功</div>');
+                    } else {
+                        results.push('<div class="test-result error">❌ FinanceModule 初始化失败</div>');
+                    }
+                }
+            } else {
+                results.push('<div class="test-result error">❌ FinanceModule 未加载</div>');
+            }
+            
+            // 检查AccountManager是否加载
+            if (window.AccountManager) {
+                results.push('<div class="test-result success">✅ AccountManager 加载成功</div>');
+            } else {
+                results.push('<div class="test-result error">❌ AccountManager 未加载</div>');
+            }
+            
+            resultDiv.innerHTML = results.join('');
+        }
+        
+        function testAccountCreation() {
+            const resultDiv = document.getElementById('account-management-result');
+            let results = [];
+            
+            try {
+                // 创建测试账户
+                const accountId = window.AccountManager.createAccount({
+                    name: '测试银行卡',
+                    type: 'bank_debit',
+                    currency: 'CNY'
+                });
+                
+                results.push('<div class="test-result success">✅ 账户创建成功，ID: ' + accountId + '</div>');
+                
+                // 验证账户是否存在
+                const account = window.AccountManager.getAccountById(accountId);
+                if (account) {
+                    results.push('<div class="test-result success">✅ 账户查询成功</div>');
+                    results.push('<div class="test-result info">账户信息: <pre>' + JSON.stringify(account, null, 2) + '</pre></div>');
+                } else {
+                    results.push('<div class="test-result error">❌ 账户查询失败</div>');
+                }
+                
+            } catch (error) {
+                results.push('<div class="test-result error">❌ 账户创建失败: ' + error.message + '</div>');
+            }
+            
+            resultDiv.innerHTML = results.join('');
+        }
+        
+        function testAccountList() {
+            const resultDiv = document.getElementById('account-management-result');
+            let results = [];
+            
+            try {
+                const accounts = window.AccountManager.getAccountList();
+                results.push('<div class="test-result success">✅ 获取账户列表成功，共 ' + accounts.length + ' 个账户</div>');
+                
+                if (accounts.length > 0) {
+                    results.push('<div class="test-result info">账户列表: <pre>' + JSON.stringify(accounts, null, 2) + '</pre></div>');
+                }
+                
+            } catch (error) {
+                results.push('<div class="test-result error">❌ 获取账户列表失败: ' + error.message + '</div>');
+            }
+            
+            resultDiv.innerHTML = results.join('');
+        }
+        
+        function testAccountUpdate() {
+            const resultDiv = document.getElementById('account-management-result');
+            let results = [];
+            
+            try {
+                const accounts = window.AccountManager.getAccountList();
+                if (accounts.length === 0) {
+                    results.push('<div class="test-result info">ℹ️ 没有账户可更新，请先创建账户</div>');
+                } else {
+                    const account = accounts[0];
+                    const newName = account.name + ' (已更新)';
+                    
+                    window.AccountManager.updateAccount(account.id, { name: newName });
+                    results.push('<div class="test-result success">✅ 账户更新成功</div>');
+                    
+                    const updatedAccount = window.AccountManager.getAccountById(account.id);
+                    if (updatedAccount.name === newName) {
+                        results.push('<div class="test-result success">✅ 账户名称更新验证成功</div>');
+                    } else {
+                        results.push('<div class="test-result error">❌ 账户名称更新验证失败</div>');
+                    }
+                }
+            } catch (error) {
+                results.push('<div class="test-result error">❌ 账户更新失败: ' + error.message + '</div>');
+            }
+            
+            resultDiv.innerHTML = results.join('');
+        }
+        
+        function testDataStructure() {
+            const resultDiv = document.getElementById('data-structure-result');
+            let results = [];
+            
+            // 检查financeData结构
+            if (gameData.financeData) {
+                results.push('<div class="test-result success">✅ financeData 结构存在</div>');
+                
+                const requiredFields = ['accounts', 'accountData', 'aggregatedData', 'settings'];
+                requiredFields.forEach(field => {
+                    if (gameData.financeData[field]) {
+                        results.push('<div class="test-result success">✅ ' + field + ' 字段存在</div>');
+                    } else {
+                        results.push('<div class="test-result error">❌ ' + field + ' 字段缺失</div>');
+                    }
+                });
+                
+                results.push('<div class="test-result info">financeData 结构: <pre>' + JSON.stringify(gameData.financeData, null, 2) + '</pre></div>');
+            } else {
+                results.push('<div class="test-result error">❌ financeData 结构不存在</div>');
+            }
+            
+            resultDiv.innerHTML = results.join('');
+        }
+        
+        function testCompatibility() {
+            const resultDiv = document.getElementById('data-structure-result');
+            let results = [];
+            
+            // 检查与现有billsData的兼容性
+            if (gameData.billsData && gameData.financeData?.aggregatedData) {
+                const billsKeys = Object.keys(gameData.billsData);
+                const aggregatedKeys = Object.keys(gameData.financeData.aggregatedData);
+                
+                if (billsKeys.length === aggregatedKeys.length) {
+                    results.push('<div class="test-result success">✅ billsData 与 aggregatedData 数量一致</div>');
+                } else {
+                    results.push('<div class="test-result error">❌ billsData 与 aggregatedData 数量不一致</div>');
+                }
+                
+                // 检查内容是否一致
+                let contentMatch = true;
+                billsKeys.forEach(key => {
+                    if (!gameData.financeData.aggregatedData[key]) {
+                        contentMatch = false;
+                    }
+                });
+                
+                if (contentMatch) {
+                    results.push('<div class="test-result success">✅ billsData 与 aggregatedData 内容兼容</div>');
+                } else {
+                    results.push('<div class="test-result error">❌ billsData 与 aggregatedData 内容不兼容</div>');
+                }
+            } else {
+                results.push('<div class="test-result info">ℹ️ 无法进行兼容性测试，数据不存在</div>');
+            }
+            
+            resultDiv.innerHTML = results.join('');
+        }
+        
+        function testFinanceAPI() {
+            const resultDiv = document.getElementById('api-test-result');
+            let results = [];
+            
+            try {
+                // 测试API接口
+                if (window.FinanceAPI) {
+                    results.push('<div class="test-result success">✅ FinanceAPI 存在</div>');
+                    
+                    // 测试获取汇总数据
+                    const aggregatedData = window.FinanceAPI.getAggregatedData();
+                    results.push('<div class="test-result success">✅ getAggregatedData 调用成功</div>');
+                    results.push('<div class="test-result info">汇总数据: <pre>' + JSON.stringify(aggregatedData, null, 2) + '</pre></div>');
+                    
+                    // 测试获取账户列表
+                    const accounts = window.FinanceAPI.getAccounts();
+                    results.push('<div class="test-result success">✅ getAccounts 调用成功，返回 ' + Object.keys(accounts).length + ' 个账户</div>');
+                    
+                } else {
+                    results.push('<div class="test-result error">❌ FinanceAPI 不存在</div>');
+                }
+            } catch (error) {
+                results.push('<div class="test-result error">❌ API 测试失败: ' + error.message + '</div>');
+            }
+            
+            resultDiv.innerHTML = results.join('');
+        }
+        
+        // 页面加载完成后自动运行基础测试
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                testModuleLoading();
+            }, 100);
+        });
+    </script>
+</body>
+</html> 

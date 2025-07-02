@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>艾森豪威尔矩阵测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #2c3e50;
+            color: #ecf0f1;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #34495e;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #3498db;
+            margin-bottom: 30px;
+        }
+        
+        .test-section {
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #2c3e50;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            color: #3498db;
+        }
+        
+        .test-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .test-result {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .test-result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .test-result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .test-result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .status-display {
+            background: #34495e;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #4a5f7a;
+            margin: 15px 0;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 8px;
+            background: #2c3e50;
+            border-radius: 4px;
+        }
+        
+        .status-label {
+            font-weight: 500;
+        }
+        
+        .status-value {
+            color: #3498db;
+            font-family: monospace;
+        }
+        
+        /* 引入艾森豪威尔矩阵样式 */
+        :root {
+            --panel-bg: #2c3e50;
+            --card-bg: #34495e;
+            --text-primary: #ecf0f1;
+            --text-secondary: #95a5a6;
+            --text-muted: #7f8c8d;
+            --primary-color: #3498db;
+            --border-color: #4a5f7a;
+        }
+    </style>
+    
+    <!-- 艾森豪威尔矩阵样式 -->
+    <link rel="stylesheet" href="components/eisenhower-matrix/eisenhower-modal.css">
+</head>
+<body>
+    <div class="test-container">
+        <h1>🏗️ 艾森豪威尔矩阵功能测试</h1>
+        
+        <div class="test-section">
+            <h3>1. 模块加载测试</h3>
+            <div class="test-buttons">
+                <button class="btn btn-primary" onclick="testModuleLoading()">检查模块加载</button>
+                <button class="btn btn-primary" onclick="testDataStructure()">检查数据结构</button>
+            </div>
+            <div id="module-loading-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. 基础功能测试</h3>
+            <div class="test-buttons">
+                <button class="btn btn-success" onclick="testShowModal()">显示矩阵弹窗</button>
+                <button class="btn btn-warning" onclick="testAddTask()">添加测试任务</button>
+                <button class="btn btn-primary" onclick="testDataPersistence()">测试数据持久化</button>
+            </div>
+            <div id="basic-function-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. 任务管理测试</h3>
+            <div class="test-buttons">
+                <button class="btn btn-success" onclick="createTestTasks()">创建测试任务</button>
+                <button class="btn btn-primary" onclick="listAllTasks()">查看所有任务</button>
+                <button class="btn btn-warning" onclick="clearAllTasks()">清空所有任务</button>
+            </div>
+            <div id="task-management-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. 数据状态显示</h3>
+            <div class="status-display" id="data-status">
+                <!-- 数据状态将在这里显示 -->
+            </div>
+            <button class="btn btn-primary" onclick="refreshDataStatus()">刷新状态</button>
+        </div>
+    </div>
+
+    <!-- 模拟gameData全局变量 -->
+    <script>
+        // 模拟gameData结构
+        window.gameData = {
+            eisenhowerTasks: null
+        };
+        
+        // 模拟saveToCloud函数
+        window.saveToCloud = function() {
+            console.log('💾 模拟数据保存到云端');
+        };
+    </script>
+    
+    <!-- 加载艾森豪威尔矩阵模块 -->
+    <script src="components/eisenhower-matrix/eisenhower-modal.js"></script>
+    
+    <script>
+        // 测试模块加载
+        function testModuleLoading() {
+            const resultDiv = document.getElementById('module-loading-result');
+            let html = '<div class="test-result info">正在检查模块加载状态...</div>';
+            resultDiv.innerHTML = html;
+            
+            setTimeout(() => {
+                const tests = [
+                    {
+                        name: 'EisenhowerMatrix 对象',
+                        test: () => typeof window.EisenhowerMatrix === 'object'
+                    },
+                    {
+                        name: 'init 方法',
+                        test: () => typeof window.EisenhowerMatrix.init === 'function'
+                    },
+                    {
+                        name: 'showModal 方法',
+                        test: () => typeof window.EisenhowerMatrix.showModal === 'function'
+                    },
+                    {
+                        name: 'addTask 方法',
+                        test: () => typeof window.EisenhowerMatrix.addTask === 'function'
+                    }
+                ];
+                
+                let results = [];
+                let allPassed = true;
+                
+                tests.forEach(test => {
+                    const passed = test.test();
+                    results.push(`${passed ? '✅' : '❌'} ${test.name}: ${passed ? '通过' : '失败'}`);
+                    if (!passed) allPassed = false;
+                });
+                
+                const resultClass = allPassed ? 'success' : 'error';
+                const summary = allPassed ? '所有模块加载成功！' : '部分模块加载失败！';
+                
+                html = `<div class="test-result ${resultClass}">
+                    <strong>${summary}</strong><br>
+                    ${results.join('<br>')}
+                </div>`;
+                
+                resultDiv.innerHTML = html;
+            }, 100);
+        }
+        
+        // 测试数据结构
+        function testDataStructure() {
+            const resultDiv = document.getElementById('module-loading-result');
+            
+            try {
+                // 初始化数据结构
+                if (window.EisenhowerMatrix) {
+                    window.EisenhowerMatrix.initDataStructure();
+                }
+                
+                const data = window.gameData.eisenhowerTasks;
+                const tests = [
+                    {
+                        name: 'eisenhowerTasks 存在',
+                        test: () => data !== null && data !== undefined
+                    },
+                    {
+                        name: 'taskPool 数组',
+                        test: () => Array.isArray(data.taskPool)
+                    },
+                    {
+                        name: 'quadrants 对象',
+                        test: () => typeof data.quadrants === 'object'
+                    },
+                    {
+                        name: '四个象限存在',
+                        test: () => data.quadrants['urgent-important'] && 
+                                   data.quadrants['important'] && 
+                                   data.quadrants['urgent'] && 
+                                   data.quadrants['neither']
+                    }
+                ];
+                
+                let results = [];
+                let allPassed = true;
+                
+                tests.forEach(test => {
+                    const passed = test.test();
+                    results.push(`${passed ? '✅' : '❌'} ${test.name}: ${passed ? '通过' : '失败'}`);
+                    if (!passed) allPassed = false;
+                });
+                
+                const resultClass = allPassed ? 'success' : 'error';
+                const summary = allPassed ? '数据结构初始化成功！' : '数据结构初始化失败！';
+                
+                resultDiv.innerHTML = `<div class="test-result ${resultClass}">
+                    <strong>${summary}</strong><br>
+                    ${results.join('<br>')}<br>
+                    <strong>当前数据:</strong><br>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">
+                    <strong>数据结构测试失败！</strong><br>
+                    错误: ${error.message}
+                </div>`;
+            }
+        }
+        
+        // 测试显示弹窗
+        function testShowModal() {
+            const resultDiv = document.getElementById('basic-function-result');
+            
+            try {
+                if (window.EisenhowerMatrix) {
+                    window.EisenhowerMatrix.showModal();
+                    resultDiv.innerHTML = `<div class="test-result success">
+                        ✅ 矩阵弹窗已显示！<br>
+                        请检查弹窗是否正常显示，布局是否正确。
+                    </div>`;
+                } else {
+                    throw new Error('EisenhowerMatrix 模块未加载');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">
+                    ❌ 显示弹窗失败！<br>
+                    错误: ${error.message}
+                </div>`;
+            }
+        }
+        
+        // 测试添加任务
+        function testAddTask() {
+            const resultDiv = document.getElementById('basic-function-result');
+            
+            try {
+                if (!window.EisenhowerMatrix) {
+                    throw new Error('EisenhowerMatrix 模块未加载');
+                }
+                
+                // 模拟添加任务
+                const testTitle = `测试任务 ${Date.now()}`;
+                const testDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                
+                // 创建模拟输入元素
+                const mockTitleInput = document.createElement('input');
+                mockTitleInput.id = 'new-task-title';
+                mockTitleInput.value = testTitle;
+                document.body.appendChild(mockTitleInput);
+                
+                const mockDeadlineInput = document.createElement('input');
+                mockDeadlineInput.id = 'new-task-deadline';
+                mockDeadlineInput.value = testDeadline;
+                document.body.appendChild(mockDeadlineInput);
+                
+                // 添加任务
+                window.EisenhowerMatrix.addTask();
+                
+                // 清理模拟元素
+                document.body.removeChild(mockTitleInput);
+                document.body.removeChild(mockDeadlineInput);
+                
+                const taskCount = window.gameData.eisenhowerTasks.taskPool.length;
+                
+                resultDiv.innerHTML = `<div class="test-result success">
+                    ✅ 任务添加测试成功！<br>
+                    任务标题: ${testTitle}<br>
+                    截止日期: ${testDeadline}<br>
+                    当前任务总数: ${taskCount}
+                </div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">
+                    ❌ 添加任务测试失败！<br>
+                    错误: ${error.message}
+                </div>`;
+            }
+        }
+        
+        // 创建测试任务
+        function createTestTasks() {
+            const resultDiv = document.getElementById('task-management-result');
+            
+            try {
+                if (!window.EisenhowerMatrix) {
+                    throw new Error('EisenhowerMatrix 模块未加载');
+                }
+                
+                window.EisenhowerMatrix.initDataStructure();
+                
+                const testTasks = [
+                    { title: '紧急会议准备', deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] },
+                    { title: '长期项目规划', deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] },
+                    { title: '回复邮件', deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] },
+                    { title: '整理桌面', deadline: null },
+                    { title: '学习新技能', deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }
+                ];
+                
+                let addedCount = 0;
+                testTasks.forEach(task => {
+                    const taskObj = {
+                        id: 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                        title: task.title,
+                        description: '',
+                        deadline: task.deadline,
+                        status: 'active',
+                        quadrant: null,
+                        createdAt: Date.now(),
+                        completedAt: null
+                    };
+                    
+                    window.gameData.eisenhowerTasks.taskPool.push(taskObj);
+                    addedCount++;
+                });
+                
+                resultDiv.innerHTML = `<div class="test-result success">
+                    ✅ 成功创建 ${addedCount} 个测试任务！<br>
+                    任务列表:<br>
+                    ${testTasks.map(task => `• ${task.title} ${task.deadline ? `(${task.deadline})` : '(无截止日期)'}`).join('<br>')}
+                </div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">
+                    ❌ 创建测试任务失败！<br>
+                    错误: ${error.message}
+                </div>`;
+            }
+        }
+        
+        // 查看所有任务
+        function listAllTasks() {
+            const resultDiv = document.getElementById('task-management-result');
+            
+            try {
+                const data = window.gameData.eisenhowerTasks;
+                if (!data) {
+                    throw new Error('任务数据未初始化');
+                }
+                
+                const activeTasks = data.taskPool.filter(task => task.status === 'active');
+                
+                if (activeTasks.length === 0) {
+                    resultDiv.innerHTML = `<div class="test-result info">
+                        📋 当前没有活跃任务<br>
+                        点击"创建测试任务"来添加一些任务
+                    </div>`;
+                    return;
+                }
+                
+                const taskList = activeTasks.map(task => {
+                    const deadlineText = task.deadline ? 
+                        `截止: ${task.deadline}` : 
+                        '无截止日期';
+                    const quadrantText = task.quadrant || '未分类';
+                    return `• ${task.title} (${deadlineText}, ${quadrantText})`;
+                }).join('<br>');
+                
+                resultDiv.innerHTML = `<div class="test-result info">
+                    📋 当前活跃任务 (${activeTasks.length} 个):<br>
+                    ${taskList}
+                </div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">
+                    ❌ 查看任务失败！<br>
+                    错误: ${error.message}
+                </div>`;
+            }
+        }
+        
+        // 清空所有任务
+        function clearAllTasks() {
+            const resultDiv = document.getElementById('task-management-result');
+            
+            try {
+                if (!confirm('确定要清空所有任务吗？')) {
+                    return;
+                }
+                
+                window.EisenhowerMatrix.initDataStructure();
+                window.gameData.eisenhowerTasks.taskPool = [];
+                window.gameData.eisenhowerTasks.quadrants = {
+                    "urgent-important": [],
+                    "important": [],
+                    "urgent": [],
+                    "neither": []
+                };
+                
+                resultDiv.innerHTML = `<div class="test-result success">
+                    ✅ 所有任务已清空！
+                </div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">
+                    ❌ 清空任务失败！<br>
+                    错误: ${error.message}
+                </div>`;
+            }
+        }
+        
+        // 刷新数据状态
+        function refreshDataStatus() {
+            const statusDiv = document.getElementById('data-status');
+            
+            try {
+                const data = window.gameData.eisenhowerTasks;
+                
+                if (!data) {
+                    statusDiv.innerHTML = `<div class="status-item">
+                        <span class="status-label">数据状态</span>
+                        <span class="status-value">未初始化</span>
+                    </div>`;
+                    return;
+                }
+                
+                const totalTasks = data.taskPool.filter(task => task.status === 'active').length;
+                const categorizedTasks = Object.values(data.quadrants).flat().length;
+                const uncategorizedTasks = totalTasks - categorizedTasks;
+                
+                const quadrantCounts = Object.entries(data.quadrants).map(([key, tasks]) => {
+                    const names = {
+                        'urgent-important': '重要且紧急',
+                        'important': '重要不紧急',
+                        'urgent': '紧急不重要',
+                        'neither': '不重要不紧急'
+                    };
+                    return `${names[key]}: ${tasks.length}`;
+                }).join(', ');
+                
+                statusDiv.innerHTML = `
+                    <div class="status-item">
+                        <span class="status-label">总任务数</span>
+                        <span class="status-value">${totalTasks}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">已分类任务</span>
+                        <span class="status-value">${categorizedTasks}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">待分类任务</span>
+                        <span class="status-value">${uncategorizedTasks}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">象限分布</span>
+                        <span class="status-value">${quadrantCounts}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">最后任务ID</span>
+                        <span class="status-value">${data.lastTaskId}</span>
+                    </div>
+                `;
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status-item">
+                    <span class="status-label">错误</span>
+                    <span class="status-value">${error.message}</span>
+                </div>`;
+            }
+        }
+        
+        // 页面加载完成后自动运行基础测试
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                testModuleLoading();
+                refreshDataStatus();
+            }, 500);
+        });
+    </script>
+</body>
+</html> 
