@@ -2279,10 +2279,13 @@ function checkExpiredBlueprints() {
     
     gameData.blueprints.forEach((blueprint, index) => {
         const scheduledDate = new Date(blueprint.scheduledDate);
-        const endTime = new Date(scheduledDate.getTime() + blueprint.duration * 60000);
         
-        // 如果蓝图的结束时间已经过了，认为是过期的
-        if (endTime < now) {
+        // 计算蓝图所在日期的结束时间（23:59:59）
+        const blueprintDayEnd = new Date(scheduledDate);
+        blueprintDayEnd.setHours(23, 59, 59, 999);
+        
+        // 只有过了蓝图所在的整个日期才算过期（即过了00:00）
+        if (blueprintDayEnd < now) {
             expiredBlueprints.push({blueprint, index});
         }
     });
