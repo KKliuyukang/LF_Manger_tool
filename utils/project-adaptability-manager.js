@@ -199,11 +199,16 @@ class LifeFactorioAdapter extends BaseProjectAdapter {
         return null;
     }
     
-    applyFrequencyReduction(project, strategy) {
-        const adaptation = strategy.calculateAdaptation(
-            this.getProjectInfo(project),
-            { successRate: 0.3, pauseDays: 7 }
-        );
+    applyFrequencyReduction(project, strategyConfig) {
+        // 获取真正的策略实例
+        const strategy = window.projectAdaptabilityManager.strategies.get('frequency_reduction');
+        if (!strategy) {
+            throw new Error('未找到频率降低策略');
+        }
+        
+        const projectInfo = this.getProjectInfo(project);
+        const metrics = { successRate: 0.3, pauseDays: 7, consecutivePauses: 7 };
+        const adaptation = strategy.calculateAdaptation(projectInfo, metrics);
         
         // 创建适应状态
         project.adaptiveState = {
@@ -227,11 +232,16 @@ class LifeFactorioAdapter extends BaseProjectAdapter {
         };
     }
     
-    applyStageExtension(project, strategy) {
-        const adaptation = strategy.calculateAdaptation(
-            this.getProjectInfo(project),
-            { successRate: 0.3, pauseDays: 7 }
-        );
+    applyStageExtension(project, strategyConfig) {
+        // 获取真正的策略实例
+        const strategy = window.projectAdaptabilityManager.strategies.get('stage_extension');
+        if (!strategy) {
+            throw new Error('未找到阶段延长策略');
+        }
+        
+        const projectInfo = this.getProjectInfo(project);
+        const metrics = { successRate: 0.3, pauseDays: 7, consecutivePauses: 7 };
+        const adaptation = strategy.calculateAdaptation(projectInfo, metrics);
         
         // 创建适应状态
         project.adaptiveState = {
@@ -299,7 +309,7 @@ class ProjectAdaptabilityManager {
             throw new Error(`未找到策略: ${strategyName}`);
         }
         
-        return adapter.applyStrategy(project, { ...strategy, ...strategyConfig });
+        return adapter.applyStrategy(project, { type: strategyName, ...strategyConfig });
     }
     
     // 批量检查所有项目

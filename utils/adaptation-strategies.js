@@ -237,11 +237,20 @@ window.HybridStrategy = HybridStrategy;
 window.PauseRecoveryStrategy = PauseRecoveryStrategy;
 
 // 创建策略实例并注册到全局管理器
-if (window.projectAdaptabilityManager) {
-    window.projectAdaptabilityManager.registerStrategy('frequency_reduction', new FrequencyReductionStrategy());
-    window.projectAdaptabilityManager.registerStrategy('stage_extension', new StageExtensionStrategy());
-    window.projectAdaptabilityManager.registerStrategy('hybrid', new HybridStrategy());
-    window.projectAdaptabilityManager.registerStrategy('pause_recovery', new PauseRecoveryStrategy());
+function registerStrategies() {
+    if (window.projectAdaptabilityManager) {
+        window.projectAdaptabilityManager.registerStrategy('frequency_reduction', new FrequencyReductionStrategy());
+        window.projectAdaptabilityManager.registerStrategy('stage_extension', new StageExtensionStrategy());
+        window.projectAdaptabilityManager.registerStrategy('hybrid', new HybridStrategy());
+        window.projectAdaptabilityManager.registerStrategy('pause_recovery', new PauseRecoveryStrategy());
+        console.log('✅ 所有适应策略已注册');
+    } else {
+        console.log('⏳ 等待项目适应性管理器加载...');
+        setTimeout(registerStrategies, 100);
+    }
 }
+
+// 延迟注册，确保管理器已经创建
+setTimeout(registerStrategies, 100);
 
 console.log('✅ 项目适应策略已加载'); 
