@@ -870,7 +870,6 @@ body {
 #dev-library-import-modal,
 #milestone-manage-modal,
 #milestone-import-modal,
-#automation-settings-modal,
 #blueprint-modal {
     z-index: 1000;
 }
@@ -883,6 +882,7 @@ body {
 }
 
 /* 次级详情模态框 (从其他模态框中打开的) - z-index: 1300 */
+#automation-settings-modal,
 #account-create-modal,
 #time-records-modal,
 #details-modal,

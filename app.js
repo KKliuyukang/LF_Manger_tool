@@ -1813,6 +1813,7 @@ window.pauseDev = function(index) {
     const dev = gameData.developments[index];
     dev.active = false;
     dev.paused = true;
+    dev.pausedDate = new Date().toISOString(); // 记录暂停时间
     
     // 同时暂停所有关联的生产线项目
     const linkedProductions = gameData.productions.filter(p => p.linkedDev === dev.researchName);
@@ -1840,8 +1841,19 @@ window.resumeDev = function(index) {
     if (!gameData.developments[index]) return;
     
     const dev = gameData.developments[index];
+    
+    // 检查是否需要适应性调整
+    if (window.projectAdaptabilityManager && dev.pausedDate) {
+        const adaptabilityResult = window.projectAdaptabilityManager.checkAdaptability(dev);
+        if (adaptabilityResult.needsAdaptation) {
+            showAdaptationSuggestion(dev, adaptabilityResult);
+            return; // 先处理适应性调整，用户确认后再恢复
+        }
+    }
+    
     dev.active = true;
     dev.paused = false;
+    dev.pausedDate = null; // 清除暂停时间
     
     // 同时恢复所有关联的生产线项目
     const linkedProductions = gameData.productions.filter(p => p.linkedDev === dev.researchName);
@@ -9053,6 +9065,109 @@ function testMobileLongPress() {
 window.testMobileLongPress = testMobileLongPress;
 
 // 测试项目阶段解析功能
+// 测试项目适应性系统
+function testProjectAdaptability() {
+    console.log('🧪 开始测试项目适应性系统...');
+    
+    if (!window.projectAdaptabilityManager) {
+        console.error('❌ 项目适应性管理器未加载');
+        return;
+    }
+    
+    const projects = gameData.developments || [];
+    if (projects.length === 0) {
+        console.log('⚠️ 当前没有进行中的研发项目');
+        return;
+    }
+    
+    console.log(`📋 检查 ${projects.length} 个项目的适应性需求:`);
+    
+    projects.forEach((project, index) => {
+        console.log(`\n项目 ${index + 1}: ${project.researchName}`);
+        
+        try {
+            const result = window.projectAdaptabilityManager.checkAdaptability(project);
+            console.log(`- 需要适应: ${result.needsAdaptation ? '是' : '否'}`);
+            console.log(`- 原因: ${result.reason}`);
+            console.log(`- 暂停天数: ${result.metrics.consecutivePauses}`);
+            console.log(`- 成功率: ${(result.metrics.successRate * 100).toFixed(1)}%`);
+            console.log(`- 最近执行: ${result.metrics.recentExecutions}次`);
+            
+            if (result.needsAdaptation) {
+                console.log(`- 建议策略: ${result.suggestions.map(s => s.type).join(', ')}`);
+            }
+        } catch (error) {
+            console.error(`检查失败:`, error);
+        }
+    });
+    
+    // 批量检查
+    const adaptationNeeded = window.projectAdaptabilityManager.checkAllProjects();
+    console.log(`\n📊 总结: ${adaptationNeeded.length} 个项目需要适应性调整`);
+    
+    if (adaptationNeeded.length > 0) {
+        console.log('🎯 可以调用 showAdaptationSuggestion() 查看建议');
+        
+        // 自动显示第一个需要调整的项目
+        const first = adaptationNeeded[0];
+        console.log(`\n🔧 自动显示第一个项目的适应建议: ${first.project.researchName}`);
+        showAdaptationSuggestion(first.project, first.adaptationInfo);
+    }
+    
+    return {
+        totalProjects: projects.length,
+        needsAdaptation: adaptationNeeded.length,
+        adaptationNeeded
+    };
+}
+
+// 手动创建测试项目
+function createTestProjectForAdaptability() {
+    const testProject = {
+        researchName: '测试睡眠项目',
+        freq: '每天',
+        target: 21,
+        cycle: 30,
+        paused: true,
+        pausedDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8天前暂停
+        startDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15天前开始
+        active: false,
+        prodName: '测试睡眠打卡'
+    };
+    
+    // 添加到研发项目中
+    if (!gameData.developments) gameData.developments = [];
+    gameData.developments.push(testProject);
+    
+    // 创建对应的生产线
+    const testProduction = {
+        name: '测试睡眠打卡',
+        type: 'automation',
+        linkedDev: '测试睡眠项目',
+        paused: true
+    };
+    
+    if (!gameData.productions) gameData.productions = [];
+    gameData.productions.push(testProduction);
+    
+    // 添加一些打卡记录（较少，模拟执行困难）
+    if (!gameData.timeLogs) gameData.timeLogs = [];
+    for (let i = 0; i < 3; i++) {
+        const logDate = new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000);
+        gameData.timeLogs.push({
+            name: '测试睡眠打卡',
+            date: logDate.toISOString().split('T')[0],
+            timeCost: 30
+        });
+    }
+    
+    renderDevelopments();
+    renderProductions();
+    
+    console.log('✅ 已创建测试项目，可以调用 testProjectAdaptability() 进行测试');
+    return testProject;
+}
+
 function testProjectStages() {
     console.log('📋 开始测试项目阶段解析功能...');
     
@@ -9333,6 +9448,10 @@ window.showTimeOptionsDialog = function(sortedIndex) {
 }
 
 // 根据选择的时间长度记录打卡
+// 全局测试函数
+window.testProjectAdaptability = testProjectAdaptability;
+window.createTestProjectForAdaptability = createTestProjectForAdaptability;
+
 window.recordTimeWithDuration = function(sortedIndex, durationMinutes) {
     const prod = sortedProductions[sortedIndex];
     const realProd = gameData.productions[prod._realIndex];
@@ -9379,6 +9498,196 @@ window.recordTimeWithDuration = function(sortedIndex, durationMinutes) {
 }
 
 console.log('✅ 生产线打卡功能已加载');
+
+// 项目适应性建议UI
+function showAdaptationSuggestion(project, adaptationInfo) {
+    // 选择最佳策略
+    let strategyName = 'frequency_reduction';
+    if (adaptationInfo.reason === 'long_pause') {
+        strategyName = 'pause_recovery';
+    } else if (adaptationInfo.metrics.consecutivePauses > 10) {
+        strategyName = 'hybrid';
+    }
+    
+    const strategy = window.projectAdaptabilityManager.strategies.get(strategyName);
+    if (!strategy) {
+        console.error('未找到策略:', strategyName);
+        return;
+    }
+    
+    const adapter = window.projectAdaptabilityManager.getAdapter(project);
+    const projectInfo = adapter.getProjectInfo(project);
+    const adaptation = strategy.calculateAdaptation(projectInfo, adaptationInfo.metrics);
+    const prompt = strategy.generateUserPrompt(projectInfo, adaptation);
+    
+    // 创建模态框
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <h3 class="modal-title">🎯 ${prompt.title}</h3>
+            <div class="adaptation-content">
+                <p style="margin-bottom: 15px; color: #666;">${prompt.message}</p>
+                <div class="adaptation-details" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0; color: #333;">📊 调整详情</h4>
+                    <pre style="margin: 0; white-space: pre-line; font-family: inherit; color: #555;">${prompt.details}</pre>
+                </div>
+                <div class="adaptation-metrics" style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9em;">
+                    <strong>📈 当前状态：</strong>
+                    暂停${adaptationInfo.metrics.consecutivePauses}天，
+                    成功率${(adaptationInfo.metrics.successRate * 100).toFixed(1)}%，
+                    最近执行${adaptationInfo.metrics.recentExecutions}次
+                </div>
+                <div class="adaptation-actions" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    ${prompt.options.map(option => `
+                        <button class="btn ${option.style === 'primary' ? 'btn-primary' : option.style === 'danger' ? 'btn-danger' : 'btn-secondary'}" 
+                                onclick="handleAdaptationAction('${option.action}', '${project.researchName}', '${strategyName}')"
+                                style="min-width: 100px;">
+                            ${option.text}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 点击背景关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
+}
+
+// 处理适应性操作
+window.handleAdaptationAction = function(action, projectName, strategyName) {
+    const modal = document.querySelector('.modal');
+    const project = gameData.developments.find(d => d.researchName === projectName);
+    
+    if (!project) {
+        console.error('未找到项目:', projectName);
+        return;
+    }
+    
+    switch (action) {
+        case 'accept':
+            // 应用适应性调整
+            const result = window.projectAdaptabilityManager.applyAdaptation(project, strategyName);
+            if (result && result.success) {
+                showNotification(`✅ ${result.message}`, 'success');
+                // 恢复项目
+                project.active = true;
+                project.paused = false;
+                project.pausedDate = null;
+                
+                renderDevelopments();
+                renderProductions();
+                saveToCloud();
+            }
+            break;
+            
+        case 'reject':
+            // 直接恢复，不做调整
+            project.active = true;
+            project.paused = false;
+            project.pausedDate = null;
+            
+            renderDevelopments();
+            renderProductions();
+            saveToCloud();
+            break;
+            
+        case 'custom':
+            // 显示自定义调整界面（暂时用简单的prompt）
+            const newFreq = prompt('请输入新的执行频率（如：每周2次）:', project.freq);
+            if (newFreq) {
+                project.freq = newFreq;
+                project.active = true;
+                project.paused = false;
+                project.pausedDate = null;
+                
+                renderDevelopments();
+                renderProductions();
+                saveToCloud();
+                showNotification(`✅ 已调整频率为：${newFreq}`, 'success');
+            }
+            break;
+            
+        case 'delete':
+            if (confirm('确定要删除这个项目吗？')) {
+                const index = gameData.developments.findIndex(d => d.researchName === projectName);
+                if (index !== -1) {
+                    removeDev(index);
+                }
+            }
+            break;
+            
+        case 'freq_only':
+            // 只应用频率调整
+            const freqStrategy = window.projectAdaptabilityManager.strategies.get('frequency_reduction');
+            const freqResult = window.projectAdaptabilityManager.applyAdaptation(project, 'frequency_reduction');
+            if (freqResult && freqResult.success) {
+                showNotification(`✅ ${freqResult.message}`, 'success');
+                project.active = true;
+                project.paused = false;
+                project.pausedDate = null;
+                
+                renderDevelopments();
+                renderProductions();
+                saveToCloud();
+            }
+            break;
+            
+        case 'ext_only':
+            // 只应用周期延长
+            const extResult = window.projectAdaptabilityManager.applyAdaptation(project, 'stage_extension');
+            if (extResult && extResult.success) {
+                showNotification(`✅ ${extResult.message}`, 'success');
+                project.active = true;
+                project.paused = false;
+                project.pausedDate = null;
+                
+                renderDevelopments();
+                renderProductions();
+                saveToCloud();
+            }
+            break;
+    }
+    
+    // 关闭模态框
+    if (modal) {
+        document.body.removeChild(modal);
+    }
+};
+
+// 每日检查适应性需求
+function checkDailyAdaptabilityNeeds() {
+    if (!window.projectAdaptabilityManager) return;
+    
+    const adaptationNeeded = window.projectAdaptabilityManager.checkAllProjects();
+    
+    if (adaptationNeeded.length > 0) {
+        console.log(`🎯 检测到 ${adaptationNeeded.length} 个项目需要适应性调整`);
+        
+        // 只显示第一个需要调整的项目，避免弹窗过多
+        const first = adaptationNeeded[0];
+        showAdaptationSuggestion(first.project, first.adaptationInfo);
+    }
+}
+
+// 添加到每日重置检查中
+const originalCheckDailyReset = checkDailyReset;
+checkDailyReset = function() {
+    originalCheckDailyReset();
+    
+    // 延迟检查适应性需求，确保数据加载完成
+    setTimeout(() => {
+        checkDailyAdaptabilityNeeds();
+    }, 2000);
+};
 console.log(`⏰ showTimeOptionsDialog类型: ${typeof window.showTimeOptionsDialog}`);
 console.log(`📝 recordTimeWithDuration类型: ${typeof window.recordTimeWithDuration}`);
 
