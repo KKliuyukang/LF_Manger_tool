@@ -1538,11 +1538,11 @@ function renderDevelopments() {
                             <div class=\"progress-bar\">
                                 <div class=\"progress-fill\" style=\"width: ${(percent*100).toFixed(1)}%\"></div>
                             </div>
-                            ${currentStageInfo && currentStageInfo.stage ? 
+                            ${!levelInfo && currentStageInfo && currentStageInfo.stage ? 
                                 `<div style="margin-top: 8px; font-size: 0.85em; color: #4caf50; font-weight: bold;">
                                     🎯 当前阶段: ${currentStageInfo.stage.timeRange} ${currentStageInfo.stage.description}
                                 </div>` : 
-                                `<div style="margin-top: 8px; font-size: 0.85em; color: #666;">${dev.action}</div>`
+                                (!levelInfo ? `<div style="margin-top: 8px; font-size: 0.85em; color: #666;">${dev.action}</div>` : '')
                             }
                         </div>
                         <div style=\"margin-top: 8px; font-size: 0.85em; color: #888;\">
@@ -2451,9 +2451,21 @@ async function startResearch(research, createProductionLine) {
         // 检查是否需要询问历史记录使用
         let historyOptions = null;
         if (window.levelProgressCalculator && window.historyUsageDialog) {
+            console.log('🔍 检查历史记录询问需求...');
+            console.log('项目信息:', {
+                name: dev.researchName,
+                startDate: dev.startDate,
+                levels: dev.levels ? dev.levels.length : 0
+            });
+            
+            const logs = window.levelProgressCalculator.getProjectLogs(dev);
+            console.log('找到相关记录:', logs.length, '条');
+            
             const shouldAsk = window.levelProgressCalculator.shouldAskForHistoryUsage(dev);
+            console.log('是否需要询问历史记录使用:', shouldAsk);
             
             if (shouldAsk) {
+                console.log('🔔 显示历史记录使用确认对话框...');
                 try {
                     historyOptions = await window.historyUsageDialog.show(dev);
                     console.log('用户选择的历史记录选项:', historyOptions);
@@ -2462,7 +2474,11 @@ async function startResearch(research, createProductionLine) {
                     // 默认不使用历史记录
                     historyOptions = { useHistoryRecords: false };
                 }
+            } else {
+                console.log('ℹ️ 无历史记录或无需询问，直接开始项目');
             }
+        } else {
+            console.log('⚠️ 等级进度计算器或历史记录对话框未加载');
         }
 
         // 如果用户选择使用历史记录，重新计算进度
