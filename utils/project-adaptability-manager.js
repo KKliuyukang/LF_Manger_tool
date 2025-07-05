@@ -270,6 +270,136 @@ class ProjectAdaptabilityManager {
     constructor() {
         this.adapters = new Map();
         this.strategies = new Map();
+        this.initAdaptabilityUI();
+    }
+
+    // 初始化UI组件
+    initAdaptabilityUI() {
+        // 创建适应性调整窗口
+        const modalHtml = `
+            <div id="adaptability-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">项目适应性调整</h3>
+                        <button class="modal-close" onclick="window.projectAdaptabilityManager.closeAdaptabilityModal()">×</button>
+                    </div>
+                    <div class="modal-body" id="adaptability-content">
+                        <!-- 内容将动态插入 -->
+                    </div>
+                    <div class="modal-footer">
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="accept-adaptation">接受建议</button>
+                            <button class="btn btn-secondary" id="keep-original">继续原计划</button>
+                            <button class="btn btn-secondary" id="custom-adaptation">自定义调整</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 添加到DOM
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer.firstElementChild);
+
+        // 绑定事件
+        this.bindModalEvents();
+    }
+
+    // 绑定窗口事件
+    bindModalEvents() {
+        const modal = document.getElementById('adaptability-modal');
+        const acceptBtn = document.getElementById('accept-adaptation');
+        const keepBtn = document.getElementById('keep-original');
+        const customBtn = document.getElementById('custom-adaptation');
+
+        // 点击窗口外部关闭
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeAdaptabilityModal();
+            }
+        });
+
+        // 接受建议
+        acceptBtn.addEventListener('click', () => {
+            if (this.currentProject && this.currentStrategy) {
+                this.applyAdaptation(this.currentProject, this.currentStrategy.type);
+                this.closeAdaptabilityModal();
+                window.showNotification('✅ 已应用适应性调整', 'success');
+            }
+        });
+
+        // 继续原计划
+        keepBtn.addEventListener('click', () => {
+            this.closeAdaptabilityModal();
+            window.showNotification('已保持原计划', 'info');
+        });
+
+        // 自定义调整
+        customBtn.addEventListener('click', () => {
+            // TODO: 实现自定义调整界面
+            this.closeAdaptabilityModal();
+            window.showNotification('自定义调整功能即将推出', 'info');
+        });
+    }
+
+    // 显示适应性调整窗口
+    showAdaptabilityModal(project, adaptationInfo) {
+        const modal = document.getElementById('adaptability-modal');
+        const content = document.getElementById('adaptability-content');
+        
+        // 保存当前项目和策略信息
+        this.currentProject = project;
+        this.currentStrategy = this.strategies.get(adaptationInfo.suggestions[0]?.type);
+
+        if (!this.currentStrategy) {
+            console.error('未找到适应策略');
+            return;
+        }
+
+        // 生成适应方案
+        const adaptation = this.currentStrategy.calculateAdaptation(
+            this.getAdapter(project).getProjectInfo(project),
+            adaptationInfo.metrics
+        );
+
+        // 生成提示信息
+        const prompt = this.currentStrategy.generateUserPrompt(
+            this.getAdapter(project).getProjectInfo(project),
+            adaptation
+        );
+
+        // 更新窗口内容
+        content.innerHTML = `
+            <div class="adaptation-info">
+                <h4>${prompt.title}</h4>
+                <p class="message">${prompt.message}</p>
+                <div class="details">${prompt.details}</div>
+                <div class="metrics">
+                    <div class="metric">
+                        <span class="label">暂停天数：</span>
+                        <span class="value">${adaptationInfo.metrics.pauseDays}天</span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">成功率：</span>
+                        <span class="value">${Math.round(adaptationInfo.metrics.successRate * 100)}%</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 显示窗口
+        modal.style.display = 'block';
+    }
+
+    // 关闭适应性调整窗口
+    closeAdaptabilityModal() {
+        const modal = document.getElementById('adaptability-modal');
+        modal.style.display = 'none';
+        
+        // 清理当前状态
+        this.currentProject = null;
+        this.currentStrategy = null;
     }
     
     // 注册项目类型适配器

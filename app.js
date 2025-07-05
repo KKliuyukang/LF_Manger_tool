@@ -157,6 +157,28 @@ let fileHandle = null;
 // 数据结构版本号
 const DATA_VERSION = 1;
 
+// 辅助函数：获取要求描述
+function getRequirementDescription(req) {
+    if (!req) return '未知要求';
+    
+    switch (req.type) {
+        case 'fixed_time':
+            return `固定时间打卡：${req.time}`;
+        case 'time_window':
+            return `时间窗口：${req.start_time} - ${req.end_time}`;
+        case 'duration':
+            return `持续时间：${req.duration}分钟`;
+        case 'count':
+            return `完成次数：${req.count}次`;
+        case 'daily_count':
+            return `每日${req.count}次`;
+        case 'weekly_count':
+            return `每周${req.count}次`;
+        default:
+            return req.description || '未知要求类型';
+    }
+}
+
 // 汇率设置（相对于澳元）
 const exchangeRates = {
     AUD: 1,
@@ -1397,11 +1419,25 @@ function renderDevelopments() {
             
             let html = '';
             gameData.developments.forEach((dev, idx) => {
-                // 计算进度
-                const progress = calculateProgress(dev);
-                const percent = Math.min(1, progress.count / progress.total);
+                // 使用新的等级进度计算器
+                let progress, percent, levelInfo = null;
                 
-                // 解析阶段信息
+                if (window.levelProgressCalculator && (dev.levels || dev.currentLevel)) {
+                    // 使用等级系统
+                    const levelProgress = window.levelProgressCalculator.calculateLevelProgress(dev);
+                    progress = {
+                        count: levelProgress.completedLevels,
+                        total: levelProgress.totalLevels
+                    };
+                    percent = Math.min(1, levelProgress.completedLevels / levelProgress.totalLevels);
+                    levelInfo = levelProgress;
+                } else {
+                    // 使用传统进度计算
+                    progress = calculateProgress(dev);
+                    percent = Math.min(1, progress.count / progress.total);
+                }
+                
+                // 解析阶段信息（仅用于没有等级系统的项目）
                 const stages = parseProjectStages(dev.action);
                 const currentStageInfo = getCurrentStage(dev, stages);
                 
@@ -1418,57 +1454,65 @@ function renderDevelopments() {
                     stages.length > 0 ? `阶段数：${stages.length}` : ''
                 ].filter(Boolean).join('\n');
                 
-                // 生成阶段展示HTML
+                // 生成等级/阶段展示HTML
                 let stagesHtml = '';
-                if (stages.length > 0 && currentStageInfo) {
-                    stagesHtml = `
-                        <div class="stages-container" style="margin-top: 10px;">
-                            <div class="stages-header" style="font-size: 0.9em; font-weight: bold; margin-bottom: 6px; color: #444;">
-                                📋 项目阶段 (${currentStageInfo.current + 1}/${stages.length})
-                            </div>
-                            <div class="stages-list">
-                                ${stages.map((stage, stageIdx) => {
-                                    const isCurrent = stageIdx === currentStageInfo.current;
-                                    const isPast = stageIdx < currentStageInfo.current;
-                                    const isFuture = stageIdx > currentStageInfo.current;
-                                    
-                                    let statusIcon = '';
-                                    let statusClass = '';
-                                    
-                                    if (isPast) {
-                                        statusIcon = '✅';
-                                        statusClass = 'stage-completed';
-                                    } else if (isCurrent) {
-                                        statusIcon = '🔄';
-                                        statusClass = 'stage-current';
-                                    } else {
-                                        statusIcon = '⏳';
-                                        statusClass = 'stage-future';
-                                    }
-                                    
-                                    return `
-                                        <div class="stage-item ${statusClass}" style="
-                                            display: flex; 
-                                            align-items: flex-start; 
-                                            margin-bottom: 4px; 
-                                            padding: 4px; 
-                                            border-radius: 4px;
-                                            background: ${isCurrent ? '#e8f5e9' : isPast ? '#f0f0f0' : '#fafafa'};
-                                            border-left: 3px solid ${isCurrent ? '#4caf50' : isPast ? '#8bc34a' : '#ddd'};
-                                        ">
-                                            <span style="margin-right: 6px; font-size: 0.9em;">${statusIcon}</span>
-                                            <div style="flex: 1; font-size: 0.85em;">
-                                                ${stage.timeRange ? `<strong>${stage.timeRange}</strong>: ` : ''}
-                                                <span style="color: ${isCurrent ? '#2e7d32' : isPast ? '#666' : '#999'};">
-                                                    ${stage.description}
-                                                </span>
-                                            </div>
+                if (levelInfo && levelInfo.currentLevel) {
+                    // 新等级系统：只显示当前等级信息
+                    const currentLevel = dev.levels ? dev.levels[levelInfo.currentLevel - 1] : null;
+                    if (currentLevel) {
+                        stagesHtml = `
+                            <div class="stages-container" style="margin-top: 10px;">
+                                <div class="stages-header" style="font-size: 0.9em; font-weight: bold; margin-bottom: 6px; color: #444;">
+                                    🎯 等级 ${levelInfo.currentLevel}/${levelInfo.totalLevels}: ${currentLevel.name || `第${levelInfo.currentLevel}等级`}
+                                </div>
+                                <div class="current-level-progress" style="
+                                    padding: 8px; 
+                                    background: #e8f5e9; 
+                                    border-radius: 6px;
+                                    border-left: 3px solid #4caf50;
+                                ">
+                                    <div style="font-size: 0.85em; color: #2e7d32; margin-bottom: 4px;">
+                                        📋 当前等级要求：
+                                    </div>
+                                    ${currentLevel.requirements ? currentLevel.requirements.map(req => `
+                                        <div style="font-size: 0.8em; color: #555; margin-left: 12px;">
+                                            • ${req.description || getRequirementDescription(req)}
                                         </div>
-                                    `;
-                                }).join('')}
+                                    `).join('') : '<div style="font-size: 0.8em; color: #555; margin-left: 12px;">暂无具体要求</div>'}
+                                    
+                                    ${levelInfo.currentLevelProgress ? `
+                                        <div style="margin-top: 6px; font-size: 0.8em; color: #666;">
+                                            进度: ${levelInfo.currentLevelProgress.progress}/${levelInfo.currentLevelProgress.total} 
+                                            (${Math.round(levelInfo.currentLevelProgress.progressPercentage || 0)}%)
+                                        </div>
+                                    ` : ''}
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
+                } else if (stages.length > 0 && currentStageInfo) {
+                    // 传统阶段系统：只显示当前阶段
+                    const currentStage = stages[currentStageInfo.current];
+                    if (currentStage) {
+                        stagesHtml = `
+                            <div class="stages-container" style="margin-top: 10px;">
+                                <div class="stages-header" style="font-size: 0.9em; font-weight: bold; margin-bottom: 6px; color: #444;">
+                                    📋 项目阶段 (${currentStageInfo.current + 1}/${stages.length})
+                                </div>
+                                <div class="current-stage" style="
+                                    padding: 8px; 
+                                    background: #e8f5e9; 
+                                    border-radius: 6px;
+                                    border-left: 3px solid #4caf50;
+                                ">
+                                    <div style="font-size: 0.85em; color: #2e7d32;">
+                                        🔄 ${currentStage.timeRange ? `<strong>${currentStage.timeRange}</strong>: ` : ''}
+                                        ${currentStage.description}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
                 }
                 
                 html += `
@@ -2352,8 +2396,34 @@ function updateTimeLogsProductionName(oldName, newName) {
 
 
 // 开始研究
-function startResearch(research, createProductionLine) {
+async function startResearch(research, createProductionLine) {
     if (!hasResearch(research.name)) {
+        // 将stages转换为levels格式
+        let levels = null;
+        if (research.levels) {
+            levels = research.levels;
+        } else if (research.stages && Array.isArray(research.stages)) {
+            // 将stages转换为levels格式
+            levels = research.stages.map((stage, index) => ({
+                id: index + 1,
+                name: stage.name || `第${index + 1}阶段`,
+                description: stage.description || '',
+                duration: stage.duration || 7,
+                target: stage.target || 6,
+                tasks: stage.tasks || [],
+                milestone: stage.milestone || '',
+                requirements: stage.tasks ? stage.tasks.map(task => ({
+                    type: 'daily_count',
+                    count: 1,
+                    description: task
+                })) : [{
+                    type: 'count',
+                    count: stage.target || 6,
+                    description: stage.description || `完成${stage.target || 6}次`
+                }]
+            }));
+        }
+
         // 补全字段，保证研发中心渲染正常
         const dev = {
             researchName: research.name,
@@ -2372,8 +2442,50 @@ function startResearch(research, createProductionLine) {
             action: research.action || '',
             science: research.science || '',
             freq: research.freq || '每天',
-            startDate: new Date().toISOString()
+            startDate: new Date().toISOString(),
+            // 添加等级支持
+            levels: levels,
+            currentLevel: 1
         };
+
+        // 检查是否需要询问历史记录使用
+        let historyOptions = null;
+        if (window.levelProgressCalculator && window.historyUsageDialog) {
+            const shouldAsk = window.levelProgressCalculator.shouldAskForHistoryUsage(dev);
+            
+            if (shouldAsk) {
+                try {
+                    historyOptions = await window.historyUsageDialog.show(dev);
+                    console.log('用户选择的历史记录选项:', historyOptions);
+                } catch (error) {
+                    console.error('历史记录对话框错误:', error);
+                    // 默认不使用历史记录
+                    historyOptions = { useHistoryRecords: false };
+                }
+            }
+        }
+
+        // 如果用户选择使用历史记录，重新计算进度
+        if (historyOptions && historyOptions.useHistoryRecords && window.levelProgressCalculator) {
+            const progressResult = window.levelProgressCalculator.calculateLevelProgress(dev, historyOptions);
+            
+            // 更新项目状态
+            window.levelProgressCalculator.updateProjectLevelStatus(dev, progressResult);
+            
+            // 如果项目已经完成，显示通知
+            if (progressResult.isCompleted) {
+                window.showNotification(
+                    `🎉 项目"${dev.researchName}"已根据历史记录自动完成！已达到第${progressResult.completedLevels}等级。`,
+                    'success'
+                );
+            } else if (progressResult.currentLevel > 1) {
+                window.showNotification(
+                    `📈 项目"${dev.researchName}"已根据历史记录更新到第${progressResult.currentLevel}等级。`,
+                    'info'
+                );
+            }
+        }
+
         gameData.developments.push(dev);
         updateResearchStatus();
         if (window.renderDevelopments) window.renderDevelopments();

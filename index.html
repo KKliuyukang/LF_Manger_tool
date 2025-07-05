@@ -28,6 +28,10 @@
     <script src="utils/project-adaptability-manager.js"></script>
     <script src="utils/adaptation-strategies.js"></script>
     
+    <!-- 等级进度计算器 -->
+    <script src="utils/level-progress-calculator.js"></script>
+    <script src="utils/history-usage-dialog.js"></script>
+    
     <!-- 艾森豪威尔矩阵模块 -->
     <link rel="stylesheet" href="components/eisenhower-matrix/eisenhower-modal.css">
     <script src="components/eisenhower-matrix/eisenhower-modal.js"></script>
@@ -58,7 +62,7 @@
         <div class="main-grid">
             <!-- 左侧：生产线 -->
             <div class="panel" style="grid-area: production;">
-                <h2 class="panel-title"><span class="conveyor-belt">⚙️</span><span>生产线</span></h2>
+                <h2 class="panel-title"><span class="conveyor-belt">⚙️</span><span>车间</span></h2>
                 <div class="panel-actions">
                     <button class="btn btn-add" onclick="window.showProductionModal()">+ 生产</button>
                     <button id="add-blueprint-btn" class="btn btn-secondary">+ 蓝图</button>
