@@ -385,6 +385,29 @@ function migrateData(data) {
 
 // 计算研究项目进度（基于有效天数）
 function calculateProgress(dev) {
+    // 优先使用等级进度计算器
+    if (window.levelProgressCalculator && dev.levels && Array.isArray(dev.levels)) {
+        const progressResult = window.levelProgressCalculator.calculateLevelProgress(dev);
+        
+        // 检查是否需要升级
+        if (progressResult.isCompleted && !dev.upgrading) {
+            dev.upgrading = true;
+            setTimeout(() => {
+                upgradeResearchProject(dev);
+            }, 100);
+        }
+        
+        return {
+            count: progressResult.currentLevelProgress.progress || 0,
+            total: progressResult.currentLevelProgress.total || 1,
+            currentLevel: progressResult.currentLevel,
+            totalLevels: progressResult.totalLevels,
+            isCompleted: progressResult.isCompleted,
+            levelProgress: progressResult
+        };
+    }
+    
+    // 传统计算方式（兼容旧项目）
     // 获取所有关联产线名称
     let prodNames = [];
     if (gameData.productions) {

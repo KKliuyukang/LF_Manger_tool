@@ -17,7 +17,19 @@ class LevelProgressCalculator {
         // 固定时间处理器
         this.historyProcessors.set('fixed_time', (logs, requirement) => {
             return logs.filter(log => {
-                const logTime = new Date(log.date);
+                // 检查log中是否有时间信息
+                if (log.hour !== undefined && log.minute !== undefined) {
+                    const logMinutes = log.hour * 60 + log.minute;
+                    const [reqHour, reqMinute] = requirement.time.split(':').map(Number);
+                    const reqMinutes = reqHour * 60 + reqMinute;
+                    // 允许5分钟的误差
+                    return Math.abs(logMinutes - reqMinutes) <= 5;
+                }
+                
+                // 如果没有具体时间，检查日期字符串中的时间
+                const logTime = new Date(log.date || log.timestamp);
+                if (isNaN(logTime.getTime())) return false;
+                
                 const hour = logTime.getHours();
                 const minute = logTime.getMinutes();
                 const [reqHour, reqMinute] = requirement.time.split(':').map(Number);
@@ -32,7 +44,7 @@ class LevelProgressCalculator {
         // 时间窗口处理器
         this.historyProcessors.set('time_window', (logs, requirement) => {
             return logs.filter(log => {
-                const logTime = new Date(log.date);
+                const logTime = new Date(log.date || log.timestamp);
                 return this.isInTimeWindow(logTime, requirement.window);
             });
         });
@@ -40,13 +52,50 @@ class LevelProgressCalculator {
         // 持续时间处理器
         this.historyProcessors.set('duration', (logs, requirement) => {
             return logs.filter(log => {
-                return log.duration && log.duration >= requirement.minDuration;
+                const duration = log.timeCost || log.duration || 0;
+                const requiredDuration = requirement.duration || requirement.minDuration || 0;
+                return duration >= requiredDuration;
             });
         });
 
         // 简单计数处理器
         this.historyProcessors.set('count', (logs, requirement) => {
             return logs; // 直接返回所有记录
+        });
+
+        // 每日计数处理器
+        this.historyProcessors.set('daily_count', (logs, requirement) => {
+            // 按日期分组，每天最多计算一次
+            const dailyLogs = new Map();
+            logs.forEach(log => {
+                const dateKey = log.date || new Date(log.timestamp).toISOString().slice(0, 10);
+                if (!dailyLogs.has(dateKey)) {
+                    dailyLogs.set(dateKey, []);
+                }
+                dailyLogs.get(dateKey).push(log);
+            });
+            
+            // 返回有记录的天数对应的记录
+            const validDays = Array.from(dailyLogs.values()).filter(dayLogs => dayLogs.length > 0);
+            return validDays.flat();
+        });
+
+        // 每周计数处理器
+        this.historyProcessors.set('weekly_count', (logs, requirement) => {
+            // 按周分组（ISO周）
+            const weeklyLogs = new Map();
+            logs.forEach(log => {
+                const logDate = new Date(log.date || log.timestamp);
+                const weekKey = this.getISOWeek(logDate);
+                if (!weeklyLogs.has(weekKey)) {
+                    weeklyLogs.set(weekKey, []);
+                }
+                weeklyLogs.get(weekKey).push(log);
+            });
+            
+            // 返回有记录的周数对应的记录
+            const validWeeks = Array.from(weeklyLogs.values()).filter(weekLogs => weekLogs.length > 0);
+            return validWeeks.flat();
         });
     }
 
@@ -92,9 +141,37 @@ class LevelProgressCalculator {
      */
     getProjectLogs(project) {
         const prodNames = this.getLinkedProductionNames(project);
-        return (window.gameData?.timeLogs || []).filter(log => 
+        const logs = (window.gameData?.timeLogs || []).filter(log => 
             prodNames.includes(log.name)
         );
+        console.log(`项目 ${project.researchName} 关联产线:`, prodNames, `找到记录:`, logs.length);
+        return logs;
+    }
+
+    /**
+     * 获取项目关联的产线名称
+     */
+    getLinkedProductionNames(project) {
+        let prodNames = [];
+        
+        // 从生产线中查找关联的产线
+        if (window.gameData?.productions) {
+            prodNames = window.gameData.productions
+                .filter(p => p.linkedDev === project.researchName)
+                .map(p => p.name);
+        }
+        
+        // 如果没有找到关联产线，使用项目的prodName
+        if (prodNames.length === 0 && project.prodName) {
+            prodNames = [project.prodName];
+        }
+        
+        // 如果还是没有，使用项目名称本身
+        if (prodNames.length === 0) {
+            prodNames = [project.researchName];
+        }
+        
+        return prodNames;
     }
 
     /**
@@ -215,7 +292,31 @@ class LevelProgressCalculator {
 
             const matchingLogs = processor(logs, requirement);
             const target = requirement.target || requirement.count || 1;
-            const progress = Math.min(matchingLogs.length, target);
+            
+            // 根据不同的要求类型计算进度
+            let progress = 0;
+            if (requirement.type === 'daily_count') {
+                // 每日计数：计算有记录的天数
+                const uniqueDays = new Set();
+                matchingLogs.forEach(log => {
+                    const dateKey = log.date || new Date(log.timestamp).toISOString().slice(0, 10);
+                    uniqueDays.add(dateKey);
+                });
+                progress = Math.min(uniqueDays.size, target);
+            } else if (requirement.type === 'weekly_count') {
+                // 每周计数：计算有记录的周数
+                const uniqueWeeks = new Set();
+                matchingLogs.forEach(log => {
+                    const logDate = new Date(log.date || log.timestamp);
+                    const weekKey = this.getISOWeek(logDate);
+                    uniqueWeeks.add(weekKey);
+                });
+                progress = Math.min(uniqueWeeks.size, target);
+            } else {
+                // 其他类型：直接计算匹配的记录数
+                progress = Math.min(matchingLogs.length, target);
+            }
+            
             const isCompleted = progress >= target;
 
             if (isCompleted) {
@@ -224,6 +325,8 @@ class LevelProgressCalculator {
 
             totalProgress += progress;
             totalTarget += target;
+            
+            console.log(`要求: ${requirement.description}, 类型: ${requirement.type}, 进度: ${progress}/${target}, 完成: ${isCompleted}`);
         }
 
         return {
@@ -317,6 +420,22 @@ class LevelProgressCalculator {
         }
 
         return totalMinutes >= windowStart && totalMinutes <= windowEnd;
+    }
+
+    /**
+     * 获取ISO周数
+     */
+    getISOWeek(date) {
+        const target = new Date(date.valueOf());
+        const dayNumber = (date.getDay() + 6) % 7;
+        target.setDate(target.getDate() - dayNumber + 3);
+        const firstThursday = target.valueOf();
+        target.setMonth(0, 1);
+        if (target.getDay() !== 4) {
+            target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+        }
+        const weekNumber = 1 + Math.ceil((firstThursday - target) / 604800000);
+        return `${target.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
     }
 
     /**
