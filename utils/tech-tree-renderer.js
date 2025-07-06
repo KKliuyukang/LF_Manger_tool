@@ -713,95 +713,52 @@
             const developments = window.gameData?.developments || [];
             const devProject = developments.find(d => d.researchName === tech.name);
             
-            node.classList.remove('completed', 'researching', 'locked', 'level-progress');
+            node.classList.remove('completed', 'researching', 'locked');
             
             if (devProject) {
                 const progress = this.calculateProgress(devProject);
-                const isResearched = progress.isCompleted;
+                const isResearched = progress.count >= progress.total;
                 const isResearching = devProject.active && !devProject.paused && !isResearched;
                 
                 if (isResearched) {
                     node.classList.add('completed');
                 } else if (isResearching) {
                     node.classList.add('researching');
-                    
-                    // 如果有等级进度，显示当前等级进度
-                    if (progress.currentLevel && progress.currentLevelProgress) {
-                        node.classList.add('level-progress');
-                        const levelProgress = Math.round(progress.currentLevelProgress.progressPercentage || 0);
-                        
-                        // 更新进度显示
-                        const progressBar = node.querySelector('.tech-progress-bar');
-                        if (progressBar) {
-                            progressBar.style.width = `${levelProgress}%`;
-                            progressBar.title = `当前等级进度: ${progress.currentLevelProgress.progress}/${progress.currentLevelProgress.total}`;
-                        }
-                        
-                        // 更新等级信息
-                        const levelInfo = node.querySelector('.tech-level-info');
-                        if (levelInfo) {
-                            levelInfo.textContent = `等级 ${progress.currentLevel}/${progress.total}`;
-                            levelInfo.title = `已完成 ${progress.count} 个等级，共 ${progress.total} 个等级`;
-                        }
-                    }
                 }
                 
                 const statusDiv = node.querySelector('.tech-node-status');
                 if (statusDiv) {
                     let statusIcon = '';
-                    let statusText = '';
-                    
                     if (isResearched) {
                         statusIcon = '<span class="tech-status-icon" title="已完成">✅</span>';
                     } else if (isResearching) {
-                        if (progress.currentLevel && progress.currentLevel > 1) {
-                            statusIcon = '<span class="tech-status-icon researching" title="进行中">⏳</span>';
-                            statusText = `<span class="tech-level-info">等级 ${progress.currentLevel}/${progress.total}</span>`;
-                        } else {
-                            statusIcon = '<span class="tech-status-icon researching" title="进行中">⏳</span>';
-                        }
+                        statusIcon = '<span class="tech-status-icon researching" title="进行中">⏳</span>';
                     }
-                    
-                    statusDiv.innerHTML = statusIcon + statusText;
+                    statusDiv.innerHTML = statusIcon;
                 }
-            }
-            
-            // 检查是否满足前置条件
-            if (tech.requirements && tech.requirements.length > 0) {
-                const allRequirementsMet = tech.requirements.every(reqId => {
-                    const reqDev = developments.find(d => {
-                        const reqTech = this.findTechById(reqId);
-                        return reqTech && d.researchName === reqTech.name;
+            } else {
+                // 检查是否满足前置条件
+                if (tech.requirements && tech.requirements.length > 0) {
+                    const allRequirementsMet = tech.requirements.every(reqId => {
+                        const reqDev = developments.find(d => {
+                            const reqTech = this.findTechById(reqId);
+                            return reqTech && d.researchName === reqTech.name;
+                        });
+                        if (reqDev) {
+                            const progress = this.calculateProgress(reqDev);
+                            return progress.count >= progress.total;
+                        }
+                        return false;
                     });
-                    if (reqDev) {
-                        const progress = this.calculateProgress(reqDev);
-                        return progress.isCompleted;
+                    
+                    if (!allRequirementsMet) {
+                        node.classList.add('locked');
                     }
-                    return false;
-                });
-                
-                if (!allRequirementsMet) {
-                    node.classList.add('locked');
                 }
             }
         }
 
         calculateProgress(dev) {
-            // 使用新的等级进度计算器
-            if (window.levelProgressCalculator) {
-                const progressResult = window.levelProgressCalculator.calculateLevelProgress(dev);
-                
-                // 转换为兼容的格式
-                return {
-                    count: progressResult.completedLevels,
-                    total: progressResult.totalLevels,
-                    currentLevel: progressResult.currentLevel,
-                    currentLevelProgress: progressResult.currentLevelProgress,
-                    isCompleted: progressResult.isCompleted
-                };
-            }
-            
-            // 后备方案：使用传统计算方式
             let prodNames = [];
             if (window.gameData?.productions) {
                 prodNames = window.gameData.productions
@@ -812,91 +769,17 @@
                 prodNames = [dev.prodName];
             }
             
-            const timeLogs = (window.gameData?.timeLogs || []).filter(log => 
-                prodNames.includes(log.name)
-            );
+            let count = 0;
+            (window.gameData?.timeLogs || []).forEach(log => {
+                if (prodNames.includes(log.name)) {
+                    count++;
+                }
+            });
             
             return {
-                count: timeLogs.length,
-                total: dev.target || 21,
-                currentLevel: 1,
-                currentLevelProgress: {
-                    completed: timeLogs.length >= (dev.target || 21),
-                    progress: timeLogs.length,
-                    total: dev.target || 21
-                },
-                isCompleted: timeLogs.length >= (dev.target || 21)
+                count: count,
+                total: dev.target || 21
             };
-        }
-
-        // 检查阶段要求是否满足
-        checkStageRequirements(stage, logs) {
-            // 根据阶段类型检查不同的要求
-            switch (stage.type) {
-                case 'fixed_time':
-                    // 检查固定时间要求（如23:30睡觉）
-                    const timeMatches = logs.filter(log => {
-                        const logTime = new Date(log.date);
-                        const hour = logTime.getHours();
-                        const minute = logTime.getMinutes();
-                        const requiredTime = stage.time.split(':');
-                        return hour === parseInt(requiredTime[0]) && 
-                               minute === parseInt(requiredTime[1]);
-                    });
-                    return {
-                        completed: timeMatches.length >= stage.requiredCount,
-                        progress: timeMatches.length,
-                        total: stage.requiredCount
-                    };
-
-                case 'time_window':
-                    // 检查时间窗口要求（如睡前30分钟无屏幕）
-                    const windowMatches = logs.filter(log => {
-                        const logTime = new Date(log.date);
-                        // 实现时间窗口检查逻辑
-                        return this.isInTimeWindow(logTime, stage.window);
-                    });
-                    return {
-                        completed: windowMatches.length >= stage.requiredCount,
-                        progress: windowMatches.length,
-                        total: stage.requiredCount
-                    };
-
-                case 'duration':
-                    // 检查持续时间要求
-                    const durationMatches = logs.filter(log => 
-                        log.duration >= stage.minDuration
-                    );
-                    return {
-                        completed: durationMatches.length >= stage.requiredCount,
-                        progress: durationMatches.length,
-                        total: stage.requiredCount
-                    };
-
-                default:
-                    // 默认只检查次数
-                    return {
-                        completed: logs.length >= stage.requiredCount,
-                        progress: logs.length,
-                        total: stage.requiredCount
-                    };
-            }
-        }
-
-        // 检查时间是否在指定窗口内
-        isInTimeWindow(time, window) {
-            const hour = time.getHours();
-            const minute = time.getMinutes();
-            const totalMinutes = hour * 60 + minute;
-
-            const [startTime, endTime] = window.split('-');
-            const [startHour, startMinute] = startTime.split(':').map(Number);
-            const [endHour, endMinute] = endTime.split(':').map(Number);
-
-            const windowStart = startHour * 60 + startMinute;
-            const windowEnd = endHour * 60 + endMinute;
-
-            return totalMinutes >= windowStart && totalMinutes <= windowEnd;
         }
 
         getOrthogonalPath(from, to, nodePositions, layerInfo, channels, targetInEdges) {

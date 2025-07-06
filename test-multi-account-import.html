@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多账户导入和汇总功能测试</title>
+    <style>
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+            line-height: 1.6;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            background: #fafbfc;
+        }
+        
+        .test-section h3 {
+            color: #3498db;
+            margin-top: 0;
+        }
+        
+        .test-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .test-result {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .test-result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .test-result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .test-result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .test-data {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #3498db;
+        }
+        
+        .test-data h4 {
+            margin: 0 0 10px 0;
+            color: #3498db;
+        }
+        
+        .test-data pre {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            border: 1px solid #e1e8ed;
+        }
+        
+        .status-display {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e1e8ed;
+            margin: 15px 0;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .status-label {
+            font-weight: 500;
+        }
+        
+        .status-value {
+            color: #3498db;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🏦 多账户导入和汇总功能测试</h1>
+        
+        <div class="test-section">
+            <h3>1. 模块加载测试</h3>
+            <div class="test-buttons">
+                <button class="btn-primary" onclick="testModuleLoading()">检查模块加载</button>
+                <button class="btn-primary" onclick="testFinanceInit()">初始化财务模块</button>
+            </div>
+            <div id="module-loading-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. 账户管理测试</h3>
+            <div class="test-buttons">
+                <button class="btn-success" onclick="createTestAccounts()">创建测试账户</button>
+                <button class="btn-primary" onclick="listAllAccounts()">查看账户列表</button>
+                <button class="btn-warning" onclick="toggleAccountStatus()">切换账户状态</button>
+            </div>
+            <div id="account-management-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. 数据导入测试</h3>
+            <div class="test-data">
+                <h4>测试数据 - 工商银行账户</h4>
+                <pre id="icbc-test-data">{
+  "2024-01": {
+    "incomeDetails": [
+      {"name": "基本工资", "amount": 12000, "currency": "CNY", "category": "工资", "description": "月度基本工资"},
+      {"name": "奖金", "amount": 3000, "currency": "CNY", "category": "工资", "description": "月度奖金"}
+    ],
+    "expenses": [
+      {"name": "房租", "amount": 3000, "currency": "CNY", "category": "住房"},
+      {"name": "生活费", "amount": 2000, "currency": "CNY", "category": "生活"}
+    ]
+  },
+  "2024-02": {
+    "incomeDetails": [
+      {"name": "基本工资", "amount": 12000, "currency": "CNY", "category": "工资", "description": "月度基本工资"},
+      {"name": "项目奖金", "amount": 3000, "currency": "CNY", "category": "工资", "description": "项目完成奖金"}
+    ],
+    "expenses": [
+      {"name": "房租", "amount": 3000, "currency": "CNY", "category": "住房"},
+      {"name": "生活费", "amount": 1800, "currency": "CNY", "category": "生活"}
+    ]
+  }
+}</pre>
+            </div>
+            
+            <div class="test-data">
+                <h4>测试数据 - 澳洲联邦银行账户</h4>
+                <pre id="anz-test-data">{
+  "2024-01": {
+    "incomeDetails": [
+      {"name": "Salary", "amount": 2800, "currency": "AUD", "category": "工资", "description": "Monthly salary"},
+      {"name": "Investment", "amount": 400, "currency": "AUD", "category": "投资", "description": "Share dividends"}
+    ],
+    "expenses": [
+      {"name": "Rent", "amount": 800, "currency": "AUD", "category": "住房"},
+      {"name": "Groceries", "amount": 300, "currency": "AUD", "category": "生活"}
+    ]
+  },
+  "2024-02": {
+    "incomeDetails": [
+      {"name": "Salary", "amount": 2800, "currency": "AUD", "category": "工资", "description": "Monthly salary"},
+      {"name": "Bonus", "amount": 400, "currency": "AUD", "category": "工资", "description": "Performance bonus"}
+    ],
+    "expenses": [
+      {"name": "Rent", "amount": 800, "currency": "AUD", "category": "住房"},
+      {"name": "Groceries", "amount": 350, "currency": "AUD", "category": "生活"}
+    ]
+  }
+}</pre>
+            </div>
+            
+            <div class="test-buttons">
+                <button class="btn-success" onclick="importTestData('icbc')">导入工行数据</button>
+                <button class="btn-success" onclick="importTestData('anz')">导入澳行数据</button>
+                <button class="btn-primary" onclick="testDataValidation()">测试数据验证</button>
+            </div>
+            <div id="data-import-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. 数据汇总测试</h3>
+            <div class="test-buttons">
+                <button class="btn-primary" onclick="testAggregation()">执行数据汇总</button>
+                <button class="btn-warning" onclick="testCurrencyConversion()">测试货币换算</button>
+                <button class="btn-primary" onclick="testConflictDetection()">检测数据冲突</button>
+                <button class="btn-danger" onclick="forceReaggregation()">强制重新汇总</button>
+            </div>
+            <div id="aggregation-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>5. 汇总状态监控</h3>
+            <div class="test-buttons">
+                <button class="btn-primary" onclick="showAggregationStatus()">查看汇总状态</button>
+                <button class="btn-primary" onclick="exportAggregationReport()">导出汇总报告</button>
+            </div>
+            <div id="status-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>6. 集成测试</h3>
+            <div class="test-buttons">
+                <button class="btn-success" onclick="runFullIntegrationTest()">运行完整集成测试</button>
+                <button class="btn-warning" onclick="resetAllData()">重置所有数据</button>
+            </div>
+            <div id="integration-result"></div>
+        </div>
+    </div>
+
+    <!-- 模拟基础环境 -->
+    <script>
+        // 模拟gameData
+        window.gameData = {
+            billsData: {},
+            displayCurrency: 'CNY'
+        };
+        
+        // 模拟保存函数
+        window.saveToCloud = function() {
+            console.log('模拟保存到云端');
+        };
+        
+        // 模拟关闭模态框函数
+        window.closeModal = function(modalId) {
+            console.log('模拟关闭模态框:', modalId);
+        };
+        
+        // 存储测试账户ID
+        let testAccountIds = {
+            icbc: null,
+            anz: null
+        };
+    </script>
+    
+    <!-- 加载财务模块 -->
+    <script src="utils/finance-main.js"></script>
+    <script src="utils/account-manager.js"></script>
+    <script src="utils/bill-importer.js"></script>
+    <script src="utils/data-aggregator.js"></script>
+    
+    <script>
+        // 测试函数
+        function testModuleLoading() {
+            const resultDiv = document.getElementById('module-loading-result');
+            let results = [];
+            
+            // 检查各模块是否加载
+            const modules = [
+                { name: 'FinanceModule', obj: window.FinanceModule },
+                { name: 'AccountManager', obj: window.AccountManager },
+                { name: 'BillImporter', obj: window.BillImporter },
+                { name: 'DataAggregator', obj: window.DataAggregator }
+            ];
+            
+            modules.forEach(module => {
+                if (module.obj) {
+                    results.push(`<div class="test-result success">✅ ${module.name} 模块加载成功</div>`);
+                } else {
+                    results.push(`<div class="test-result error">❌ ${module.name} 模块加载失败</div>`);
+                }
+            });
+            
+            resultDiv.innerHTML = results.join('');
+        }
+        
+        function testFinanceInit() {
+            const resultDiv = document.getElementById('module-loading-result');
+            
+            try {
+                if (window.FinanceModule) {
+                    window.FinanceModule.init();
+                    resultDiv.innerHTML += '<div class="test-result success">✅ 财务模块初始化成功</div>';
+                    
+                    // 检查数据结构
+                    if (gameData.financeData) {
+                        resultDiv.innerHTML += '<div class="test-result info">ℹ️ 财务数据结构已创建</div>';
+                        resultDiv.innerHTML += `<div class="test-result info">数据结构: <pre>${JSON.stringify(gameData.financeData, null, 2)}</pre></div>`;
+                    }
+                } else {
+                    resultDiv.innerHTML += '<div class="test-result error">❌ FinanceModule 不存在</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="test-result error">❌ 初始化失败: ${error.message}</div>`;
+            }
+        }
+        
+        function createTestAccounts() {
+            const resultDiv = document.getElementById('account-management-result');
+            let results = [];
+            
+            try {
+                // 创建工商银行账户
+                const icbcId = window.AccountManager.createAccount({
+                    name: '工商银行储蓄卡',
+                    type: 'bank_debit',
+                    currency: 'CNY'
+                });
+                testAccountIds.icbc = icbcId;
+                results.push(`<div class="test-result success">✅ 工商银行账户创建成功，ID: ${icbcId}</div>`);
+                
+                // 创建澳洲联邦银行账户
+                const anzId = window.AccountManager.createAccount({
+                    name: '澳洲联邦银行',
+                    type: 'bank_debit', 
+                    currency: 'AUD'
+                });
+                testAccountIds.anz = anzId;
+                results.push(`<div class="test-result success">✅ 澳洲联邦银行账户创建成功，ID: ${anzId}</div>`);
+                
+                // 创建支付宝账户
+                const alipayId = window.AccountManager.createAccount({
+                    name: '支付宝主账户',
+                    type: 'alipay',
+                    currency: 'CNY'
+                });
+                results.push(`<div class="test-result success">✅ 支付宝账户创建成功，ID: ${alipayId}</div>`);
+                
+            } catch (error) {
+                results.push(`<div class="test-result error">❌ 账户创建失败: ${error.message}</div>`);
+            }
+            
+            resultDiv.innerHTML = results.join('');
+        }
+        
+        function listAllAccounts() {
+            const resultDiv = document.getElementById('account-management-result');
+            
+            try {
+                const accounts = window.AccountManager.getAccountList();
+                let html = `<div class="test-result success">✅ 获取到 ${accounts.length} 个账户</div>`;
+                
+                if (accounts.length > 0) {
+                    html += '<div class="status-display">';
+                    accounts.forEach(account => {
+                        const stats = window.AccountManager.getAccountStats(account.id);
+                        html += `
+                            <div class="status-item">
+                                <span class="status-label">${account.icon} ${account.name}</span>
+                                <span class="status-value">${account.currency} | ${account.enabled ? '启用' : '禁用'} | ${stats.months}个月数据</span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">❌ 获取账户列表失败: ${error.message}</div>`;
+            }
+        }
+        
+        function toggleAccountStatus() {
+            const resultDiv = document.getElementById('account-management-result');
+            
+            try {
+                if (testAccountIds.icbc) {
+                    const newStatus = window.AccountManager.toggleAccountStatus(testAccountIds.icbc);
+                    resultDiv.innerHTML = `<div class="test-result success">✅ 工商银行账户状态已切换为: ${newStatus ? '启用' : '禁用'}</div>`;
+                } else {
+                    resultDiv.innerHTML = '<div class="test-result error">❌ 请先创建测试账户</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">❌ 切换状态失败: ${error.message}</div>`;
+            }
+        }
+        
+        function importTestData(accountType) {
+            const resultDiv = document.getElementById('data-import-result');
+            
+            try {
+                const accountId = testAccountIds[accountType];
+                if (!accountId) {
+                    resultDiv.innerHTML += '<div class="test-result error">❌ 请先创建测试账户</div>';
+                    return;
+                }
+                
+                const dataElement = document.getElementById(`${accountType}-test-data`);
+                const testData = JSON.parse(dataElement.textContent);
+                
+                // 确保财务数据结构存在
+                if (!gameData.financeData) {
+                    window.FinanceModule.initDataStructure();
+                }
+                
+                // 导入数据到指定账户
+                if (!gameData.financeData.accountData[accountId]) {
+                    gameData.financeData.accountData[accountId] = {};
+                }
+                
+                Object.assign(gameData.financeData.accountData[accountId], testData);
+                
+                // 更新账户信息
+                const account = gameData.financeData.accounts[accountId];
+                if (account) {
+                    account.lastUpdated = new Date().toISOString();
+                }
+                
+                const monthsCount = Object.keys(testData).length;
+                resultDiv.innerHTML += `<div class="test-result success">✅ 成功导入 ${monthsCount} 个月的数据到 ${accountType.toUpperCase()} 账户</div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="test-result error">❌ 导入 ${accountType} 数据失败: ${error.message}</div>`;
+            }
+        }
+        
+        function testDataValidation() {
+            const resultDiv = document.getElementById('data-import-result');
+            
+            try {
+                const testData = JSON.parse(document.getElementById('icbc-test-data').textContent);
+                const validation = window.BillImporter.validateImportData(testData);
+                
+                if (validation.valid) {
+                    resultDiv.innerHTML += '<div class="test-result success">✅ 数据验证通过</div>';
+                } else {
+                    resultDiv.innerHTML += `<div class="test-result error">❌ 数据验证失败: ${validation.errors.join(', ')}</div>`;
+                }
+                
+                // 测试无效数据
+                const invalidData = { "invalid-month": "not an object" };
+                const invalidValidation = window.BillImporter.validateImportData(invalidData);
+                
+                if (!invalidValidation.valid) {
+                    resultDiv.innerHTML += '<div class="test-result success">✅ 无效数据正确被识别</div>';
+                } else {
+                    resultDiv.innerHTML += '<div class="test-result error">❌ 无效数据验证失败</div>';
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="test-result error">❌ 数据验证测试失败: ${error.message}</div>`;
+            }
+        }
+        
+        function testAggregation() {
+            const resultDiv = document.getElementById('aggregation-result');
+            
+            try {
+                const result = window.DataAggregator.aggregateAllAccounts();
+                const monthsCount = Object.keys(result).length;
+                
+                resultDiv.innerHTML = `<div class="test-result success">✅ 数据汇总完成，处理了 ${monthsCount} 个月的数据</div>`;
+                
+                // 显示汇总结果
+                if (monthsCount > 0) {
+                    let html = '<div class="status-display"><h4>汇总结果预览</h4>';
+                    Object.entries(result).forEach(([month, data]) => {
+                        const totalExpense = data.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+                        html += `
+                            <div class="status-item">
+                                <span class="status-label">${month}</span>
+                                <span class="status-value">收入: ¥${data.income} | 支出: ¥${totalExpense} | 来源: ${data.sources.length}个账户</span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    resultDiv.innerHTML += html;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">❌ 数据汇总失败: ${error.message}</div>`;
+            }
+        }
+        
+        function testCurrencyConversion() {
+            const resultDiv = document.getElementById('aggregation-result');
+            
+            try {
+                const converter = window.DataAggregator.convertToPrimaryCurrency;
+                
+                // 测试汇率换算
+                const tests = [
+                    { amount: 1000, from: 'CNY', to: 'CNY', expected: 1000 },
+                    { amount: 1000, from: 'AUD', to: 'CNY', expected: 4800 },
+                    { amount: 4800, from: 'CNY', to: 'AUD', expected: 1000 }
+                ];
+                
+                let results = [];
+                tests.forEach(test => {
+                    const result = converter(test.amount, test.from, test.to);
+                    const isCorrect = Math.abs(result - test.expected) < 1;
+                    results.push(`
+                        <div class="test-result ${isCorrect ? 'success' : 'error'}">
+                            ${isCorrect ? '✅' : '❌'} ${test.amount} ${test.from} → ${test.to}: ${result} (期望: ${test.expected})
+                        </div>
+                    `);
+                });
+                
+                resultDiv.innerHTML += results.join('');
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="test-result error">❌ 货币换算测试失败: ${error.message}</div>`;
+            }
+        }
+        
+        function testConflictDetection() {
+            const resultDiv = document.getElementById('aggregation-result');
+            
+            try {
+                const conflicts = window.DataAggregator.detectDataConflicts();
+                
+                if (conflicts.length === 0) {
+                    resultDiv.innerHTML += '<div class="test-result success">✅ 未发现数据冲突</div>';
+                } else {
+                    resultDiv.innerHTML += `<div class="test-result error">⚠️ 发现 ${conflicts.length} 个潜在冲突</div>`;
+                    
+                    conflicts.forEach(conflict => {
+                        resultDiv.innerHTML += `<div class="test-result info">冲突详情: ${conflict.month} - ${conflict.items.length} 个重复项</div>`;
+                    });
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="test-result error">❌ 冲突检测失败: ${error.message}</div>`;
+            }
+        }
+        
+        function forceReaggregation() {
+            const resultDiv = document.getElementById('aggregation-result');
+            
+            try {
+                const result = window.DataAggregator.forceReaggregation();
+                resultDiv.innerHTML += '<div class="test-result success">✅ 强制重新汇总完成</div>';
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="test-result error">❌ 强制重新汇总失败: ${error.message}</div>`;
+            }
+        }
+        
+        function showAggregationStatus() {
+            const resultDiv = document.getElementById('status-result');
+            
+            try {
+                const stats = window.DataAggregator.getAggregationStats();
+                
+                let html = '<div class="status-display">';
+                html += `<div class="status-item"><span class="status-label">账户总数</span><span class="status-value">${stats.totalAccounts}</span></div>`;
+                html += `<div class="status-item"><span class="status-label">启用账户</span><span class="status-value">${stats.enabledAccounts}</span></div>`;
+                html += `<div class="status-item"><span class="status-label">汇总月份</span><span class="status-value">${stats.totalMonths}</span></div>`;
+                html += `<div class="status-item"><span class="status-label">最后汇总</span><span class="status-value">${stats.lastAggregation ? new Date(stats.lastAggregation).toLocaleString() : '未汇总'}</span></div>`;
+                html += '</div>';
+                
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">❌ 获取汇总状态失败: ${error.message}</div>`;
+            }
+        }
+        
+        function exportAggregationReport() {
+            const resultDiv = document.getElementById('status-result');
+            
+            try {
+                const report = window.DataAggregator.exportAggregationReport();
+                
+                resultDiv.innerHTML += '<div class="test-result success">✅ 汇总报告导出成功</div>';
+                resultDiv.innerHTML += `<div class="test-result info">报告内容: <pre>${JSON.stringify(report, null, 2)}</pre></div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="test-result error">❌ 导出汇总报告失败: ${error.message}</div>`;
+            }
+        }
+        
+        function runFullIntegrationTest() {
+            const resultDiv = document.getElementById('integration-result');
+            resultDiv.innerHTML = '<div class="test-result info">🚀 开始运行完整集成测试...</div>';
+            
+            try {
+                // 1. 初始化模块
+                window.FinanceModule.init();
+                resultDiv.innerHTML += '<div class="test-result success">✅ 步骤1: 模块初始化完成</div>';
+                
+                // 2. 创建测试账户
+                createTestAccounts();
+                resultDiv.innerHTML += '<div class="test-result success">✅ 步骤2: 测试账户创建完成</div>';
+                
+                // 3. 导入测试数据
+                importTestData('icbc');
+                importTestData('anz');
+                resultDiv.innerHTML += '<div class="test-result success">✅ 步骤3: 测试数据导入完成</div>';
+                
+                // 4. 执行数据汇总
+                const aggregationResult = window.DataAggregator.aggregateAllAccounts();
+                resultDiv.innerHTML += '<div class="test-result success">✅ 步骤4: 数据汇总完成</div>';
+                
+                // 5. 验证结果
+                const stats = window.DataAggregator.getAggregationStats();
+                if (stats.totalMonths > 0 && stats.enabledAccounts > 0) {
+                    resultDiv.innerHTML += '<div class="test-result success">🎉 集成测试全部通过！</div>';
+                } else {
+                    resultDiv.innerHTML += '<div class="test-result error">❌ 集成测试验证失败</div>';
+                }
+                
+                // 显示最终统计
+                resultDiv.innerHTML += `
+                    <div class="status-display">
+                        <h4>集成测试结果</h4>
+                        <div class="status-item"><span class="status-label">总账户数</span><span class="status-value">${stats.totalAccounts}</span></div>
+                        <div class="status-item"><span class="status-label">启用账户</span><span class="status-value">${stats.enabledAccounts}</span></div>
+                        <div class="status-item"><span class="status-label">汇总月份</span><span class="status-value">${stats.totalMonths}</span></div>
+                        <div class="status-item"><span class="status-label">兼容性</span><span class="status-value">${gameData.billsData ? '✅ 向后兼容' : '❌ 兼容性问题'}</span></div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="test-result error">❌ 集成测试失败: ${error.message}</div>`;
+            }
+        }
+        
+        function resetAllData() {
+            const resultDiv = document.getElementById('integration-result');
+            
+            try {
+                // 重置gameData
+                gameData.financeData = undefined;
+                gameData.billsData = {};
+                
+                // 重置测试账户ID
+                testAccountIds = { icbc: null, anz: null };
+                
+                // 清空所有结果显示
+                document.getElementById('module-loading-result').innerHTML = '';
+                document.getElementById('account-management-result').innerHTML = '';
+                document.getElementById('data-import-result').innerHTML = '';
+                document.getElementById('aggregation-result').innerHTML = '';
+                document.getElementById('status-result').innerHTML = '';
+                
+                resultDiv.innerHTML = '<div class="test-result success">✅ 所有数据已重置，可以重新开始测试</div>';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">❌ 数据重置失败: ${error.message}</div>`;
+            }
+        }
+        
+        // 页面加载时自动进行模块检查
+        document.addEventListener('DOMContentLoaded', function() {
+            testModuleLoading();
+        });
+    </script>
+</body>
+</html> 

@@ -75,66 +75,6 @@ class DataValidator {
                     type: 'number',
                     min: 1,
                     max: 1000
-                },
-                stages: {
-                    type: 'array',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            name: {
-                                type: 'string',
-                                required: true
-                            },
-                            type: {
-                                type: 'string',
-                                enum: ['fixed_time', 'time_window', 'duration', 'count'],
-                                required: true
-                            },
-                            startDate: {
-                                type: 'string',
-                                pattern: /^\d{4}-\d{2}-\d{2}/,
-                                required: true
-                            },
-                            endDate: {
-                                type: 'string',
-                                pattern: /^\d{4}-\d{2}-\d{2}/,
-                                required: true
-                            },
-                            requiredCount: {
-                                type: 'number',
-                                min: 1,
-                                required: true
-                            },
-                            // 固定时间要求
-                            time: {
-                                type: 'string',
-                                pattern: /^([01]\d|2[0-3]):([0-5]\d)$/,
-                                required: function(obj) {
-                                    return obj.type === 'fixed_time';
-                                }
-                            },
-                            // 时间窗口要求
-                            window: {
-                                type: 'string',
-                                pattern: /^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$/,
-                                required: function(obj) {
-                                    return obj.type === 'time_window';
-                                }
-                            },
-                            // 持续时间要求
-                            minDuration: {
-                                type: 'number',
-                                min: 1,
-                                required: function(obj) {
-                                    return obj.type === 'duration';
-                                }
-                            },
-                            description: {
-                                type: 'string',
-                                maxLength: 200
-                            }
-                        }
-                    }
                 }
             },
 

@@ -157,28 +157,6 @@ let fileHandle = null;
 // 数据结构版本号
 const DATA_VERSION = 1;
 
-// 辅助函数：获取要求描述
-function getRequirementDescription(req) {
-    if (!req) return '未知要求';
-    
-    switch (req.type) {
-        case 'fixed_time':
-            return `固定时间打卡：${req.time}`;
-        case 'time_window':
-            return `时间窗口：${req.start_time} - ${req.end_time}`;
-        case 'duration':
-            return `持续时间：${req.duration}分钟`;
-        case 'count':
-            return `完成次数：${req.count}次`;
-        case 'daily_count':
-            return `每日${req.count}次`;
-        case 'weekly_count':
-            return `每周${req.count}次`;
-        default:
-            return req.description || '未知要求类型';
-    }
-}
-
 // 汇率设置（相对于澳元）
 const exchangeRates = {
     AUD: 1,
@@ -385,29 +363,6 @@ function migrateData(data) {
 
 // 计算研究项目进度（基于有效天数）
 function calculateProgress(dev) {
-    // 优先使用等级进度计算器
-    if (window.levelProgressCalculator && dev.levels && Array.isArray(dev.levels)) {
-        const progressResult = window.levelProgressCalculator.calculateLevelProgress(dev);
-        
-        // 检查是否需要升级
-        if (progressResult.isCompleted && !dev.upgrading) {
-            dev.upgrading = true;
-            setTimeout(() => {
-                upgradeResearchProject(dev);
-            }, 100);
-        }
-        
-        return {
-            count: progressResult.currentLevelProgress.progress || 0,
-            total: progressResult.currentLevelProgress.total || 1,
-            currentLevel: progressResult.currentLevel,
-            totalLevels: progressResult.totalLevels,
-            isCompleted: progressResult.isCompleted,
-            levelProgress: progressResult
-        };
-    }
-    
-    // 传统计算方式（兼容旧项目）
     // 获取所有关联产线名称
     let prodNames = [];
     if (gameData.productions) {
@@ -1442,25 +1397,11 @@ function renderDevelopments() {
             
             let html = '';
             gameData.developments.forEach((dev, idx) => {
-                // 使用新的等级进度计算器
-                let progress, percent, levelInfo = null;
+                // 计算进度
+                const progress = calculateProgress(dev);
+                const percent = Math.min(1, progress.count / progress.total);
                 
-                if (window.levelProgressCalculator && (dev.levels || dev.currentLevel)) {
-                    // 使用等级系统
-                    const levelProgress = window.levelProgressCalculator.calculateLevelProgress(dev);
-                    progress = {
-                        count: levelProgress.completedLevels,
-                        total: levelProgress.totalLevels
-                    };
-                    percent = Math.min(1, levelProgress.completedLevels / levelProgress.totalLevels);
-                    levelInfo = levelProgress;
-                } else {
-                    // 使用传统进度计算
-                    progress = calculateProgress(dev);
-                    percent = Math.min(1, progress.count / progress.total);
-                }
-                
-                // 解析阶段信息（仅用于没有等级系统的项目）
+                // 解析阶段信息
                 const stages = parseProjectStages(dev.action);
                 const currentStageInfo = getCurrentStage(dev, stages);
                 
@@ -1477,65 +1418,57 @@ function renderDevelopments() {
                     stages.length > 0 ? `阶段数：${stages.length}` : ''
                 ].filter(Boolean).join('\n');
                 
-                // 生成等级/阶段展示HTML
+                // 生成阶段展示HTML
                 let stagesHtml = '';
-                if (levelInfo && levelInfo.currentLevel) {
-                    // 新等级系统：只显示当前等级信息
-                    const currentLevel = dev.levels ? dev.levels[levelInfo.currentLevel - 1] : null;
-                    if (currentLevel) {
-                        stagesHtml = `
-                            <div class="stages-container" style="margin-top: 10px;">
-                                <div class="stages-header" style="font-size: 0.9em; font-weight: bold; margin-bottom: 6px; color: #444;">
-                                    🎯 等级 ${levelInfo.currentLevel}/${levelInfo.totalLevels}: ${currentLevel.name || `第${levelInfo.currentLevel}等级`}
-                                </div>
-                                <div class="current-level-progress" style="
-                                    padding: 8px; 
-                                    background: #e8f5e9; 
-                                    border-radius: 6px;
-                                    border-left: 3px solid #4caf50;
-                                ">
-                                    <div style="font-size: 0.85em; color: #2e7d32; margin-bottom: 4px;">
-                                        📋 当前等级要求：
-                                    </div>
-                                    ${currentLevel.requirements ? currentLevel.requirements.map(req => `
-                                        <div style="font-size: 0.8em; color: #555; margin-left: 12px;">
-                                            • ${req.description || getRequirementDescription(req)}
-                                        </div>
-                                    `).join('') : '<div style="font-size: 0.8em; color: #555; margin-left: 12px;">暂无具体要求</div>'}
+                if (stages.length > 0 && currentStageInfo) {
+                    stagesHtml = `
+                        <div class="stages-container" style="margin-top: 10px;">
+                            <div class="stages-header" style="font-size: 0.9em; font-weight: bold; margin-bottom: 6px; color: #444;">
+                                📋 项目阶段 (${currentStageInfo.current + 1}/${stages.length})
+                            </div>
+                            <div class="stages-list">
+                                ${stages.map((stage, stageIdx) => {
+                                    const isCurrent = stageIdx === currentStageInfo.current;
+                                    const isPast = stageIdx < currentStageInfo.current;
+                                    const isFuture = stageIdx > currentStageInfo.current;
                                     
-                                    ${levelInfo.currentLevelProgress ? `
-                                        <div style="margin-top: 6px; font-size: 0.8em; color: #666;">
-                                            进度: ${levelInfo.currentLevelProgress.progress}/${levelInfo.currentLevelProgress.total} 
-                                            (${Math.round(levelInfo.currentLevelProgress.progressPercentage || 0)}%)
+                                    let statusIcon = '';
+                                    let statusClass = '';
+                                    
+                                    if (isPast) {
+                                        statusIcon = '✅';
+                                        statusClass = 'stage-completed';
+                                    } else if (isCurrent) {
+                                        statusIcon = '🔄';
+                                        statusClass = 'stage-current';
+                                    } else {
+                                        statusIcon = '⏳';
+                                        statusClass = 'stage-future';
+                                    }
+                                    
+                                    return `
+                                        <div class="stage-item ${statusClass}" style="
+                                            display: flex; 
+                                            align-items: flex-start; 
+                                            margin-bottom: 4px; 
+                                            padding: 4px; 
+                                            border-radius: 4px;
+                                            background: ${isCurrent ? '#e8f5e9' : isPast ? '#f0f0f0' : '#fafafa'};
+                                            border-left: 3px solid ${isCurrent ? '#4caf50' : isPast ? '#8bc34a' : '#ddd'};
+                                        ">
+                                            <span style="margin-right: 6px; font-size: 0.9em;">${statusIcon}</span>
+                                            <div style="flex: 1; font-size: 0.85em;">
+                                                ${stage.timeRange ? `<strong>${stage.timeRange}</strong>: ` : ''}
+                                                <span style="color: ${isCurrent ? '#2e7d32' : isPast ? '#666' : '#999'};">
+                                                    ${stage.description}
+                                                </span>
+                                            </div>
                                         </div>
-                                    ` : ''}
-                                </div>
+                                    `;
+                                }).join('')}
                             </div>
-                        `;
-                    }
-                } else if (stages.length > 0 && currentStageInfo) {
-                    // 传统阶段系统：只显示当前阶段
-                    const currentStage = stages[currentStageInfo.current];
-                    if (currentStage) {
-                        stagesHtml = `
-                            <div class="stages-container" style="margin-top: 10px;">
-                                <div class="stages-header" style="font-size: 0.9em; font-weight: bold; margin-bottom: 6px; color: #444;">
-                                    📋 项目阶段 (${currentStageInfo.current + 1}/${stages.length})
-                                </div>
-                                <div class="current-stage" style="
-                                    padding: 8px; 
-                                    background: #e8f5e9; 
-                                    border-radius: 6px;
-                                    border-left: 3px solid #4caf50;
-                                ">
-                                    <div style="font-size: 0.85em; color: #2e7d32;">
-                                        🔄 ${currentStage.timeRange ? `<strong>${currentStage.timeRange}</strong>: ` : ''}
-                                        ${currentStage.description}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
+                        </div>
+                    `;
                 }
                 
                 html += `
@@ -1561,11 +1494,11 @@ function renderDevelopments() {
                             <div class=\"progress-bar\">
                                 <div class=\"progress-fill\" style=\"width: ${(percent*100).toFixed(1)}%\"></div>
                             </div>
-                            ${!levelInfo && currentStageInfo && currentStageInfo.stage ? 
+                            ${currentStageInfo && currentStageInfo.stage ? 
                                 `<div style="margin-top: 8px; font-size: 0.85em; color: #4caf50; font-weight: bold;">
                                     🎯 当前阶段: ${currentStageInfo.stage.timeRange} ${currentStageInfo.stage.description}
                                 </div>` : 
-                                (!levelInfo ? `<div style="margin-top: 8px; font-size: 0.85em; color: #666;">${dev.action}</div>` : '')
+                                `<div style="margin-top: 8px; font-size: 0.85em; color: #666;">${dev.action}</div>`
                             }
                         </div>
                         <div style=\"margin-top: 8px; font-size: 0.85em; color: #888;\">
@@ -1880,7 +1813,6 @@ window.pauseDev = function(index) {
     const dev = gameData.developments[index];
     dev.active = false;
     dev.paused = true;
-    dev.pausedDate = new Date().toISOString(); // 记录暂停时间
     
     // 同时暂停所有关联的生产线项目
     const linkedProductions = gameData.productions.filter(p => p.linkedDev === dev.researchName);
@@ -1908,19 +1840,8 @@ window.resumeDev = function(index) {
     if (!gameData.developments[index]) return;
     
     const dev = gameData.developments[index];
-    
-    // 检查是否需要适应性调整
-    if (window.projectAdaptabilityManager && dev.pausedDate) {
-        const adaptabilityResult = window.projectAdaptabilityManager.checkAdaptability(dev);
-        if (adaptabilityResult.needsAdaptation) {
-            showAdaptationSuggestion(dev, adaptabilityResult);
-            return; // 先处理适应性调整，用户确认后再恢复
-        }
-    }
-    
     dev.active = true;
     dev.paused = false;
-    dev.pausedDate = null; // 清除暂停时间
     
     // 同时恢复所有关联的生产线项目
     const linkedProductions = gameData.productions.filter(p => p.linkedDev === dev.researchName);
@@ -2358,13 +2279,10 @@ function checkExpiredBlueprints() {
     
     gameData.blueprints.forEach((blueprint, index) => {
         const scheduledDate = new Date(blueprint.scheduledDate);
+        const endTime = new Date(scheduledDate.getTime() + blueprint.duration * 60000);
         
-        // 计算蓝图所在日期的结束时间（23:59:59）
-        const blueprintDayEnd = new Date(scheduledDate);
-        blueprintDayEnd.setHours(23, 59, 59, 999);
-        
-        // 只有过了蓝图所在的整个日期才算过期（即过了00:00）
-        if (blueprintDayEnd < now) {
+        // 如果蓝图的结束时间已经过了，认为是过期的
+        if (endTime < now) {
             expiredBlueprints.push({blueprint, index});
         }
     });
@@ -2419,34 +2337,8 @@ function updateTimeLogsProductionName(oldName, newName) {
 
 
 // 开始研究
-async function startResearch(research, createProductionLine) {
+function startResearch(research, createProductionLine) {
     if (!hasResearch(research.name)) {
-        // 将stages转换为levels格式
-        let levels = null;
-        if (research.levels) {
-            levels = research.levels;
-        } else if (research.stages && Array.isArray(research.stages)) {
-            // 将stages转换为levels格式
-            levels = research.stages.map((stage, index) => ({
-                id: index + 1,
-                name: stage.name || `第${index + 1}阶段`,
-                description: stage.description || '',
-                duration: stage.duration || 7,
-                target: stage.target || 6,
-                tasks: stage.tasks || [],
-                milestone: stage.milestone || '',
-                requirements: stage.tasks ? stage.tasks.map(task => ({
-                    type: 'daily_count',
-                    count: 1,
-                    description: task
-                })) : [{
-                    type: 'count',
-                    count: stage.target || 6,
-                    description: stage.description || `完成${stage.target || 6}次`
-                }]
-            }));
-        }
-
         // 补全字段，保证研发中心渲染正常
         const dev = {
             researchName: research.name,
@@ -2465,66 +2357,8 @@ async function startResearch(research, createProductionLine) {
             action: research.action || '',
             science: research.science || '',
             freq: research.freq || '每天',
-            startDate: new Date().toISOString(),
-            // 添加等级支持
-            levels: levels,
-            currentLevel: 1
+            startDate: new Date().toISOString()
         };
-
-        // 检查是否需要询问历史记录使用
-        let historyOptions = null;
-        if (window.levelProgressCalculator && window.historyUsageDialog) {
-            console.log('🔍 检查历史记录询问需求...');
-            console.log('项目信息:', {
-                name: dev.researchName,
-                startDate: dev.startDate,
-                levels: dev.levels ? dev.levels.length : 0
-            });
-            
-            const logs = window.levelProgressCalculator.getProjectLogs(dev);
-            console.log('找到相关记录:', logs.length, '条');
-            
-            const shouldAsk = window.levelProgressCalculator.shouldAskForHistoryUsage(dev);
-            console.log('是否需要询问历史记录使用:', shouldAsk);
-            
-            if (shouldAsk) {
-                console.log('🔔 显示历史记录使用确认对话框...');
-                try {
-                    historyOptions = await window.historyUsageDialog.show(dev);
-                    console.log('用户选择的历史记录选项:', historyOptions);
-                } catch (error) {
-                    console.error('历史记录对话框错误:', error);
-                    // 默认不使用历史记录
-                    historyOptions = { useHistoryRecords: false };
-                }
-            } else {
-                console.log('ℹ️ 无历史记录或无需询问，直接开始项目');
-            }
-        } else {
-            console.log('⚠️ 等级进度计算器或历史记录对话框未加载');
-        }
-
-        // 如果用户选择使用历史记录，重新计算进度
-        if (historyOptions && historyOptions.useHistoryRecords && window.levelProgressCalculator) {
-            const progressResult = window.levelProgressCalculator.calculateLevelProgress(dev, historyOptions);
-            
-            // 更新项目状态
-            window.levelProgressCalculator.updateProjectLevelStatus(dev, progressResult);
-            
-            // 如果项目已经完成，显示通知
-            if (progressResult.isCompleted) {
-                window.showNotification(
-                    `🎉 项目"${dev.researchName}"已根据历史记录自动完成！已达到第${progressResult.completedLevels}等级。`,
-                    'success'
-                );
-            } else if (progressResult.currentLevel > 1) {
-                window.showNotification(
-                    `📈 项目"${dev.researchName}"已根据历史记录更新到第${progressResult.currentLevel}等级。`,
-                    'info'
-                );
-            }
-        }
-
         gameData.developments.push(dev);
         updateResearchStatus();
         if (window.renderDevelopments) window.renderDevelopments();
@@ -9216,109 +9050,6 @@ function testMobileLongPress() {
 window.testMobileLongPress = testMobileLongPress;
 
 // 测试项目阶段解析功能
-// 测试项目适应性系统
-function testProjectAdaptability() {
-    console.log('🧪 开始测试项目适应性系统...');
-    
-    if (!window.projectAdaptabilityManager) {
-        console.error('❌ 项目适应性管理器未加载');
-        return;
-    }
-    
-    const projects = gameData.developments || [];
-    if (projects.length === 0) {
-        console.log('⚠️ 当前没有进行中的研发项目');
-        return;
-    }
-    
-    console.log(`📋 检查 ${projects.length} 个项目的适应性需求:`);
-    
-    projects.forEach((project, index) => {
-        console.log(`\n项目 ${index + 1}: ${project.researchName}`);
-        
-        try {
-            const result = window.projectAdaptabilityManager.checkAdaptability(project);
-            console.log(`- 需要适应: ${result.needsAdaptation ? '是' : '否'}`);
-            console.log(`- 原因: ${result.reason}`);
-            console.log(`- 暂停天数: ${result.metrics.consecutivePauses}`);
-            console.log(`- 成功率: ${(result.metrics.successRate * 100).toFixed(1)}%`);
-            console.log(`- 最近执行: ${result.metrics.recentExecutions}次`);
-            
-            if (result.needsAdaptation) {
-                console.log(`- 建议策略: ${result.suggestions.map(s => s.type).join(', ')}`);
-            }
-        } catch (error) {
-            console.error(`检查失败:`, error);
-        }
-    });
-    
-    // 批量检查
-    const adaptationNeeded = window.projectAdaptabilityManager.checkAllProjects();
-    console.log(`\n📊 总结: ${adaptationNeeded.length} 个项目需要适应性调整`);
-    
-    if (adaptationNeeded.length > 0) {
-        console.log('🎯 可以调用 showAdaptationSuggestion() 查看建议');
-        
-        // 自动显示第一个需要调整的项目
-        const first = adaptationNeeded[0];
-        console.log(`\n🔧 自动显示第一个项目的适应建议: ${first.project.researchName}`);
-        showAdaptationSuggestion(first.project, first.adaptationInfo);
-    }
-    
-    return {
-        totalProjects: projects.length,
-        needsAdaptation: adaptationNeeded.length,
-        adaptationNeeded
-    };
-}
-
-// 手动创建测试项目
-function createTestProjectForAdaptability() {
-    const testProject = {
-        researchName: '测试睡眠项目',
-        freq: '每天',
-        target: 21,
-        cycle: 30,
-        paused: true,
-        pausedDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8天前暂停
-        startDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15天前开始
-        active: false,
-        prodName: '测试睡眠打卡'
-    };
-    
-    // 添加到研发项目中
-    if (!gameData.developments) gameData.developments = [];
-    gameData.developments.push(testProject);
-    
-    // 创建对应的生产线
-    const testProduction = {
-        name: '测试睡眠打卡',
-        type: 'automation',
-        linkedDev: '测试睡眠项目',
-        paused: true
-    };
-    
-    if (!gameData.productions) gameData.productions = [];
-    gameData.productions.push(testProduction);
-    
-    // 添加一些打卡记录（较少，模拟执行困难）
-    if (!gameData.timeLogs) gameData.timeLogs = [];
-    for (let i = 0; i < 3; i++) {
-        const logDate = new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000);
-        gameData.timeLogs.push({
-            name: '测试睡眠打卡',
-            date: logDate.toISOString().split('T')[0],
-            timeCost: 30
-        });
-    }
-    
-    renderDevelopments();
-    renderProductions();
-    
-    console.log('✅ 已创建测试项目，可以调用 testProjectAdaptability() 进行测试');
-    return testProject;
-}
-
 function testProjectStages() {
     console.log('📋 开始测试项目阶段解析功能...');
     
@@ -9599,10 +9330,6 @@ window.showTimeOptionsDialog = function(sortedIndex) {
 }
 
 // 根据选择的时间长度记录打卡
-// 全局测试函数
-window.testProjectAdaptability = testProjectAdaptability;
-window.createTestProjectForAdaptability = createTestProjectForAdaptability;
-
 window.recordTimeWithDuration = function(sortedIndex, durationMinutes) {
     const prod = sortedProductions[sortedIndex];
     const realProd = gameData.productions[prod._realIndex];
@@ -9649,196 +9376,6 @@ window.recordTimeWithDuration = function(sortedIndex, durationMinutes) {
 }
 
 console.log('✅ 生产线打卡功能已加载');
-
-// 项目适应性建议UI
-function showAdaptationSuggestion(project, adaptationInfo) {
-    // 选择最佳策略
-    let strategyName = 'frequency_reduction';
-    if (adaptationInfo.reason === 'long_pause') {
-        strategyName = 'pause_recovery';
-    } else if (adaptationInfo.metrics.consecutivePauses > 10) {
-        strategyName = 'hybrid';
-    }
-    
-    const strategy = window.projectAdaptabilityManager.strategies.get(strategyName);
-    if (!strategy) {
-        console.error('未找到策略:', strategyName);
-        return;
-    }
-    
-    const adapter = window.projectAdaptabilityManager.getAdapter(project);
-    const projectInfo = adapter.getProjectInfo(project);
-    const adaptation = strategy.calculateAdaptation(projectInfo, adaptationInfo.metrics);
-    const prompt = strategy.generateUserPrompt(projectInfo, adaptation);
-    
-    // 创建模态框
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'block';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <h3 class="modal-title">🎯 ${prompt.title}</h3>
-            <div class="adaptation-content">
-                <p style="margin-bottom: 15px; color: #666;">${prompt.message}</p>
-                <div class="adaptation-details" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 10px 0; color: #333;">📊 调整详情</h4>
-                    <pre style="margin: 0; white-space: pre-line; font-family: inherit; color: #555;">${prompt.details}</pre>
-                </div>
-                <div class="adaptation-metrics" style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9em;">
-                    <strong>📈 当前状态：</strong>
-                    暂停${adaptationInfo.metrics.consecutivePauses}天，
-                    成功率${(adaptationInfo.metrics.successRate * 100).toFixed(1)}%，
-                    最近执行${adaptationInfo.metrics.recentExecutions}次
-                </div>
-                <div class="adaptation-actions" style="display: flex; gap: 10px; justify-content: flex-end;">
-                    ${prompt.options.map(option => `
-                        <button class="btn ${option.style === 'primary' ? 'btn-primary' : option.style === 'danger' ? 'btn-danger' : 'btn-secondary'}" 
-                                onclick="handleAdaptationAction('${option.action}', '${project.researchName}', '${strategyName}')"
-                                style="min-width: 100px;">
-                            ${option.text}
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // 点击背景关闭
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            document.body.removeChild(modal);
-        }
-    });
-}
-
-// 处理适应性操作
-window.handleAdaptationAction = function(action, projectName, strategyName) {
-    const modal = document.querySelector('.modal');
-    const project = gameData.developments.find(d => d.researchName === projectName);
-    
-    if (!project) {
-        console.error('未找到项目:', projectName);
-        return;
-    }
-    
-    switch (action) {
-        case 'accept':
-            // 应用适应性调整
-            const result = window.projectAdaptabilityManager.applyAdaptation(project, strategyName);
-            if (result && result.success) {
-                showNotification(`✅ ${result.message}`, 'success');
-                // 恢复项目
-                project.active = true;
-                project.paused = false;
-                project.pausedDate = null;
-                
-                renderDevelopments();
-                renderProductions();
-                saveToCloud();
-            }
-            break;
-            
-        case 'reject':
-            // 直接恢复，不做调整
-            project.active = true;
-            project.paused = false;
-            project.pausedDate = null;
-            
-            renderDevelopments();
-            renderProductions();
-            saveToCloud();
-            break;
-            
-        case 'custom':
-            // 显示自定义调整界面（暂时用简单的prompt）
-            const newFreq = prompt('请输入新的执行频率（如：每周2次）:', project.freq);
-            if (newFreq) {
-                project.freq = newFreq;
-                project.active = true;
-                project.paused = false;
-                project.pausedDate = null;
-                
-                renderDevelopments();
-                renderProductions();
-                saveToCloud();
-                showNotification(`✅ 已调整频率为：${newFreq}`, 'success');
-            }
-            break;
-            
-        case 'delete':
-            if (confirm('确定要删除这个项目吗？')) {
-                const index = gameData.developments.findIndex(d => d.researchName === projectName);
-                if (index !== -1) {
-                    removeDev(index);
-                }
-            }
-            break;
-            
-        case 'freq_only':
-            // 只应用频率调整
-            const freqStrategy = window.projectAdaptabilityManager.strategies.get('frequency_reduction');
-            const freqResult = window.projectAdaptabilityManager.applyAdaptation(project, 'frequency_reduction');
-            if (freqResult && freqResult.success) {
-                showNotification(`✅ ${freqResult.message}`, 'success');
-                project.active = true;
-                project.paused = false;
-                project.pausedDate = null;
-                
-                renderDevelopments();
-                renderProductions();
-                saveToCloud();
-            }
-            break;
-            
-        case 'ext_only':
-            // 只应用周期延长
-            const extResult = window.projectAdaptabilityManager.applyAdaptation(project, 'stage_extension');
-            if (extResult && extResult.success) {
-                showNotification(`✅ ${extResult.message}`, 'success');
-                project.active = true;
-                project.paused = false;
-                project.pausedDate = null;
-                
-                renderDevelopments();
-                renderProductions();
-                saveToCloud();
-            }
-            break;
-    }
-    
-    // 关闭模态框
-    if (modal) {
-        document.body.removeChild(modal);
-    }
-};
-
-// 每日检查适应性需求
-function checkDailyAdaptabilityNeeds() {
-    if (!window.projectAdaptabilityManager) return;
-    
-    const adaptationNeeded = window.projectAdaptabilityManager.checkAllProjects();
-    
-    if (adaptationNeeded.length > 0) {
-        console.log(`🎯 检测到 ${adaptationNeeded.length} 个项目需要适应性调整`);
-        
-        // 只显示第一个需要调整的项目，避免弹窗过多
-        const first = adaptationNeeded[0];
-        showAdaptationSuggestion(first.project, first.adaptationInfo);
-    }
-}
-
-// 添加到每日重置检查中
-const originalCheckDailyReset = checkDailyReset;
-checkDailyReset = function() {
-    originalCheckDailyReset();
-    
-    // 延迟检查适应性需求，确保数据加载完成
-    setTimeout(() => {
-        checkDailyAdaptabilityNeeds();
-    }, 2000);
-};
 console.log(`⏰ showTimeOptionsDialog类型: ${typeof window.showTimeOptionsDialog}`);
 console.log(`📝 recordTimeWithDuration类型: ${typeof window.recordTimeWithDuration}`);
 
