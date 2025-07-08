@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 简化规则：允许所有读写操作（适合个人项目）
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+} 

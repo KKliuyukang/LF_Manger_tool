@@ -52,100 +52,125 @@ window.EisenhowerMatrix = {
                 </div>
                 
                 <div class="eisenhower-body">
-                    <!-- 左侧任务池 -->
-                    <div class="task-pool-section">
-                        <div class="task-pool-header">
-                            <h4>📝 任务池</h4>
-                            <span class="task-count" id="task-pool-count">0 个任务</span>
+                    <!-- 桌面版布局 -->
+                    <div class="desktop-layout">
+                        <!-- 左侧任务池 -->
+                        <div class="task-pool-section">
+                            <div class="task-pool-header">
+                                <h4>📝 任务池</h4>
+                                <span class="task-count" id="task-pool-count">0 个任务</span>
+                            </div>
+                            
+                            <!-- 任务添加区 -->
+                            <div class="task-add-area">
+                                <div class="task-input-group">
+                                    <input type="text" 
+                                           id="new-task-title" 
+                                           class="task-input" 
+                                           placeholder="输入任务标题，按Enter快速添加..."
+                                           maxlength="100">
+                                </div>
+                                <div class="task-input-group">
+                                    <input type="date" 
+                                           id="new-task-deadline" 
+                                           class="task-date-input"
+                                           title="截止日期（可选）">
+                                    <button id="add-task-btn" 
+                                            class="btn btn-primary btn-sm"
+                                            onclick="EisenhowerMatrix.addTask()">
+                                        ➕ 添加
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 任务列表 -->
+                            <div class="task-pool-list" id="task-pool-list">
+                                <!-- 任务项将在这里动态生成 -->
+                            </div>
                         </div>
                         
-                        <!-- 任务添加区 -->
-                        <div class="task-add-area">
-                            <div class="task-input-group">
-                                <input type="text" 
-                                       id="new-task-title" 
-                                       class="task-input" 
-                                       placeholder="输入任务标题，按Enter快速添加..."
-                                       maxlength="100">
+                        <!-- 右侧矩阵 -->
+                        <div class="matrix-section">
+                            <div class="matrix-header">
+                                <h4>🎯 优先级矩阵</h4>
+                                <div class="matrix-legend">
+                                    <span class="legend-item urgent-important">重要且紧急</span>
+                                    <span class="legend-item important">重要不紧急</span>
+                                    <span class="legend-item urgent">紧急不重要</span>
+                                    <span class="legend-item neither">不重要不紧急</span>
+                                </div>
                             </div>
-                            <div class="task-input-group">
-                                <input type="date" 
-                                       id="new-task-deadline" 
-                                       class="task-date-input"
-                                       title="截止日期（可选）">
-                                <button id="add-task-btn" 
-                                        class="btn btn-primary btn-sm"
-                                        onclick="EisenhowerMatrix.addTask()">
-                                    ➕ 添加
-                                </button>
+                            
+                            <!-- 2x2 矩阵网格 -->
+                            <div class="matrix-grid">
+                                <!-- 第一行 -->
+                                <div class="matrix-quadrant urgent-important" data-quadrant="urgent-important">
+                                    <div class="quadrant-header">
+                                        <span class="quadrant-title">🚨 重要且紧急</span>
+                                        <span class="quadrant-subtitle">立即处理</span>
+                                        <span class="task-count" id="urgent-important-count">0</span>
+                                    </div>
+                                    <div class="quadrant-tasks" id="urgent-important-tasks">
+                                        <!-- 任务将在这里显示 -->
+                                    </div>
+                                </div>
+                                
+                                <div class="matrix-quadrant important" data-quadrant="important">
+                                    <div class="quadrant-header">
+                                        <span class="quadrant-title">⭐ 重要不紧急</span>
+                                        <span class="quadrant-subtitle">计划安排</span>
+                                        <span class="task-count" id="important-count">0</span>
+                                    </div>
+                                    <div class="quadrant-tasks" id="important-tasks">
+                                        <!-- 任务将在这里显示 -->
+                                    </div>
+                                </div>
+                                
+                                <!-- 第二行 -->
+                                <div class="matrix-quadrant urgent" data-quadrant="urgent">
+                                    <div class="quadrant-header">
+                                        <span class="quadrant-title">⚡ 紧急不重要</span>
+                                        <span class="quadrant-subtitle">委托他人</span>
+                                        <span class="task-count" id="urgent-count">0</span>
+                                    </div>
+                                    <div class="quadrant-tasks" id="urgent-tasks">
+                                        <!-- 任务将在这里显示 -->
+                                    </div>
+                                </div>
+                                
+                                <div class="matrix-quadrant neither" data-quadrant="neither">
+                                    <div class="quadrant-header">
+                                        <span class="quadrant-title">📱 不重要不紧急</span>
+                                        <span class="quadrant-subtitle">减少或消除</span>
+                                        <span class="task-count" id="neither-count">0</span>
+                                    </div>
+                                    <div class="quadrant-tasks" id="neither-tasks">
+                                        <!-- 任务将在这里显示 -->
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- 任务列表 -->
-                        <div class="task-pool-list" id="task-pool-list">
-                            <!-- 任务项将在这里动态生成 -->
                         </div>
                     </div>
                     
-                    <!-- 右侧矩阵 -->
-                    <div class="matrix-section">
-                        <div class="matrix-header">
-                            <h4>🎯 优先级矩阵</h4>
-                            <div class="matrix-legend">
-                                <span class="legend-item urgent-important">重要且紧急</span>
-                                <span class="legend-item important">重要不紧急</span>
-                                <span class="legend-item urgent">紧急不重要</span>
-                                <span class="legend-item neither">不重要不紧急</span>
-                            </div>
+                    <!-- 移动端布局 -->
+                    <div class="mobile-layout">
+                        <!-- 任务添加区 -->
+                        <div class="mobile-task-add">
+                            <input type="text" 
+                                   id="mobile-task-title" 
+                                   class="mobile-task-input" 
+                                   placeholder="添加新任务..."
+                                   maxlength="100">
+                            <button id="mobile-add-btn" 
+                                    class="mobile-add-button"
+                                    onclick="EisenhowerMatrix.addMobileTask()">
+                                ＋
+                            </button>
                         </div>
                         
-                        <!-- 2x2 矩阵网格 -->
-                        <div class="matrix-grid">
-                            <!-- 第一行 -->
-                            <div class="matrix-quadrant urgent-important" data-quadrant="urgent-important">
-                                <div class="quadrant-header">
-                                    <span class="quadrant-title">🚨 重要且紧急</span>
-                                    <span class="quadrant-subtitle">立即处理</span>
-                                    <span class="task-count" id="urgent-important-count">0</span>
-                                </div>
-                                <div class="quadrant-tasks" id="urgent-important-tasks">
-                                    <!-- 任务将在这里显示 -->
-                                </div>
-                            </div>
-                            
-                            <div class="matrix-quadrant important" data-quadrant="important">
-                                <div class="quadrant-header">
-                                    <span class="quadrant-title">⭐ 重要不紧急</span>
-                                    <span class="quadrant-subtitle">计划安排</span>
-                                    <span class="task-count" id="important-count">0</span>
-                                </div>
-                                <div class="quadrant-tasks" id="important-tasks">
-                                    <!-- 任务将在这里显示 -->
-                                </div>
-                            </div>
-                            
-                            <!-- 第二行 -->
-                            <div class="matrix-quadrant urgent" data-quadrant="urgent">
-                                <div class="quadrant-header">
-                                    <span class="quadrant-title">⚡ 紧急不重要</span>
-                                    <span class="quadrant-subtitle">委托他人</span>
-                                    <span class="task-count" id="urgent-count">0</span>
-                                </div>
-                                <div class="quadrant-tasks" id="urgent-tasks">
-                                    <!-- 任务将在这里显示 -->
-                                </div>
-                            </div>
-                            
-                            <div class="matrix-quadrant neither" data-quadrant="neither">
-                                <div class="quadrant-header">
-                                    <span class="quadrant-title">📱 不重要不紧急</span>
-                                    <span class="quadrant-subtitle">减少或消除</span>
-                                    <span class="task-count" id="neither-count">0</span>
-                                </div>
-                                <div class="quadrant-tasks" id="neither-tasks">
-                                    <!-- 任务将在这里显示 -->
-                                </div>
-                            </div>
+                        <!-- 移动端任务管理 -->
+                        <div class="mobile-task-manager" id="mobile-task-manager">
+                            <!-- 动态生成移动端任务界面 -->
                         </div>
                     </div>
                 </div>
@@ -155,6 +180,10 @@ window.EisenhowerMatrix = {
                         <span>总任务: <span id="total-tasks">0</span></span>
                         <span>已分类: <span id="categorized-tasks">0</span></span>
                         <span>待分类: <span id="uncategorized-tasks">0</span></span>
+                    </div>
+                    <div class="matrix-view-toggle mobile-only">
+                        <button id="matrix-view-btn" class="view-toggle-btn active" onclick="EisenhowerMatrix.switchView('matrix')">矩阵</button>
+                        <button id="list-view-btn" class="view-toggle-btn" onclick="EisenhowerMatrix.switchView('list')">列表</button>
                     </div>
                     <div class="matrix-actions">
                         <button class="btn btn-secondary" onclick="EisenhowerMatrix.closeModal()">关闭</button>
@@ -191,6 +220,12 @@ window.EisenhowerMatrix = {
         
         // 初始化拖拽功能
         this.initDragAndDrop();
+        
+        // 监听窗口大小变化
+        this.initResponsiveHandler();
+        
+        // 初始化移动端功能
+        this.initMobileFeatures();
     },
     
     // 显示矩阵模态框
@@ -202,17 +237,34 @@ window.EisenhowerMatrix = {
             this.createModal();
         }
         
+        // 检测移动端
+        const isMobile = window.innerWidth <= 768;
+        
         // 渲染数据
-        this.renderTaskPool();
-        this.renderMatrix();
+        if (isMobile) {
+            // 移动端渲染
+            this.renderMobileTaskManager();
+        } else {
+            // 桌面端渲染
+            this.renderTaskPool();
+            this.renderMatrix();
+        }
+        
         this.updateStats();
+        
+        // 移动端创建优先级选择器
+        if (isMobile) {
+            this.createMobilePrioritySelector();
+        }
         
         // 显示模态框
         modal.classList.add('show');
         
         // 聚焦到输入框
         setTimeout(() => {
-            const input = document.getElementById('new-task-title');
+            const input = isMobile ? 
+                document.getElementById('mobile-task-title') : 
+                document.getElementById('new-task-title');
             if (input) input.focus();
         }, 100);
     },
@@ -222,6 +274,13 @@ window.EisenhowerMatrix = {
         const modal = document.getElementById('eisenhower-matrix-modal');
         if (modal) {
             modal.classList.remove('show');
+            
+            // 清理移动端优先级选择器
+            const prioritySelector = modal.querySelector('.mobile-priority-selector');
+            if (prioritySelector) {
+                prioritySelector.remove();
+                this.mobilePrioritySelector = null;
+            }
         }
     },
     
@@ -969,40 +1028,88 @@ window.EisenhowerMatrix = {
         const taskId = taskElement.getAttribute('data-task-id');
         const location = taskElement.getAttribute('data-location');
         
+        // 检测是否点击了操作按钮
+        if (e.target.closest('.task-action-btn')) {
+            return; // 如果点击的是操作按钮，不启动拖拽
+        }
+        
         this.dragState.draggedElement = taskElement;
         this.dragState.draggedTaskId = taskId;
         this.dragState.sourceLocation = location;
-        this.dragState.isDragging = true;
+        this.dragState.touchStartTime = Date.now();
         
         // 记录初始触摸位置
         const touch = e.touches[0];
         this.dragState.startX = touch.clientX;
         this.dragState.startY = touch.clientY;
+        this.dragState.initialX = touch.clientX;
+        this.dragState.initialY = touch.clientY;
         
-        // 添加拖拽样式
-        taskElement.classList.add('dragging');
+        // 延迟启动拖拽，避免与点击冲突
+        this.dragState.touchTimer = setTimeout(() => {
+            if (!this.dragState.isDragging) {
+                this.dragState.isDragging = true;
+                
+                // 添加拖拽样式
+                taskElement.classList.add('dragging');
+                
+                // 轻微震动反馈（如果支持）
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+                
+                console.log('📱 开始触摸拖拽任务:', taskId);
+            }
+        }, 150); // 150ms后启动拖拽
         
-        // 防止默认滚动行为
+        // 防止默认行为，但允许滚动
         e.preventDefault();
-        
-        console.log('📱 开始触摸拖拽任务:', taskId);
     },
     
     handleTouchMove: function(e) {
-        if (!this.dragState.isDragging || e.touches.length !== 1) return;
-        
-        e.preventDefault();
+        if (e.touches.length !== 1) return;
         
         const touch = e.touches[0];
         const x = touch.clientX;
         const y = touch.clientY;
+        
+        // 检查是否移动距离足够启动拖拽
+        if (!this.dragState.isDragging) {
+            const deltaX = Math.abs(x - this.dragState.initialX);
+            const deltaY = Math.abs(y - this.dragState.initialY);
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            // 如果移动距离超过阈值，取消定时器并立即启动拖拽
+            if (distance > 15) {
+                if (this.dragState.touchTimer) {
+                    clearTimeout(this.dragState.touchTimer);
+                    this.dragState.touchTimer = null;
+                }
+                
+                if (!this.dragState.isDragging) {
+                    this.dragState.isDragging = true;
+                    this.dragState.draggedElement.classList.add('dragging');
+                    
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                    
+                    console.log('📱 移动触发拖拽:', this.dragState.draggedTaskId);
+                }
+            } else {
+                return; // 移动距离不够，不处理
+            }
+        }
+        
+        e.preventDefault();
         
         // 移动拖拽元素（视觉反馈）
         if (this.dragState.draggedElement) {
             const deltaX = x - this.dragState.startX;
             const deltaY = y - this.dragState.startY;
             
-            this.dragState.draggedElement.style.transform = `translate(${deltaX}px, ${deltaY}px) rotate(3deg)`;
+            this.dragState.draggedElement.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(1.05) rotate(3deg)`;
+            this.dragState.draggedElement.style.zIndex = '1000';
         }
         
         // 检测拖拽目标
@@ -1011,9 +1118,35 @@ window.EisenhowerMatrix = {
     },
     
     handleTouchEnd: function(e) {
-        if (!this.dragState.isDragging) return;
-        
         e.preventDefault();
+        
+        // 清除延迟定时器
+        if (this.dragState.touchTimer) {
+            clearTimeout(this.dragState.touchTimer);
+            this.dragState.touchTimer = null;
+        }
+        
+        // 如果没有进入拖拽状态，可能是点击操作
+        if (!this.dragState.isDragging) {
+            const touchDuration = Date.now() - this.dragState.touchStartTime;
+            const touch = e.changedTouches[0];
+            const deltaX = Math.abs(touch.clientX - this.dragState.initialX);
+            const deltaY = Math.abs(touch.clientY - this.dragState.initialY);
+            
+            // 如果是短时间且小距离的触摸，当作点击处理
+            if (touchDuration < 300 && deltaX < 10 && deltaY < 10) {
+                // 检查是否点击了操作按钮区域
+                const target = e.target.closest('.task-actions');
+                if (!target) {
+                    // 点击任务项本身，可以添加其他交互逻辑
+                    console.log('📱 点击任务:', this.dragState.draggedTaskId);
+                }
+            }
+            
+            // 重置状态
+            this.resetTouchState();
+            return;
+        }
         
         const touch = e.changedTouches[0];
         const x = touch.clientX;
@@ -1022,6 +1155,7 @@ window.EisenhowerMatrix = {
         // 重置拖拽元素样式
         if (this.dragState.draggedElement) {
             this.dragState.draggedElement.style.transform = '';
+            this.dragState.draggedElement.style.zIndex = '';
             this.dragState.draggedElement.classList.remove('dragging');
         }
         
@@ -1042,6 +1176,11 @@ window.EisenhowerMatrix = {
                 // 执行任务移动
                 this.moveTask(this.dragState.draggedTaskId, sourceLocation, targetLocation);
                 
+                // 成功移动的震动反馈
+                if (navigator.vibrate) {
+                    navigator.vibrate([50, 50, 100]);
+                }
+                
                 // 重新渲染界面
                 this.renderTaskPool();
                 this.renderMatrix();
@@ -1051,16 +1190,39 @@ window.EisenhowerMatrix = {
                 this.saveData();
                 
                 console.log('📱 触摸拖拽完成:', this.dragState.draggedTaskId, '→', targetLocation);
+                
+                // 显示成功提示
+                if (window.showNotification) {
+                    window.showNotification('✅ 任务已移动', 'success');
+                }
             }
         }
         
         // 重置拖拽状态
-        this.dragState.isDragging = false;
+        this.resetTouchState();
         
         // 重新绑定事件
         setTimeout(() => {
             this.attachDragEvents();
         }, 50);
+    },
+    
+    // 重置触摸状态
+    resetTouchState: function() {
+        this.dragState.isDragging = false;
+        this.dragState.draggedElement = null;
+        this.dragState.draggedTaskId = null;
+        this.dragState.sourceLocation = null;
+        this.dragState.touchStartTime = null;
+        this.dragState.startX = null;
+        this.dragState.startY = null;
+        this.dragState.initialX = null;
+        this.dragState.initialY = null;
+        
+        if (this.dragState.touchTimer) {
+            clearTimeout(this.dragState.touchTimer);
+            this.dragState.touchTimer = null;
+        }
     },
     
     // 更新触摸拖拽的目标高亮
@@ -1087,17 +1249,493 @@ window.EisenhowerMatrix = {
             return { element: taskPoolList, location: 'pool' };
         }
         
-        // 检查是否是象限
+        // 检查是否是象限（矩阵视图）
         const quadrants = ['urgent-important', 'important', 'urgent', 'neither'];
         for (const quadrant of quadrants) {
             const quadrantElement = element.closest(`#${quadrant}-tasks`);
             if (quadrantElement) {
                 return { element: quadrantElement, location: quadrant };
             }
+            
+            // 检查是否是列表视图的象限
+            const listQuadrantElement = element.closest(`#list-${quadrant}-tasks`);
+            if (listQuadrantElement) {
+                return { element: listQuadrantElement, location: quadrant };
+            }
         }
         
         return null;
-    }
+    },
+    
+    // 切换视图模式
+    switchView: function(viewType) {
+        this.currentView = viewType;
+        this.updateViewMode();
+    },
+    
+    // 更新视图模式
+    updateViewMode: function() {
+        const modal = document.getElementById('eisenhower-matrix-modal');
+        const matrixBtn = document.getElementById('matrix-view-btn');
+        const listBtn = document.getElementById('list-view-btn');
+        
+        if (!modal || !matrixBtn || !listBtn) return;
+        
+        // 更新按钮状态
+        matrixBtn.classList.toggle('active', this.currentView === 'matrix');
+        listBtn.classList.toggle('active', this.currentView === 'list');
+        
+        // 更新模态框类名
+        modal.classList.toggle('list-view-mode', this.currentView === 'list');
+        
+        if (this.currentView === 'list') {
+            this.renderListView();
+        } else {
+            this.renderMatrix();
+        }
+    },
+    
+    // 渲染列表视图
+    renderListView: function() {
+        const matrixSection = document.querySelector('.matrix-section');
+        if (!matrixSection) return;
+        
+        // 获取所有任务按优先级分组
+        const tasksByQuadrant = {
+            'urgent-important': [],
+            'important': [],
+            'urgent': [],
+            'neither': []
+        };
+        
+        // 收集各象限的任务
+        Object.keys(tasksByQuadrant).forEach(quadrant => {
+            const taskIds = gameData.eisenhowerTasks.quadrants[quadrant] || [];
+            tasksByQuadrant[quadrant] = taskIds.map(id => 
+                gameData.eisenhowerTasks.taskPool.find(task => task.id === id && task.status === 'active')
+            ).filter(Boolean);
+        });
+        
+        const quadrantConfig = {
+            'urgent-important': { title: '🚨 重要且紧急', subtitle: '立即处理', color: 'urgent-important' },
+            'important': { title: '⭐ 重要不紧急', subtitle: '计划安排', color: 'important' },
+            'urgent': { title: '⚡ 紧急不重要', subtitle: '委托他人', color: 'urgent' },
+            'neither': { title: '📱 不重要不紧急', subtitle: '减少或消除', color: 'neither' }
+        };
+        
+        matrixSection.innerHTML = `
+            <div class="matrix-header">
+                <h4>🎯 任务列表（按优先级排序）</h4>
+            </div>
+            <div class="list-view-container">
+                ${Object.keys(quadrantConfig).map(quadrant => {
+                    const config = quadrantConfig[quadrant];
+                    const tasks = tasksByQuadrant[quadrant];
+                    const count = tasks.length;
+                    
+                    return `
+                        <div class="list-section ${config.color}" data-quadrant="${quadrant}">
+                            <div class="list-section-header">
+                                <div class="section-title">${config.title}</div>
+                                <div class="section-subtitle">${config.subtitle}</div>
+                                <div class="section-count">${count} 项</div>
+                            </div>
+                            <div class="list-section-tasks" id="list-${quadrant}-tasks">
+                                ${tasks.length === 0 ? 
+                                    `<div class="empty-section">
+                                        <div class="drop-hint">拖拽任务到此处或从任务池添加</div>
+                                    </div>` :
+                                    tasks.map(task => this.renderTaskItem(task, quadrant)).join('')
+                                }
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+        
+        // 重新绑定拖拽事件
+        setTimeout(() => {
+            this.attachDragEvents();
+            this.attachListDropEvents();
+        }, 50);
+    },
+    
+    // 为列表视图添加拖拽目标事件
+    attachListDropEvents: function() {
+        const quadrants = ['urgent-important', 'important', 'urgent', 'neither'];
+        quadrants.forEach(quadrant => {
+            const element = document.getElementById(`list-${quadrant}-tasks`);
+            if (element) {
+                                 this.makeDropZone(element, quadrant);
+             }
+         });
+     },
+     
+     // 初始化移动端功能
+     initMobileFeatures: function() {
+         // 移动端专用变量
+         this.selectedTaskForPriority = null;
+         this.mobilePrioritySelector = null;
+         
+         // 检测移动端
+         this.checkMobileDevice();
+         
+         // 创建移动端优先级选择器
+         this.createMobilePrioritySelector();
+         
+         // 绑定移动端输入事件
+         this.bindMobileEvents();
+     },
+     
+     // 检测移动端设备
+     checkMobileDevice: function() {
+         const isMobile = window.innerWidth <= 768;
+         const modal = document.getElementById('eisenhower-matrix-modal');
+         if (modal) {
+             modal.classList.toggle('mobile-mode', isMobile);
+         }
+     },
+     
+     // 添加移动端任务
+     addMobileTask: function() {
+         const titleInput = document.getElementById('mobile-task-title');
+         if (!titleInput) return;
+         
+         const title = titleInput.value.trim();
+         if (!title) {
+             titleInput.focus();
+             return;
+         }
+         
+         // 创建新任务
+         const task = {
+             id: 'task_' + Date.now() + '_' + (++gameData.eisenhowerTasks.lastTaskId),
+             title: title,
+             description: '',
+             deadline: null,
+             status: 'active',
+             quadrant: null,
+             createdAt: Date.now(),
+             completedAt: null
+         };
+         
+         // 添加到任务池
+         gameData.eisenhowerTasks.taskPool.push(task);
+         
+         // 清空输入
+         titleInput.value = '';
+         
+         // 震动反馈
+         this.vibrate(50);
+         
+         // 重新渲染移动端界面
+         this.renderMobileTaskManager();
+         this.updateStats();
+         
+         console.log('✅ 移动端任务已添加:', task.title);
+     },
+     
+     // 渲染移动端任务管理器
+     renderMobileTaskManager: function() {
+         const container = document.getElementById('mobile-task-manager');
+         if (!container) return;
+         
+         // 获取所有活动任务
+         const allTasks = gameData.eisenhowerTasks.taskPool.filter(task => task.status === 'active');
+         
+         // 按类别分组
+         const unassignedTasks = allTasks.filter(task => !task.quadrant);
+         const assignedTasks = {
+             'urgent-important': [],
+             'important': [],
+             'urgent': [],
+             'neither': []
+         };
+         
+         allTasks.forEach(task => {
+             if (task.quadrant && assignedTasks[task.quadrant]) {
+                 assignedTasks[task.quadrant].push(task);
+             }
+         });
+         
+         const priorityConfig = {
+             'urgent-important': { title: '🚨 重要且紧急', color: 'urgent-important' },
+             'important': { title: '⭐ 重要不紧急', color: 'important' },
+             'urgent': { title: '⚡ 紧急不重要', color: 'urgent' },
+             'neither': { title: '📱 不重要不紧急', color: 'neither' }
+         };
+         
+         let html = '';
+         
+         // 未分类任务
+         if (unassignedTasks.length > 0) {
+             html += `
+                 <div class="mobile-section">
+                     <h3 style="color: #bdc3c7; margin-bottom: 12px; font-size: 0.9em;">📋 待分类任务</h3>
+                     ${unassignedTasks.map(task => this.renderMobileTaskCard(task)).join('')}
+                 </div>
+             `;
+         }
+         
+         // 已分类任务
+         Object.keys(priorityConfig).forEach(priority => {
+             const tasks = assignedTasks[priority];
+             if (tasks.length > 0) {
+                 const config = priorityConfig[priority];
+                 html += `
+                     <div class="mobile-section">
+                         <h3 style="color: #ecf0f1; margin-bottom: 12px; font-size: 0.9em;">${config.title}</h3>
+                         ${tasks.map(task => this.renderMobileTaskCard(task)).join('')}
+                     </div>
+                 `;
+             }
+         });
+         
+         if (html === '') {
+             html = `
+                 <div class="mobile-empty-state">
+                     <div style="font-size: 3em; margin-bottom: 16px;">📝</div>
+                     <div style="color: #bdc3c7; font-size: 1.1em; margin-bottom: 8px;">还没有任务</div>
+                     <div style="color: #7f8c8d; font-size: 0.9em;">在上方添加您的第一个任务</div>
+                 </div>
+             `;
+         }
+         
+         container.innerHTML = html;
+     },
+     
+     // 渲染移动端任务卡片
+     renderMobileTaskCard: function(task) {
+         const priorityText = this.getPriorityText(task.quadrant);
+         const deadlineText = this.formatDeadline(task.deadline);
+         
+         return `
+             <div class="mobile-task-card" data-task-id="${task.id}">
+                 <div class="mobile-task-header">
+                     <div class="mobile-task-content">
+                         <div class="mobile-task-title">${this.escapeHtml(task.title)}</div>
+                         ${deadlineText ? `<div class="mobile-task-deadline ${this.getDeadlineClass(task.deadline)}">${deadlineText}</div>` : ''}
+                     </div>
+                     ${task.quadrant ? `<div class="mobile-task-priority ${task.quadrant}">${priorityText}</div>` : ''}
+                 </div>
+                 <div class="mobile-task-actions">
+                     ${!task.quadrant ? `<button class="mobile-task-action priority" onclick="EisenhowerMatrix.selectTaskPriority('${task.id}')">设置优先级</button>` : ''}
+                     <button class="mobile-task-action complete" onclick="EisenhowerMatrix.completeTask('${task.id}')">完成</button>
+                     <button class="mobile-task-action delete" onclick="EisenhowerMatrix.deleteTask('${task.id}')">删除</button>
+                 </div>
+             </div>
+         `;
+     },
+     
+     // 获取优先级文本
+     getPriorityText: function(quadrant) {
+         const texts = {
+             'urgent-important': '重要紧急',
+             'important': '重要不紧急',
+             'urgent': '紧急不重要',
+             'neither': '不重要不紧急'
+         };
+         return texts[quadrant] || '未分类';
+     },
+     
+     // 选择任务优先级
+     selectTaskPriority: function(taskId) {
+         this.selectedTaskForPriority = taskId;
+         this.showMobilePrioritySelector();
+     },
+     
+     // 创建移动端优先级选择器
+     createMobilePrioritySelector: function() {
+         const modal = document.getElementById('eisenhower-matrix-modal');
+         if (!modal || modal.querySelector('.mobile-priority-selector')) return;
+         
+         const selector = document.createElement('div');
+         selector.className = 'mobile-priority-selector';
+         
+         selector.innerHTML = `
+             <div class="mobile-priority-title">选择任务优先级</div>
+             <div class="mobile-priority-options">
+                 <div class="mobile-priority-option urgent-important" onclick="EisenhowerMatrix.setPriority('urgent-important')">
+                     🚨 重要且紧急<br><small style="opacity: 0.7;">立即处理</small>
+                 </div>
+                 <div class="mobile-priority-option important" onclick="EisenhowerMatrix.setPriority('important')">
+                     ⭐ 重要不紧急<br><small style="opacity: 0.7;">计划安排</small>
+                 </div>
+                 <div class="mobile-priority-option urgent" onclick="EisenhowerMatrix.setPriority('urgent')">
+                     ⚡ 紧急不重要<br><small style="opacity: 0.7;">委托他人</small>
+                 </div>
+                 <div class="mobile-priority-option neither" onclick="EisenhowerMatrix.setPriority('neither')">
+                     📱 不重要不紧急<br><small style="opacity: 0.7;">减少或消除</small>
+                 </div>
+             </div>
+             <button class="mobile-priority-cancel" onclick="EisenhowerMatrix.hideMobilePrioritySelector()">取消</button>
+         `;
+         
+         modal.appendChild(selector);
+         this.mobilePrioritySelector = selector;
+     },
+     
+     // 显示移动端优先级选择器
+     showMobilePrioritySelector: function() {
+         if (this.mobilePrioritySelector) {
+             this.mobilePrioritySelector.classList.add('show');
+             this.vibrate(50);
+         }
+     },
+     
+     // 隐藏移动端优先级选择器
+     hideMobilePrioritySelector: function() {
+         if (this.mobilePrioritySelector) {
+             this.mobilePrioritySelector.classList.remove('show');
+         }
+         this.selectedTaskForPriority = null;
+     },
+     
+     // 设置优先级
+     setPriority: function(quadrant) {
+         if (!this.selectedTaskForPriority) return;
+         
+         const task = gameData.eisenhowerTasks.taskPool.find(t => t.id === this.selectedTaskForPriority);
+         if (!task) return;
+         
+         // 从原象限移除
+         if (task.quadrant) {
+             const oldQuadrant = gameData.eisenhowerTasks.quadrants[task.quadrant];
+             if (oldQuadrant) {
+                 const index = oldQuadrant.indexOf(task.id);
+                 if (index > -1) {
+                     oldQuadrant.splice(index, 1);
+                 }
+             }
+         }
+         
+         // 添加到新象限
+         task.quadrant = quadrant;
+         if (!gameData.eisenhowerTasks.quadrants[quadrant]) {
+             gameData.eisenhowerTasks.quadrants[quadrant] = [];
+         }
+         gameData.eisenhowerTasks.quadrants[quadrant].push(task.id);
+         
+         // 震动反馈
+         this.vibrate(100);
+         
+         // 隐藏选择器
+         this.hideMobilePrioritySelector();
+         
+         // 重新渲染
+         this.renderMobileTaskManager();
+         this.updateStats();
+         
+         console.log('✅ 任务优先级已设置:', task.title, '→', quadrant);
+     },
+     
+     // 绑定移动端事件
+     bindMobileEvents: function() {
+         // 移动端输入框回车
+         const mobileInput = document.getElementById('mobile-task-title');
+         if (mobileInput) {
+             mobileInput.addEventListener('keypress', (e) => {
+                 if (e.key === 'Enter') {
+                     this.addMobileTask();
+                 }
+             });
+         }
+         
+         // 监听窗口大小变化
+         window.addEventListener('resize', () => {
+             this.checkMobileDevice();
+         });
+     },
+     
+           // 震动反馈
+      vibrate: function(duration = 50) {
+          if (navigator.vibrate) {
+              navigator.vibrate(duration);
+          }
+      },
+      
+      // HTML转义
+      escapeHtml: function(text) {
+          const map = {
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;',
+              "'": '&#039;'
+          };
+          return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+      },
+      
+      // 格式化截止日期
+      formatDeadline: function(deadline) {
+          if (!deadline) return null;
+          
+          const date = new Date(deadline);
+          const now = new Date();
+          const diffDays = Math.ceil((date - now) / (1000 * 60 * 60 * 24));
+          
+          if (diffDays < 0) {
+              return `已超期 ${Math.abs(diffDays)} 天`;
+          } else if (diffDays === 0) {
+              return '今天到期';
+          } else if (diffDays === 1) {
+              return '明天到期';
+          } else if (diffDays <= 7) {
+              return `${diffDays} 天后到期`;
+          } else {
+              return date.toLocaleDateString('zh-CN');
+          }
+      },
+      
+      // 获取截止日期样式类
+      getDeadlineClass: function(deadline) {
+          if (!deadline) return '';
+          
+          const date = new Date(deadline);
+          const now = new Date();
+          const diffDays = Math.ceil((date - now) / (1000 * 60 * 60 * 24));
+          
+          if (diffDays < 0) {
+              return 'overdue';
+          } else if (diffDays <= 3) {
+              return 'urgent';
+          }
+          return '';
+      },
+     
+     // 初始化响应式处理
+     initResponsiveHandler: function() {
+         let resizeTimer;
+         
+         window.addEventListener('resize', () => {
+             clearTimeout(resizeTimer);
+             resizeTimer = setTimeout(() => {
+                 const modal = document.getElementById('eisenhower-matrix-modal');
+                 if (modal && modal.classList.contains('show')) {
+                     // 根据屏幕大小自动调整视图
+                     const shouldUseMobileView = window.innerWidth <= 768;
+                     const currentlyMobile = this.currentView === 'list';
+                     
+                     if (shouldUseMobileView && !currentlyMobile) {
+                         this.switchView('list');
+                     } else if (!shouldUseMobileView && currentlyMobile) {
+                         this.switchView('matrix');
+                     }
+                 }
+             }, 250);
+         });
+         
+         // 监听方向变化（移动端）
+         window.addEventListener('orientationchange', () => {
+             setTimeout(() => {
+                 const modal = document.getElementById('eisenhower-matrix-modal');
+                 if (modal && modal.classList.contains('show')) {
+                     this.updateViewMode();
+                 }
+             }, 500);
+         });
+     }
 };
 
 // 自动初始化

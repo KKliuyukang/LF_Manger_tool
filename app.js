@@ -373,13 +373,27 @@ function calculateProgress(dev) {
     if (prodNames.length === 0 && dev.prodName) {
         prodNames = [dev.prodName];
     }
-    // 统计所有关联产线的打卡记录数（不去重日期、不考虑周期）
+    
+    // 获取项目开始时间用于过滤
+    const projectStartDate = dev.startDate ? new Date(dev.startDate) : null;
+    
+    // 统计所有关联产线的打卡记录数（根据项目开始时间过滤）
     let count = 0;
     (gameData.timeLogs || []).forEach(log => {
         if (prodNames.includes(log.name)) {
-            count++;
+            // 如果设置了项目开始时间，只计算开始时间之后的记录
+            if (projectStartDate) {
+                const logDate = new Date(log.date || log.timestamp);
+                if (logDate >= projectStartDate) {
+                    count++;
+                }
+            } else {
+                // 没有设置开始时间则计算所有记录（兼容旧数据）
+                count++;
+            }
         }
     });
+    
     // 达到目标后自动升级
     if (dev.target && count >= dev.target && !dev.upgrading) {
         dev.upgrading = true;
@@ -1483,6 +1497,7 @@ function renderDevelopments() {
                                     `<button class=\"btn btn-secondary btn-small\" onclick=\"window.pauseDev(${idx})\">暂停</button>` : 
                                     `<button class=\"btn btn-primary btn-small\" onclick=\"window.resumeDev(${idx})\">继续</button>`
                                 }
+                                <button class=\"btn btn-warning btn-small\" onclick=\"window.resetDevProgress(${idx})\" title=\"重置进度起点，只计算从项目开始时间的记录\">🔄 重置起点</button>
                                 <button class=\"btn btn-danger btn-small\" onclick=\"window.removeDev(${idx})\">移除</button>
                             </div>
                         </div>
@@ -1737,6 +1752,7 @@ window.removeContextItem = function() {
                     }
                     
                     gameData.productions.splice(prod._realIndex, 1);
+                    updateProductionColorMap(); // 更新颜色映射
                     renderProductions();
                     renderResourceStats();
                     renderResourceOverview(); // 添加资源总览刷新
@@ -1746,6 +1762,7 @@ window.removeContextItem = function() {
             if (!confirm(`确定要删除生产线"${productionName}"吗？`)) return;
             
             gameData.productions.splice(prod._realIndex, 1);
+            updateProductionColorMap(); // 更新颜色映射
             renderProductions();
             renderResourceStats();
             renderResourceOverview(); // 添加资源总览刷新
@@ -1882,6 +1899,29 @@ window.removeDev = function(index) {
     renderProductions();
     renderResourceOverview(); // 添加资源总览刷新
     saveToCloud();
+}
+
+window.resetDevProgress = function(index) {
+    if (!gameData.developments[index]) return;
+    
+    const dev = gameData.developments[index];
+    if (!confirm(`确定要重置"${dev.researchName}"的进度起点吗？\n\n重置后将只计算从项目开始时间（${dev.startDate ? new Date(dev.startDate).toLocaleDateString() : '未设置'}）之后的时间记录。`)) {
+        return;
+    }
+    
+    // 更新项目的开始时间为当前时间
+    dev.startDate = new Date().toISOString();
+    dev.progressResetDate = new Date().toISOString(); // 记录重置时间
+    
+    console.log(`🔄 研发项目 "${dev.researchName}" 进度起点已重置到: ${new Date(dev.startDate).toLocaleString()}`);
+    
+    // 立即重新计算进度并刷新界面
+    renderDevelopments();
+    renderWeekCalendar(); // 刷新日历显示
+    saveToCloud();
+    
+    // 显示成功提示
+    showNotification(`✅ "${dev.researchName}" 进度起点已重置，现在只计算从 ${new Date(dev.startDate).toLocaleDateString()} 开始的记录`, 'success');
 }
 
 window.completeExperience = function(category, index) {
@@ -2498,6 +2538,7 @@ function saveProduction() {
         }
 
         closeModal('production-modal');
+        updateProductionColorMap(); // 更新颜色映射
         renderProductions();
         renderResourceStats();
         renderResourceOverview(); // 添加资源总览刷新
@@ -3115,15 +3156,100 @@ window.deleteBlueprint = function(blueprintId) {
     hideContextMenu();
 }
 
-function getCalendarBlockClass(name) {
-    // 简单的字符串hash到颜色索引的映射
-    let hash = 0;
+// 统一的颜色哈希函数，确保同名项目使用相同颜色，不同项目使用不同颜色
+function getColorIndex(name) {
+    // 多层哈希算法减少冲突
+    let hash1 = 5381; // DJB2 hash
+    let hash2 = 0;    // Simple hash
+    let hash3 = 1;    // FNV hash base
+    
     for (let i = 0; i < name.length; i++) {
-        hash = hash * 31 + name.charCodeAt(i);
+        const char = name.charCodeAt(i);
+        
+        // DJB2 hash
+        hash1 = ((hash1 << 5) + hash1) + char;
+        
+        // Simple polynomial rolling hash
+        hash2 = hash2 * 31 + char;
+        
+        // Modified FNV-like hash
+        hash3 = (hash3 * 16777619) ^ char;
     }
-    const colorIndex = Math.abs(hash) % 10;
+    
+    // 组合三个哈希值，使用不同的质数权重
+    const combined = Math.abs(
+        (hash1 * 2654435761) ^ 
+        (hash2 * 2246822519) ^ 
+        (hash3 * 3266489917)
+    );
+    
+    const colorIndex = combined % 25;
+    
+    console.log(`🎨 项目 "${name}" 分配颜色索引: ${colorIndex} (hash1:${hash1 % 25}, hash2:${hash2 % 25}, hash3:${hash3 % 25})`);
+    return colorIndex;
+}
+
+function getCalendarBlockClass(name) {
+    const colorIndex = getColorIndex(name);
     return `color-${colorIndex}`;
 }
+
+// 调试函数：显示所有项目的颜色分配
+window.debugColorAssignment = function() {
+    console.log('🎨 当前颜色分配情况:');
+    
+    // 收集所有项目名称
+    const allNames = new Set();
+    
+    // 从时间日志中收集
+    (gameData.timeLogs || []).forEach(log => {
+        if (log.name) allNames.add(log.name);
+    });
+    
+    // 从生产线中收集
+    (gameData.productions || []).forEach(prod => {
+        if (prod.name) allNames.add(prod.name);
+    });
+    
+    // 从蓝图中收集
+    (gameData.blueprints || []).forEach(bp => {
+        if (bp.name) allNames.add(bp.name);
+    });
+    
+    // 按颜色索引分组
+    const colorGroups = {};
+    const nameArray = Array.from(allNames).sort();
+    
+    nameArray.forEach(name => {
+        const colorIndex = getColorIndex(name);
+        if (!colorGroups[colorIndex]) {
+            colorGroups[colorIndex] = [];
+        }
+        colorGroups[colorIndex].push(name);
+    });
+    
+    // 显示结果
+    console.log(`📊 总共 ${nameArray.length} 个不同项目，分配到 ${Object.keys(colorGroups).length} 种颜色:`);
+    
+    Object.keys(colorGroups).sort((a, b) => a - b).forEach(colorIndex => {
+        const names = colorGroups[colorIndex];
+        const color = colorIndex;
+        console.log(`🎨 颜色 ${colorIndex}: ${names.join(', ')} ${names.length > 1 ? '⚠️ 有冲突!' : '✅'}`);
+    });
+    
+    // 找出冲突
+    const conflicts = Object.values(colorGroups).filter(group => group.length > 1);
+    if (conflicts.length > 0) {
+        console.warn(`⚠️ 发现 ${conflicts.length} 个颜色冲突:`);
+        conflicts.forEach((group, index) => {
+            console.warn(`   冲突 ${index + 1}: ${group.join(' vs ')}`);
+        });
+    } else {
+        console.log('✅ 没有颜色冲突，所有项目都有独特的颜色!');
+    }
+    
+    return { colorGroups, conflicts, totalProjects: nameArray.length };
+};
 
 // 5. 全职工作等任务可设置时间段
 // 新增设置时间段的UI和保存逻辑（略，后续可补充）
@@ -5655,7 +5781,10 @@ let productionColorMap = {};
 function updateProductionColorMap() {
     productionColorMap = {};
     (gameData.productions||[]).forEach((prod, idx) => {
-        productionColorMap[prod.name] = idx % 10;
+        // 使用统一的颜色哈希函数确保一致性
+        const colorIndex = getColorIndex(prod.name);
+        productionColorMap[prod.name] = colorIndex;
+        console.log(`🎨 生产线 "${prod.name}" 映射到颜色索引: ${colorIndex}`);
     });
 }
 

@@ -543,70 +543,550 @@
     }
 }
 
+/* 桌面端布局样式 */
+.desktop-layout {
+    display: flex !important;
+    width: 100% !important;
+    height: 100% !important;
+    gap: 20px !important;
+}
+
+.desktop-layout .task-pool-section {
+    width: 300px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 8px !important;
+    padding: 16px !important;
+}
+
+.desktop-layout .matrix-section {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important; /* 防止溢出 */
+}
+
+.desktop-layout .matrix-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+    gap: 16px !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+}
+
+.desktop-layout .matrix-quadrant {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.desktop-layout .quadrant-header {
+    padding: 12px 16px !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+.desktop-layout .quadrant-title {
+    font-size: 1em !important;
+    font-weight: 600 !important;
+    color: #ecf0f1 !important;
+}
+
+.desktop-layout .quadrant-subtitle {
+    font-size: 0.8em !important;
+    color: #bdc3c7 !important;
+}
+
+.desktop-layout .quadrant-tasks {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    padding: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+.desktop-layout .task-pool-header {
+    margin-bottom: 16px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.desktop-layout .task-pool-header h4 {
+    font-size: 1.1em !important;
+    color: #ecf0f1 !important;
+    margin: 0 0 4px 0 !important;
+}
+
+.desktop-layout .task-count {
+    font-size: 0.8em !important;
+    color: #bdc3c7 !important;
+}
+
+.desktop-layout .task-add-area {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+}
+
+.desktop-layout .task-input-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+.desktop-layout .task-input,
+.desktop-layout .task-date-input {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ecf0f1 !important;
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+}
+
+.desktop-layout .task-input:focus,
+.desktop-layout .task-date-input:focus {
+    border-color: #3498db !important;
+    outline: none !important;
+}
+
+.desktop-layout #add-task-btn {
+    background: #3498db !important;
+    color: white !important;
+    border: none !important;
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+
+.desktop-layout #add-task-btn:hover {
+    background: #2980b9 !important;
+}
+
+.desktop-layout .task-pool-list {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    min-height: 100px !important;
+}
+
+/* 默认隐藏移动端布局 */
+.mobile-layout {
+    display: none !important;
+}
+
+/* 确保优先级选择器只在模态框内显示 */
+.mobile-priority-selector {
+    display: none !important;
+}
+
+/* 移动端专用样式 */
 @media (max-width: 768px) {
+    /* 隐藏桌面端布局 */
+    .desktop-layout {
+        display: none !important;
+    }
     .modal-eisenhower .modal-content {
-        width: 100vw;
-        height: 100vh;
-        border-radius: 0;
-        max-width: none;
-        max-height: none;
+        width: 100vw !important;
+        height: 100vh !important;
+        border-radius: 0 !important;
+        max-width: none !important;
+        max-height: none !important;
+        margin: 0 !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
     }
     
     .eisenhower-header {
-        border-radius: 0;
-        padding: 16px 20px;
+        border-radius: 0 !important;
+        padding: 12px 16px !important;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        flex-shrink: 0;
     }
     
     .eisenhower-header .modal-title {
-        font-size: 1.2em;
+        font-size: 1.1em !important;
+    }
+    
+    .modal-close {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 20px !important;
     }
     
     .eisenhower-body {
-        padding: 16px;
+        padding: 0 !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        overflow: hidden !important;
+        flex: 1 !important;
+        height: auto !important;
+        min-height: 0 !important;
     }
     
-    .matrix-legend {
-        display: none; /* 移动端隐藏图例，节省空间 */
+    /* 隐藏桌面布局 */
+    .desktop-layout {
+        display: none !important;
     }
     
-    .matrix-grid {
-        grid-template-columns: 1fr;
-        grid-template-rows: repeat(4, 1fr);
-        gap: 8px;
-        min-height: auto;
+    /* 显示移动端布局 */
+    .mobile-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100% !important;
+        background: #2c3e50 !important;
     }
     
-    .quadrant-header {
-        padding: 8px 12px;
+    /* 移动端任务添加区 */
+    .mobile-task-add {
+        display: flex !important;
+        padding: 16px !important;
+        gap: 12px !important;
+        background: #34495e !important;
+        border-bottom: 1px solid #4a5f7a !important;
+        flex-shrink: 0 !important;
     }
     
-    .quadrant-tasks {
-        padding: 8px;
-        min-height: 80px;
+    .mobile-task-input {
+        flex: 1 !important;
+        padding: 12px 16px !important;
+        border: 1px solid #4a5f7a !important;
+        border-radius: 25px !important;
+        background: #2c3e50 !important;
+        color: #ecf0f1 !important;
+        font-size: 16px !important;
+        outline: none !important;
     }
     
-    .task-item {
-        padding: 8px 10px;
+    .mobile-task-input:focus {
+        border-color: #3498db !important;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3) !important;
     }
     
-    .task-title {
-        font-size: 0.85em;
+    .mobile-add-button {
+        width: 48px !important;
+        height: 48px !important;
+        border-radius: 50% !important;
+        background: #3498db !important;
+        color: white !important;
+        border: none !important;
+        font-size: 24px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        flex-shrink: 0 !important;
     }
     
+    .mobile-add-button:active {
+        transform: scale(0.95) !important;
+        background: #2980b9 !important;
+    }
+    
+    /* 移动端任务管理器 */
+    .mobile-task-manager {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        padding: 16px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+    }
+    
+    /* 移动端任务卡片 */
+    .mobile-task-card {
+        background: #34495e !important;
+        border-radius: 12px !important;
+        padding: 16px !important;
+        border: 1px solid #4a5f7a !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        position: relative !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .mobile-task-card:active {
+        transform: scale(0.98) !important;
+        background: #3d566e !important;
+    }
+    
+    .mobile-task-card.selecting {
+        border-color: #3498db !important;
+        background: #2d4356 !important;
+    }
+    
+    .mobile-task-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+    }
+    
+    .mobile-task-content {
+        flex: 1 !important;
+    }
+    
+    .mobile-task-title {
+        font-size: 1em !important;
+        line-height: 1.4 !important;
+        color: #ecf0f1 !important;
+        margin: 0 !important;
+        word-wrap: break-word !important;
+    }
+    
+    .mobile-task-deadline {
+        font-size: 0.8em !important;
+        color: #bdc3c7 !important;
+        margin-top: 4px !important;
+    }
+    
+    .mobile-task-deadline.overdue {
+        color: #e74c3c !important;
+    }
+    
+    .mobile-task-deadline.urgent {
+        color: #f39c12 !important;
+    }
+    
+    .mobile-task-priority {
+        background: rgba(0, 0, 0, 0.3) !important;
+        color: #bdc3c7 !important;
+        padding: 4px 8px !important;
+        border-radius: 12px !important;
+        font-size: 0.7em !important;
+        border: 1px solid #4a5f7a !important;
+        flex-shrink: 0 !important;
+    }
+    
+    .mobile-task-priority.urgent-important {
+        background: rgba(231, 76, 60, 0.2) !important;
+        color: #e74c3c !important;
+        border-color: #e74c3c !important;
+    }
+    
+    .mobile-task-priority.important {
+        background: rgba(243, 156, 18, 0.2) !important;
+        color: #f39c12 !important;
+        border-color: #f39c12 !important;
+    }
+    
+    .mobile-task-priority.urgent {
+        background: rgba(52, 152, 219, 0.2) !important;
+        color: #3498db !important;
+        border-color: #3498db !important;
+    }
+    
+    .mobile-task-priority.neither {
+        background: rgba(149, 165, 166, 0.2) !important;
+        color: #95a5a6 !important;
+        border-color: #95a5a6 !important;
+    }
+    
+    .mobile-task-actions {
+        display: flex !important;
+        gap: 8px !important;
+        justify-content: flex-end !important;
+        margin-top: 8px !important;
+    }
+    
+    .mobile-task-action {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: #ecf0f1 !important;
+        padding: 8px 16px !important;
+        border-radius: 6px !important;
+        font-size: 0.8em !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .mobile-task-action:active {
+        transform: scale(0.95) !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    .mobile-task-action.priority {
+        background: rgba(52, 152, 219, 0.2) !important;
+        border-color: #3498db !important;
+        color: #3498db !important;
+    }
+    
+    .mobile-task-action.complete {
+        background: rgba(46, 204, 113, 0.2) !important;
+        border-color: #2ecc71 !important;
+        color: #2ecc71 !important;
+    }
+    
+    .mobile-task-action.delete {
+        background: rgba(231, 76, 60, 0.2) !important;
+        border-color: #e74c3c !important;
+        color: #e74c3c !important;
+    }
+    
+    /* 移动端优先级选择器 */
+    .modal-eisenhower .mobile-priority-selector {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        background: #2c3e50 !important;
+        border-top: 2px solid #34495e !important;
+        padding: 20px !important;
+        transform: translateY(100%) !important;
+        transition: transform 0.3s ease !important;
+        z-index: 10000 !important; /* 提高层级，确保显示在模态框最上层 */
+        display: none !important; /* 默认隐藏 */
+    }
+    
+    .modal-eisenhower .mobile-priority-selector.show {
+        transform: translateY(0) !important;
+        display: block !important; /* 显示时设为可见 */
+    }
+    
+    .modal-eisenhower .mobile-priority-title {
+        text-align: center !important;
+        color: #ecf0f1 !important;
+        margin-bottom: 20px !important;
+        font-size: 1.1em !important;
+    }
+    
+    .modal-eisenhower .mobile-priority-options {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        margin-bottom: 20px !important;
+    }
+    
+    .modal-eisenhower .mobile-priority-option {
+        background: #34495e !important;
+        border: 2px solid #4a5f7a !important;
+        color: #ecf0f1 !important;
+        padding: 16px !important;
+        border-radius: 8px !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        text-align: center !important;
+    }
+    
+    .modal-eisenhower .mobile-priority-option:active {
+        transform: scale(0.98) !important;
+    }
+    
+    .modal-eisenhower .mobile-priority-option.urgent-important {
+        border-color: #e74c3c !important;
+        background: rgba(231, 76, 60, 0.1) !important;
+    }
+    
+    .modal-eisenhower .mobile-priority-option.important {
+        border-color: #f39c12 !important;
+        background: rgba(243, 156, 18, 0.1) !important;
+    }
+    
+    .modal-eisenhower .mobile-priority-option.urgent {
+        border-color: #3498db !important;
+        background: rgba(52, 152, 219, 0.1) !important;
+    }
+    
+    .modal-eisenhower .mobile-priority-option.neither {
+        border-color: #95a5a6 !important;
+        background: rgba(149, 165, 166, 0.1) !important;
+    }
+    
+    .modal-eisenhower .mobile-priority-cancel {
+        background: #7f8c8d !important;
+        color: white !important;
+        border: none !important;
+        padding: 12px !important;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        font-size: 1em !important;
+        width: 100% !important;
+    }
+    
+    .modal-eisenhower .mobile-priority-cancel:active {
+        transform: scale(0.98) !important;
+        background: #6c7b7d !important;
+    }
+    
+    /* 移动端分区样式 */
+    .mobile-section {
+        margin-bottom: 24px !important;
+    }
+    
+    .mobile-section h3 {
+        margin: 0 0 12px 0 !important;
+        padding: 0 4px !important;
+        font-size: 0.9em !important;
+        font-weight: 600 !important;
+    }
+    
+    /* 移动端空状态 */
+    .mobile-empty-state {
+        text-align: center !important;
+        padding: 40px 20px !important;
+        color: #7f8c8d !important;
+    }
+    
+    /* 移动端底部区域 */
     .eisenhower-footer {
-        padding: 12px 16px;
-        flex-direction: column;
-        gap: 12px;
+        padding: 8px 12px !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        position: sticky !important;
+        bottom: 0 !important;
+        background: #2c3e50 !important;
+        border-top: 1px solid #34495e !important;
+        flex-shrink: 0 !important;
+        z-index: 100 !important;
     }
     
     .matrix-stats {
-        order: 2;
+        order: 2 !important;
+        font-size: 0.7em !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+    }
+    
+    .matrix-view-toggle {
+        display: none !important; /* 移动端隐藏视图切换 */
     }
     
     .matrix-actions {
-        order: 1;
-        width: 100%;
-        justify-content: center;
+        order: 1 !important;
+        width: 100% !important;
+        justify-content: center !important;
+        gap: 12px !important;
+        display: flex !important;
+    }
+    
+    .matrix-actions .btn {
+        flex: 1 !important;
+        max-width: 100px !important;
+        padding: 8px 16px !important;
+        font-size: 0.9em !important;
+        border-radius: 6px !important;
+        font-weight: 500 !important;
     }
 }
 
@@ -790,4 +1270,205 @@
 .modal-small .modal-content {
     max-width: 400px;
     margin: 10vh auto;
+}
+
+/* 视图切换按钮 */
+.matrix-view-toggle {
+    display: none;
+}
+
+.view-toggle-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #bdc3c7;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s ease;
+}
+
+.view-toggle-btn:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: none;
+}
+
+.view-toggle-btn:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.view-toggle-btn.active {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.view-toggle-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ecf0f1;
+}
+
+/* 列表视图样式 */
+.list-view-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.list-section {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px solid #4a5f7a;
+    overflow: hidden;
+}
+
+.list-section.urgent-important {
+    border-left: 4px solid #e74c3c;
+}
+
+.list-section.important {
+    border-left: 4px solid #f39c12;
+}
+
+.list-section.urgent {
+    border-left: 4px solid #3498db;
+}
+
+.list-section.neither {
+    border-left: 4px solid #95a5a6;
+}
+
+.list-section-header {
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #4a5f7a;
+}
+
+.section-title {
+    font-weight: 600;
+    font-size: 0.95em;
+    color: #ecf0f1;
+}
+
+.section-subtitle {
+    font-size: 0.75em;
+    color: #bdc3c7;
+    margin-left: 8px;
+}
+
+.section-count {
+    background: #2c3e50;
+    color: #bdc3c7;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    border: 1px solid #4a5f7a;
+}
+
+.list-section-tasks {
+    padding: 12px;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.empty-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+    padding: 16px;
+}
+
+/* 移动端专用样式 */
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block !important;
+    }
+    
+    .matrix-view-toggle {
+        display: flex;
+        justify-content: center;
+        gap: 0;
+        order: 0;
+        margin-bottom: 8px;
+    }
+    
+    /* 列表视图模式下的特殊样式 */
+    .modal-eisenhower.list-view-mode .eisenhower-body {
+        padding: 8px 12px;
+    }
+    
+    .modal-eisenhower.list-view-mode .task-pool-section {
+        max-height: 200px;
+        min-height: 160px;
+    }
+    
+    .modal-eisenhower.list-view-mode .matrix-section {
+        flex: 1;
+    }
+    
+    .list-view-container {
+        gap: 8px;
+        padding-bottom: 16px;
+    }
+    
+    .list-section {
+        border-radius: 6px;
+    }
+    
+    .list-section-header {
+        padding: 10px 12px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .section-title {
+        font-size: 0.9em;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .section-subtitle {
+        font-size: 0.7em;
+        margin-left: 0;
+    }
+    
+    .section-count {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .list-section-tasks {
+        padding: 8px;
+        gap: 6px;
+    }
+    
+    .list-section-tasks .task-item {
+        margin-bottom: 0;
+        border-radius: 6px;
+    }
+    
+    .empty-section {
+        min-height: 50px;
+        padding: 12px;
+    }
+    
+    .empty-section .drop-hint {
+        font-size: 0.8em;
+        padding: 12px;
+    }
 } 

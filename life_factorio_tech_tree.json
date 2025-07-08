@@ -66,7 +66,7 @@
             "requirements": [],
             "action": "第1-7天：每天5分钟专注呼吸 | 第8-14天：10分钟单任务练习 | 第15-21天：15分钟深度专注训练",
             "success_metric": "能够连续专注15分钟不被干扰，注意力漂移减少50%",
-            "unlocks": ["deep_work_mastery"],
+            "unlocks": ["deep_work_mastery", "english_communication_mastery"],
             "estimated_time": "21天",
             "automation_reward": "频繁分心 → 连续专注15分钟",
             "freq": "每天",
@@ -121,6 +121,72 @@
             "freq": "每天",
             "cycle": 30,
             "target": 8
+          },
+          {
+            "id": "english_communication_mastery",
+            "name": "英语沟通精通",
+            "icon": "🗣️",
+            "priority": "A1",
+            "description": "澳洲工作环境中，流利英语沟通可提升职场表现40%，晋升机会增加60%。每天15-25分钟高效练习，8周见效",
+            "requirements": ["basic_focus"],
+            "action": "每天15-25分钟结构化练习 | 工作场景实战应用 | 量化追踪进步",
+            "success_metric": "8周内工作会议发言次数增加3倍，同事主动英语交流频率提升200%",
+            "unlocks": ["expertise_building", "flexible_work_negotiation", "consulting_income", "income_optimization"],
+            "estimated_time": "8周",
+            "automation_reward": "听不懂会议 → 自信英语交流",
+            "freq": "每天",
+            "cycle": 56,
+            "target": 48,
+            "stages": [
+              {
+                "stage": 1,
+                "name": "听力突破",
+                "duration": 14,
+                "target": 12,
+                "description": "快速提升澳洲口音理解，每天15分钟",
+                "tasks": [
+                  "澳洲新闻听写8分钟(ABC News播客)",
+                  "工作场景对话跟读7分钟"
+                ],
+                "milestone": "澳洲新闻理解率从60%提升到85%，工作对话理解90%"
+              },
+              {
+                "stage": 2,
+                "name": "口语激活",
+                "duration": 14,
+                "target": 12,
+                "description": "激活口语表达，消除开口障碍，每天20分钟",
+                "tasks": [
+                  "1分钟即兴表达录音练习10分钟",
+                  "影子练习跟读10分钟"
+                ],
+                "milestone": "连续表达无卡顿，语调接近澳洲本土7/10分"
+              },
+              {
+                "stage": 3,
+                "name": "工作实战",
+                "duration": 14,
+                "target": 12,
+                "description": "将技能应用到真实工作场景，每天20分钟",
+                "tasks": [
+                  "会议发言准备10分钟",
+                  "同事交流挑战10分钟"
+                ],
+                "milestone": "每次会议至少主动发言2次，同事主动找你英语聊天"
+              },
+              {
+                "stage": 4,
+                "name": "高级应用",
+                "duration": 14,
+                "target": 12,
+                "description": "达到职场英语高级水平，每天25分钟",
+                "tasks": [
+                  "复杂话题presentation练习15分钟",
+                  "澳洲文化语言学习10分钟"
+                ],
+                "milestone": "能做技术presentation，获得英语能力正面反馈"
+              }
+            ]
           },
           {
             "id": "time_audit",
@@ -316,7 +382,7 @@
             "icon": "🌟",
             "priority": "C1",
             "description": "专业内容输出6个月可建立行业影响力，咨询收入潜力提升200%。《个人品牌经济学》数据分析",
-            "requirements": ["skill_assessment", "deep_work_mastery"],
+            "requirements": ["skill_assessment", "deep_work_mastery", "english_communication_mastery"],
             "action": "第1-2月：确定专业定位和内容方向 | 第3-5月：持续输出专业内容 | 第6-8月：建立专业网络和影响力",
             "success_metric": "获得专业认可，拥有1000+专业粉丝",
             "unlocks": ["consulting_income", "platform_monetization"],
@@ -360,7 +426,7 @@
             "icon": "🎓",
             "priority": "D1",
             "description": "专业咨询时薪可达普通工作3-5倍，月收入增长50-100%。《咨询行业报告》：专家咨询市场增长率15%",
-            "requirements": ["expertise_building", "side_income_stream"],
+            "requirements": ["expertise_building", "side_income_stream", "english_communication_mastery"],
             "action": "第1月：包装咨询服务和定价 | 第2-3月：获取前3个付费客户 | 第4月：优化服务流程和扩展",
             "success_metric": "月咨询收入达到家庭支出的50%，时薪200+",
             "unlocks": ["flexible_work_negotiation", "platform_monetization"],
@@ -399,7 +465,7 @@
             "icon": "🤝",
             "priority": "E1",
             "description": "基于高绩效的弹性工作协商成功率80%，工作满意度提升45%。《远程工作研究》：绩效导向谈判策略",
-            "requirements": ["income_optimization", "automation_systems", "consulting_income"],
+            "requirements": ["income_optimization", "automation_systems", "consulting_income", "english_communication_mastery"],
             "action": "第1月：收集绩效证据和价值证明 | 第2月：制定弹性工作提案 | 第3月：协商和试行弹性安排",
             "success_metric": "获得每周至少3天远程工作权，工作时间自主度提升70%",
             "unlocks": ["time_sovereignty"],
@@ -520,11 +586,12 @@
         "basic_sleep_rhythm → sleep_quality_upgrade → energy_optimization → morning_routine → time_sovereignty",
         "financial_visibility → income_optimization → investment_foundation → passive_income_scaling → financial_independence",
         "basic_focus → deep_work_mastery → automation_systems → flexible_work_negotiation → time_sovereignty",
-        "skill_assessment → expertise_building → consulting_income → platform_monetization → lifestyle_sovereignty"
+        "skill_assessment → expertise_building → consulting_income → platform_monetization → lifestyle_sovereignty",
+        "basic_focus → english_communication_mastery → consulting_income → flexible_work_negotiation → time_sovereignty"
       ],
       "parallelTracks": {
         "foundation_track": ["basic_sleep_rhythm", "basic_movement", "basic_focus"],
-        "resource_track": ["financial_visibility", "skill_assessment", "time_audit"],
+        "resource_track": ["financial_visibility", "skill_assessment", "english_communication_mastery", "time_audit"],
         "optimization_track": ["sleep_quality_upgrade", "income_optimization", "deep_work_mastery", "expense_automation", "exercise_enhancement"],
         "system_track": ["investment_foundation", "automation_systems", "expertise_building", "energy_optimization"],
         "diversification_track": ["side_income_stream", "consulting_income", "travel_fund_automation"],
@@ -542,11 +609,15 @@
         },
         {
           "tech": "consulting_income",
-          "requires_from_multiple_tracks": ["expertise_building", "side_income_stream"]
+          "requires_from_multiple_tracks": ["expertise_building", "side_income_stream", "english_communication_mastery"]
         },
         {
           "tech": "passive_income_scaling", 
           "requires_from_multiple_tracks": ["investment_foundation", "side_income_stream"]
+        },
+        {
+          "tech": "flexible_work_negotiation",
+          "requires_from_multiple_tracks": ["income_optimization", "automation_systems", "consulting_income", "english_communication_mastery"]
         },
         {
           "tech": "complete_life_freedom",
@@ -556,7 +627,7 @@
     },
     "estimatedTimeline": {
       "phase0_foundation": "1-2个月（基础习惯建立）",
-      "phase1_resource": "3-4个月（资源认知和盘点）", 
+      "phase1_resource": "3-4个月（资源认知和盘点，包含英语提升）", 
       "phase2_optimization": "6-8个月（效率和质量提升）",
       "phase3_system": "8-12个月（系统化建设）",
       "phase4_diversification": "12-18个月（收入多元化）",
@@ -567,6 +638,7 @@
     "categories": {
       "physiological": ["basic_sleep_rhythm", "basic_movement", "sleep_quality_upgrade", "exercise_enhancement"],
       "psychological": ["basic_focus"],
+      "communication": ["english_communication_mastery"],
       "financial": ["financial_visibility", "income_optimization", "expense_automation", "investment_foundation", "passive_income_scaling", "financial_independence"],
       "professional": ["skill_assessment", "deep_work_mastery", "expertise_building", "side_income_stream", "consulting_income", "platform_monetization"],
       "lifestyle": ["time_audit", "automation_systems", "energy_optimization", "morning_routine", "travel_fund_automation", "flexible_work_negotiation", "time_sovereignty", "lifestyle_sovereignty"]

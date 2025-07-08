@@ -789,6 +789,17 @@ body {
     border-color: var(--border-medium);
 }
 
+.btn-warning {
+    background: var(--card-bg);
+    color: var(--warning-color);
+    border-color: var(--border-light);
+}
+
+.btn-warning:hover {
+    background: #fff8e1;
+    border-color: var(--warning-color);
+}
+
 .btn-danger {
     background: var(--card-bg);
     color: var(--danger-color);
@@ -1510,16 +1521,32 @@ body {
     z-index: 1;
 }
 /* 多色支持 */
-.calendar-block.color-0 { background: linear-gradient(90deg, #3498db 60%, #85c1e9 100%); }
-.calendar-block.color-1 { background: linear-gradient(90deg, #e67e22 60%, #f7ca18 100%); }
-.calendar-block.color-2 { background: linear-gradient(90deg, #27ae60 60%, #2ecc71 100%); }
-.calendar-block.color-3 { background: linear-gradient(90deg, #9b59b6 60%, #8e44ad 100%); }
-.calendar-block.color-4 { background: linear-gradient(90deg, #e74c3c 60%, #f1948a 100%); }
-.calendar-block.color-5 { background: linear-gradient(90deg, #16a085 60%, #48c9b0 100%); }
-.calendar-block.color-6 { background: linear-gradient(90deg, #34495e 60%, #7f8c8d 100%); }
-.calendar-block.color-7 { background: linear-gradient(90deg, #f39c12 60%, #f6e58d 100%); }
-.calendar-block.color-8 { background: linear-gradient(90deg, #2980b9 60%, #6dd5fa 100%); }
-.calendar-block.color-9 { background: linear-gradient(90deg, #c0392b 60%, #e17055 100%); }
+/* 日历块颜色与时间块保持一致 - 扩展到25种颜色 */
+.calendar-block.color-0 { background: linear-gradient(90deg, #e74c3c 60%, #c0392b 100%); } /* 活力红 */
+.calendar-block.color-1 { background: linear-gradient(90deg, #f39c12 60%, #e67e22 100%); } /* 温暖橙 */
+.calendar-block.color-2 { background: linear-gradient(90deg, #3498db 60%, #2980b9 100%); } /* 经典蓝 */
+.calendar-block.color-3 { background: linear-gradient(90deg, #27ae60 60%, #16a085 100%); } /* 生机绿 */
+.calendar-block.color-4 { background: linear-gradient(90deg, #f1c40f 60%, #f39c12 100%); } /* 明亮黄 */
+.calendar-block.color-5 { background: linear-gradient(90deg, #1abc9c 60%, #00b894 100%); } /* 薄荷绿 */
+.calendar-block.color-6 { background: linear-gradient(90deg, #9b59b6 60%, #8e44ad 100%); } /* 优雅紫 */
+.calendar-block.color-7 { background: linear-gradient(90deg, #e91e63 60%, #ad1457 100%); } /* 玫瑰红 */
+.calendar-block.color-8 { background: linear-gradient(90deg, #673ab7 60%, #512da8 100%); } /* 深紫色 */
+.calendar-block.color-9 { background: linear-gradient(90deg, #00bcd4 60%, #0097a7 100%); } /* 青蓝色 */
+.calendar-block.color-10 { background: linear-gradient(90deg, #ff5722 60%, #d84315 100%); } /* 深橙色 */
+.calendar-block.color-11 { background: linear-gradient(90deg, #795548 60%, #5d4037 100%); } /* 咖啡色 */
+.calendar-block.color-12 { background: linear-gradient(90deg, #607d8b 60%, #455a64 100%); } /* 蓝灰色 */
+.calendar-block.color-13 { background: linear-gradient(90deg, #ff9800 60%, #f57c00 100%); } /* 琥珀色 */
+.calendar-block.color-14 { background: linear-gradient(90deg, #4caf50 60%, #388e3c 100%); } /* 森林绿 */
+.calendar-block.color-15 { background: linear-gradient(90deg, #9c27b0 60%, #7b1fa2 100%); } /* 魅力紫 */
+.calendar-block.color-16 { background: linear-gradient(90deg, #ff6f61 60%, #ff5252 100%); } /* 珊瑚红 */
+.calendar-block.color-17 { background: linear-gradient(90deg, #42a5f5 60%, #1e88e5 100%); } /* 天空蓝 */
+.calendar-block.color-18 { background: linear-gradient(90deg, #66bb6a 60%, #43a047 100%); } /* 清新绿 */
+.calendar-block.color-19 { background: linear-gradient(90deg, #ffa726 60%, #ff8f00 100%); } /* 活力橙 */
+.calendar-block.color-20 { background: linear-gradient(90deg, #26a69a 60%, #00695c 100%); } /* 深青色 */
+.calendar-block.color-21 { background: linear-gradient(90deg, #ab47bc 60%, #8e24aa 100%); } /* 梦幻紫 */
+.calendar-block.color-22 { background: linear-gradient(90deg, #ef5350 60%, #e53935 100%); } /* 鲜艳红 */
+.calendar-block.color-23 { background: linear-gradient(90deg, #5c6bc0 60%, #3f51b5 100%); } /* 靛青蓝 */
+.calendar-block.color-24 { background: linear-gradient(90deg, #78909c 60%, #546e7a 100%); } /* 石墨灰 */
 
 .calendar-block-text {
     position: absolute;
@@ -1688,6 +1715,26 @@ body {
 .calendar-block.alt {
     background: linear-gradient(90deg, #f39c12 60%, #f7ca18 100%);
     opacity: 0.7;
+}
+
+/* 过去日期的日历块调淡效果 */
+.calendar-block.faded {
+    opacity: 0.1 !important;
+    filter: grayscale(60%) brightness(0.85) !important;
+    transition: all 0.3s ease !important;
+}
+
+.calendar-block.faded:hover {
+    opacity: 0.8 !important;
+    filter: grayscale(20%) brightness(0.95) !important;
+}
+
+.calendar-block.faded .calendar-block-text {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.calendar-block.faded:hover .calendar-block-text {
+    color: rgba(255, 255, 255, 0.95) !important;
 }
 
 /* 现代化自定义模态框样式 */
@@ -1883,17 +1930,32 @@ body {
     border-color: rgba(255,255,255,0.5);
 }
 
-/* 现代化渐变色彩方案 - 更饱和、清晰 */
-.time-block.color-0 { background: linear-gradient(135deg, #d32f2f, #ef5350) !important; } /* 深红 */
-.time-block.color-1 { background: linear-gradient(135deg, #f57c00, #ffb74d) !important; } /* 深橙 */
-.time-block.color-2 { background: linear-gradient(135deg, #1976d2, #64b5f6) !important; } /* 主蓝 */
-.time-block.color-3 { background: linear-gradient(135deg, #388e3c, #81c784) !important; } /* 森林绿 */
-.time-block.color-4 { background: linear-gradient(135deg, #ffa000, #ffd54f) !important; } /* 琥珀黄 */
-.time-block.color-5 { background: linear-gradient(135deg, #00796b, #4db6ac) !important; } /* 青色 */
-.time-block.color-6 { background: linear-gradient(135deg, #303f9f, #7986cb) !important; } /* 靛蓝 */
-.time-block.color-7 { background: linear-gradient(135deg, #c2185b, #f06292) !important; } /* 玫红 */
-.time-block.color-8 { background: linear-gradient(135deg, #7b1fa2, #ba68c8) !important; } /* 紫色 */
-.time-block.color-9 { background: linear-gradient(135deg, #0277bd, #4fc3f7) !important; } /* 天蓝 */
+/* 扩展的渐变色彩方案 - 20种独特颜色确保每个项目都不重复 */
+.time-block.color-0 { background: linear-gradient(135deg, #e74c3c, #c0392b) !important; } /* 活力红 */
+.time-block.color-1 { background: linear-gradient(135deg, #f39c12, #e67e22) !important; } /* 温暖橙 */
+.time-block.color-2 { background: linear-gradient(135deg, #3498db, #2980b9) !important; } /* 经典蓝 */
+.time-block.color-3 { background: linear-gradient(135deg, #27ae60, #16a085) !important; } /* 生机绿 */
+.time-block.color-4 { background: linear-gradient(135deg, #f1c40f, #f39c12) !important; } /* 明亮黄 */
+.time-block.color-5 { background: linear-gradient(135deg, #1abc9c, #00b894) !important; } /* 薄荷绿 */
+.time-block.color-6 { background: linear-gradient(135deg, #9b59b6, #8e44ad) !important; } /* 优雅紫 */
+.time-block.color-7 { background: linear-gradient(135deg, #e91e63, #ad1457) !important; } /* 玫瑰红 */
+.time-block.color-8 { background: linear-gradient(135deg, #673ab7, #512da8) !important; } /* 深紫色 */
+.time-block.color-9 { background: linear-gradient(135deg, #00bcd4, #0097a7) !important; } /* 青蓝色 */
+.time-block.color-10 { background: linear-gradient(135deg, #ff5722, #d84315) !important; } /* 深橙色 */
+.time-block.color-11 { background: linear-gradient(135deg, #795548, #5d4037) !important; } /* 咖啡色 */
+.time-block.color-12 { background: linear-gradient(135deg, #607d8b, #455a64) !important; } /* 蓝灰色 */
+.time-block.color-13 { background: linear-gradient(135deg, #ff9800, #f57c00) !important; } /* 琥珀色 */
+.time-block.color-14 { background: linear-gradient(135deg, #4caf50, #388e3c) !important; } /* 森林绿 */
+.time-block.color-15 { background: linear-gradient(135deg, #9c27b0, #7b1fa2) !important; } /* 魅力紫 */
+.time-block.color-16 { background: linear-gradient(135deg, #ff6f61, #ff5252) !important; } /* 珊瑚红 */
+.time-block.color-17 { background: linear-gradient(135deg, #42a5f5, #1e88e5) !important; } /* 天空蓝 */
+.time-block.color-18 { background: linear-gradient(135deg, #66bb6a, #43a047) !important; } /* 清新绿 */
+.time-block.color-19 { background: linear-gradient(135deg, #ffa726, #ff8f00) !important; } /* 活力橙 */
+.time-block.color-20 { background: linear-gradient(135deg, #26a69a, #00695c) !important; } /* 深青色 */
+.time-block.color-21 { background: linear-gradient(135deg, #ab47bc, #8e24aa) !important; } /* 梦幻紫 */
+.time-block.color-22 { background: linear-gradient(135deg, #ef5350, #e53935) !important; } /* 鲜艳红 */
+.time-block.color-23 { background: linear-gradient(135deg, #5c6bc0, #3f51b5) !important; } /* 靛青蓝 */
+.time-block.color-24 { background: linear-gradient(135deg, #78909c, #546e7a) !important; } /* 石墨灰 */
 
 
 .time-block.color-production { background: #3498db; }
@@ -4161,15 +4223,29 @@ input:checked + .slider:before {
     border: 1px solid var(--border-medium);
 }
 
-/* 时间块变淡效果 */
+/* 过去时间块变淡效果 - 极度淡化 */
 .time-block-faded {
-    opacity: 0.7 !important;
-    filter: grayscale(50%) !important;
+    opacity: 0.3 !important;
+    filter: grayscale(50%)  !important;
+    transform: scale(0.95) !important;
+    transition: all 0.3s ease !important;
 }
 
 .time-block-faded:hover {
-    opacity: 0.7 !important;
-    filter: grayscale(10%) !important;
+    opacity: 0.6 !important;
+    filter: grayscale(50%) !important;
+    transform: scale(0.98) !important;
+}
+
+/* 过去时间块的文字也要相应调淡 */
+.time-block-faded .time-block-text {
+    color: #FFFFFF !important;
+    text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.4) !important;
+}
+
+.time-block-faded:hover .time-block-text {
+    color: rgba(255, 255, 255, 0.8) !important;
+    text-shadow: 0px 0px 3px rgba(0, 0, 0, 0.6) !important;
 }
 
 /* 当前时间线样式 */
